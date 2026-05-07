@@ -1,150 +1,265 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, ScrollView } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { bookingRepository } from "../../lib/repositories/booking-repository";
-import { Button } from "../../components/ui/Button";
-import { Card, CardHeader, CardContent } from "../../components/ui/Card";
-import { Badge } from "../../components/ui/Badge";
+import React, { useState } from "react";
+import { View, Text, ScrollView, TouchableOpacity, Alert, Linking, KeyboardAvoidingView, Platform, Share } from "react-native";
+import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Calendar, Clock, MapPin, User, ChevronLeft } from "lucide-react-native";
-import { formatDate } from "../../lib/utils/date";
-import { formatCurrency } from "../../lib/utils/currency";
-import { sendWhatsApp, getBookingReminderTemplate } from "../../lib/utils/whatsapp";
-import { Alert } from "react-native";
+import { useBooking, useUpdateBooking, useDeleteBooking } from "@/lib/hooks/use-bookings";
+import { useClient } from "@/lib/hooks/use-clients";
+import { usePaymentsByBooking, useCreatePayment } from "@/lib/hooks/use-payments";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Input } from "@/components/ui/Input";
+import { ChevronLeft, Calendar, Clock, MapPin, User, FileText, Phone, MessageSquare, Trash2, CheckCircle2, XCircle, AlertCircle, Share2, RotateCcw } from "lucide-react-native";
+import { formatCurrency } from "@/lib/utils/currency";
 
 export default function BookingDetail() {
   const { id } = useLocalSearchParams();
-  const [booking, setBooking] = useState(null as any);
   const router = useRouter();
+  const updateBookingMutation = useUpdateBooking();
+  const deleteBookingMutation = useDeleteBooking();
+  const createPaymentMutation = useCreatePayment();
+  
+  const { data: booking, isLoading: loadingBooking } = useBooking(id as string);
+  const { data: client } = useClient(booking?.clientId || "");
+  const { data: payments = [] } = usePaymentsByBooking(id as string);
 
-  useEffect(() => {
-    if (id) {
-      bookingRepository
-        .getById(id as string)
-        .then((b) => setBooking(b))
-        .catch((e) => console.warn(e));
-    }
-  }, [id]);
+  const [editMode, setEditMode] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(false);
 
-  if (!booking) {
-    return (
-      <View className="flex-1 items-center justify-center bg-background">
-        <Text>Loading...</Text>
-      </View>
+  const totalPaid = (payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
+  const remainingBalance = (booking?.totalPrice || 0) - totalPaid;
+
+  const handleRefund = () => {
+    if (totalPaid <= 0) return;
+
+    Alert.alert(
+      "Konfirmasi Refund",
+      `Apakah Anda yakin ingin mengembalikan dana sebesar ${formatCurrency(totalPaid)}? Ini akan mencatat nilai negatif di laporan keuangan.`,
+      [
+        { text: "Batal", style: "cancel" },
+        { 
+          text: "Ya, Refund", 
+          style: "destructive", 
+          onPress: async () => {
+            try {
+              await createPaymentMutation.mutateAsync({
+                bookingId: id,
+                amount: -totalPaid,
+                paymentMethod: "Refund",
+                notes: "Pengembalian dana (Refund) karena pembatalan",
+                paymentDate: new Date().toISOString().split('T')[0]
+              });
+              Alert.alert("Sukses", "Refund berhasil dicatat.");
+            } catch (error) {
+              Alert.alert("Error", "Gagal mencatat refund.");
+            }
+          }
+        }
+      ]
     );
-  }
+  };
 
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case "completed": return "success";
-      case "pending": return "warning";
-      case "cancelled": return "error";
-      case "confirmed": return "info";
-      default: return "default";
+  const handleDelete = () => {
+    Alert.alert("Hapus Jadwal", "Yakin ingin menghapus jadwal ini?", [
+      { text: "Batal", style: "cancel" },
+      { text: "Hapus", style: "destructive", onPress: async () => {
+        await deleteBookingMutation.mutateAsync(id as string);
+        router.replace("/calendar");
+      }}
+    ]);
+  };
+
+  const updateStatus = async (newStatus: string) => {
+    setStatusLoading(true);
+    try {
+      await updateBookingMutation.mutateAsync({
+        id: id as string,
+        updates: { status: newStatus }
+      });
+      Alert.alert("Sukses", `Status diperbarui menjadi ${newStatus}`);
+    } catch (error) {
+      Alert.alert("Error", "Gagal memperbarui status");
+    } finally {
+      setStatusLoading(false);
     }
   };
 
-  const handleWhatsApp = () => {
-    if (!booking.client?.phone) {
-      Alert.alert("Error", "Nomor telepon klien tidak tersedia");
-      return;
-    }
-    const message = getBookingReminderTemplate(
-      booking.client.name,
-      formatDate(booking.bookingDate),
-      booking.startTime,
-      booking.service?.name || "Makeup Service"
-    );
-    sendWhatsApp(booking.client.phone, message);
-  };
+  if (loadingBooking) return null;
+  if (!booking) return (
+    <SafeAreaView className="flex-1 items-center justify-center">
+      <Text className="text-text-hint">Memuat data atau data telah dihapus...</Text>
+      <Button label="Kembali" onPress={() => router.back()} className="mt-4" />
+    </SafeAreaView>
+  );
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
-      <View className="px-4 py-4 flex-row items-center border-b border-divider">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onPress={() => router.back()}
-          className="mr-2"
-        >
-          <ChevronLeft {...({ size: 24, color: "#2D2D2D" } as any)} />
-        </Button>
-        <Text className="text-xl font-bold text-text-primary">Detail Jadwal</Text>
-      </View>
+    <View className="flex-1 bg-background">
+      <Stack.Screen options={{ headerShown: false }} />
+      
+      <SafeAreaView className="bg-surface border-b border-divider">
+        <View className="flex-row items-center justify-between px-6 py-4">
+          <View className="flex-row items-center">
+            <TouchableOpacity onPress={() => router.back()} className="mr-4 p-2">
+              <ChevronLeft size={24} color="#2D2D2D" />
+            </TouchableOpacity>
+            <Text className="text-xl font-bold text-text-primary">Detail Booking</Text>
+          </View>
+          <View className="flex-row items-center">
+            <TouchableOpacity onPress={handleDelete} className="mr-4 p-2">
+              <Trash2 size={22} color="#F44336" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setEditMode(!editMode)} className="p-2">
+              <Text className="text-primary font-bold">{editMode ? "Batal" : "Edit"}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaView>
 
-      <ScrollView contentContainerStyle={{ padding: 16 }}>
-        <Card className="mb-6">
-          <CardHeader className="flex-row items-center justify-between">
-            <View>
-              <Text className="text-text-secondary text-sm">Status Booking</Text>
-              <Badge label={booking.status} variant={getStatusVariant(booking.status)} className="mt-1" />
-            </View>
-            <Text className="text-2xl font-bold text-primary">{formatCurrency(booking.totalPrice)}</Text>
-          </CardHeader>
+      <ScrollView contentContainerStyle={{ padding: 24 }}>
+        {/* Status Section */}
+        <View className="mb-6">
+           <Text className="text-text-hint font-bold uppercase text-xs mb-3">Status Jadwal</Text>
+           <View className="flex-row gap-2">
+              {[
+                { id: 'pending', label: 'Pending', color: '#FF9800', icon: <AlertCircle size={14} color="white" /> },
+                { id: 'confirmed', label: 'Fix', color: '#2196F3', icon: <CheckCircle2 size={14} color="white" /> },
+                { id: 'completed', label: 'Selesai', color: '#4CAF50', icon: <CheckCircle2 size={14} color="white" /> },
+                { id: 'cancelled', label: 'Batal', color: '#F44336', icon: <XCircle size={14} color="white" /> },
+              ].map((s) => (
+                <TouchableOpacity 
+                  key={s.id}
+                  onPress={() => updateStatus(s.id)}
+                  disabled={statusLoading}
+                  style={{ 
+                    backgroundColor: booking.status === s.id ? s.color : '#F5F5F5',
+                    flex: 1,
+                    paddingVertical: 10,
+                    borderRadius: 12,
+                    alignItems: 'center',
+                    opacity: statusLoading ? 0.5 : 1
+                  }}
+                >
+                   <Text style={{ color: booking.status === s.id ? 'white' : '#757575', fontWeight: 'bold', fontSize: 10 }}>
+                     {s.label}
+                   </Text>
+                </TouchableOpacity>
+              ))}
+           </View>
+        </View>
 
-          <CardContent className="gap-y-4">
-            <View className="flex-row items-center">
-              <View className="w-10 h-10 bg-primary-light/20 rounded-full items-center justify-center mr-3">
-                <User {...({ size: 20, color: "#B76E79" } as any)} />
-              </View>
-              <View>
-                <Text className="text-text-secondary text-xs">Klien</Text>
-                <Text className="text-text-primary font-semibold text-base">{booking.client?.name || booking.clientId}</Text>
-              </View>
-            </View>
-
-            <View className="flex-row items-center">
-              <View className="w-10 h-10 bg-primary-light/20 rounded-full items-center justify-center mr-3">
-                <Calendar {...({ size: 20, color: "#B76E79" } as any)} />
-              </View>
-              <View>
-                <Text className="text-text-secondary text-xs">Tanggal</Text>
-                <Text className="text-text-primary font-semibold text-base">{formatDate(booking.bookingDate)}</Text>
-              </View>
-            </View>
-
-            <View className="flex-row items-center">
-              <View className="w-10 h-10 bg-primary-light/20 rounded-full items-center justify-center mr-3">
-                <Clock {...({ size: 20, color: "#B76E79" } as any)} />
-              </View>
-              <View>
-                <Text className="text-text-secondary text-xs">Waktu</Text>
-                <Text className="text-text-primary font-semibold text-base">{booking.startTime} - {booking.endTime}</Text>
-              </View>
-            </View>
-
-            <View className="flex-row items-center">
-              <View className="w-10 h-10 bg-primary-light/20 rounded-full items-center justify-center mr-3">
-                <MapPin {...({ size: 20, color: "#B76E79" } as any)} />
+        {/* Client Info Card */}
+        <Card className="mb-6 p-4">
+           <View className="flex-row items-center mb-4">
+              <View className="w-12 h-12 rounded-full bg-primary-light items-center justify-center mr-4">
+                 <User size={24} color="#B76E79" />
               </View>
               <View className="flex-1">
-                <Text className="text-text-secondary text-xs">Lokasi</Text>
-                <Text className="text-text-primary font-semibold text-base" numberOfLines={2}>
-                  {booking.locationName || "Lokasi tidak ditentukan"}
-                </Text>
+                 <Text className="text-lg font-bold text-text-primary">{booking.clientName || client?.name || "Klien"}</Text>
+                 <Text className="text-text-secondary">{client?.phone || "-"}</Text>
               </View>
-            </View>
-          </CardContent>
+           </View>
+           <View className="flex-row gap-2">
+              <TouchableOpacity 
+                onPress={() => Linking.openURL(`whatsapp://send?phone=${client?.phone}`)}
+                className="flex-1 flex-row items-center justify-center bg-green-500 py-3 rounded-xl"
+              >
+                 <MessageSquare size={18} color="white" />
+                 <Text className="text-white font-bold ml-2">WhatsApp</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={() => router.push(`/booking/invoice/${booking.id}` as any)}
+                className="flex-1 flex-row items-center justify-center bg-primary py-3 rounded-xl"
+              >
+                 <FileText size={18} color="white" />
+                 <Text className="text-white font-bold ml-2">Invoice</Text>
+              </TouchableOpacity>
+           </View>
         </Card>
 
-        {booking.notes && (
-          <Card className="mb-6">
-            <Text className="text-text-secondary text-sm mb-2">Catatan</Text>
-            <Text className="text-text-primary leading-relaxed">{booking.notes}</Text>
-          </Card>
-        )}
+        {/* Schedule Info */}
+        <View className="mb-6">
+           <Text className="text-text-hint font-bold uppercase text-xs mb-3">Detail Jadwal</Text>
+           <Card className="p-4">
+              <View className="flex-row items-center mb-4">
+                 <Calendar size={20} color="#B76E79" className="mr-3" />
+                 <Text className="text-text-primary font-medium">{booking.bookingDate}</Text>
+              </View>
+              <View className="flex-row items-center mb-4">
+                 <Clock size={20} color="#B76E79" className="mr-3" />
+                 <Text className="text-text-primary font-medium">{booking.startTime} - {booking.endTime}</Text>
+              </View>
+              <View className="flex-row items-start">
+                 <MapPin size={20} color="#B76E79" className="mr-3 mt-1" />
+                 <View className="flex-1">
+                    <Text className="text-text-primary font-medium">{booking.locationName}</Text>
+                    <Text className="text-text-secondary text-sm">{booking.locationAddress}</Text>
+                 </View>
+              </View>
+           </Card>
+        </View>
 
-        <Button 
-          label="Edit Jadwal" 
-          onPress={() => router.push(`/booking/${booking.id}/edit`)}
-          className="mb-4"
-        />
-        <Button 
-          variant="outline" 
-          label="Hubungi Klien (WA)" 
-          onPress={handleWhatsApp} 
-        />
+        {/* Finance Info */}
+        <View className="mb-6">
+           <View className="flex-row justify-between items-center mb-3">
+              <Text className="text-text-hint font-bold uppercase text-xs">Keuangan & Pembayaran</Text>
+              {totalPaid > 0 && (
+                <TouchableOpacity onPress={handleRefund} className="flex-row items-center">
+                  <RotateCcw size={12} color="#F44336" className="mr-1" />
+                  <Text className="text-status-error text-xs font-bold">Refund Dana</Text>
+                </TouchableOpacity>
+              )}
+           </View>
+           <Card className="p-4">
+              <View className="flex-row justify-between mb-2">
+                 <Text className="text-text-secondary">Total Biaya</Text>
+                 <Text className="text-text-primary font-bold">{formatCurrency(booking.totalPrice)}</Text>
+              </View>
+              <View className="flex-row justify-between mb-2">
+                 <Text className="text-text-secondary">Telah Dibayar</Text>
+                 <Text className="text-status-success font-bold">{formatCurrency(totalPaid)}</Text>
+              </View>
+              <View className="h-[1] bg-divider my-2" />
+              <View className="flex-row justify-between">
+                 <Text className="text-text-primary font-bold">Sisa Tagihan</Text>
+                 <Text className="text-status-error font-bold">{formatCurrency(remainingBalance)}</Text>
+              </View>
+
+              <View className="flex-row gap-2 mt-4">
+                <Button 
+                  variant="outline" 
+                  label="Kirim Pengingat" 
+                  onPress={() => {
+                    const msg = `Halo ${booking.clientName || client?.name}, sekadar mengingatkan jadwal makeup kita pada tanggal ${booking.bookingDate} jam ${booking.startTime}. Sampai jumpa! ✨`;
+                    Share.share({ message: msg });
+                  }}
+                  className="flex-1 rounded-xl"
+                  leftIcon={<Share2 size={18} color="#B76E79" />}
+                />
+                {remainingBalance > 0 && (
+                  <Button 
+                    variant="primary" 
+                    label="Bayar Sisa" 
+                    className="flex-1 rounded-xl"
+                    onPress={() => router.push({
+                      pathname: "/payment/new",
+                      params: { bookingId: booking.id, amount: remainingBalance }
+                    })}
+                  />
+                )}
+              </View>
+           </Card>
+        </View>
+
+        {/* Catatan Section */}
+        <View className="mb-10">
+           <Text className="text-text-hint font-bold uppercase text-xs mb-3">Catatan Khusus</Text>
+           <Card className="p-4 bg-neutral-background border-dashed border-divider">
+              <Text className="text-text-secondary italic">
+                 {booking.notes || "Tidak ada catatan khusus untuk jadwal ini."}
+              </Text>
+           </Card>
+        </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }

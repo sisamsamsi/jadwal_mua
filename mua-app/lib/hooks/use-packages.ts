@@ -10,14 +10,17 @@ export function usePackages() {
   });
 
   const createPackageMutation = useMutation({
-    mutationFn: ({ data, items }: { data: any; items: any[] }) => packageRepository.create(data, items),
+    mutationFn: (data: any) => packageRepository.create(data, []),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["packages"] }),
   });
 
   const updatePackageMutation = useMutation({
-    mutationFn: ({ id, data, items }: { id: string; data: any; items?: any[] }) =>
-      packageRepository.update(id, data, items),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["packages"] }),
+    mutationFn: ({ id, updates }: { id: string; updates: any }) =>
+      packageRepository.update(id, updates, []),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["packages"] });
+      queryClient.invalidateQueries({ queryKey: ["packages", "detail"] });
+    },
   });
 
   const deletePackageMutation = useMutation({
@@ -29,7 +32,17 @@ export function usePackages() {
     packages: packagesQuery.data ?? [],
     isLoading: packagesQuery.isLoading,
     createPackage: createPackageMutation.mutateAsync,
+    isCreating: createPackageMutation.isPending,
     updatePackage: updatePackageMutation.mutateAsync,
+    isUpdating: updatePackageMutation.isPending,
     deletePackage: deletePackageMutation.mutateAsync,
   };
+}
+
+export function usePackage(id: string) {
+  return useQuery({
+    queryKey: ["packages", "detail", id],
+    queryFn: () => packageRepository.getById(id),
+    enabled: !!id,
+  });
 }

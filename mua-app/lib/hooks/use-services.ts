@@ -13,6 +13,14 @@ export function useServices() {
   });
 }
 
+export function useService(id: string) {
+  return useQuery({
+    queryKey: serviceKeys.detail(id),
+    queryFn: () => serviceRepository.getById(id),
+    enabled: !!id,
+  });
+}
+
 export function useCreateService() {
   const qc = useQueryClient();
   return useMutation({ 

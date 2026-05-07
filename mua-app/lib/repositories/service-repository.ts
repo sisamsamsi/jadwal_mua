@@ -1,5 +1,5 @@
 import NetInfo from "@react-native-community/netinfo";
-import { v4 as uuidv4 } from "uuid";
+import * as Crypto from "expo-crypto";
 import { db } from "../db/client";
 import { services } from "../db/schema";
 import { servicesService } from "../supabase/services";
@@ -26,7 +26,7 @@ export const serviceRepository = {
 
   async create(payload: any) {
     const now = new Date().toISOString();
-    const id = uuidv4();
+    const id = Crypto.randomUUID();
     const rec = {
       ...payload,
       id,
@@ -138,4 +138,3 @@ async function syncServicesFromRemote() {
     console.warn("syncServicesFromRemote failed:", e);
   }
 }
-

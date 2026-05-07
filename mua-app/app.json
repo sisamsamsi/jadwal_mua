@@ -24,27 +24,26 @@
       },
       "package": "com.muaapp.app",
       "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "NOTIFICATIONS"
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "plugins": [
-      ["expo-router", { "root": "app" }],
+      "expo-router",
       "expo-secure-store",
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/images/logo.png",
-          "color": "#B76E79"
-        }
-      ],
-      "expo-image-picker"
+      "expo-image-picker",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "46c5b27f-195d-406e-8558-0043cfa211b8"
+      }
     }
   }
 }
-

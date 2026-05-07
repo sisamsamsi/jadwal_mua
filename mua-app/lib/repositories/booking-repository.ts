@@ -1,5 +1,5 @@
 import NetInfo from "@react-native-community/netinfo";
-import { v4 as uuidv4 } from "uuid";
+import * as Crypto from "expo-crypto";
 import { db } from "../db/client";
 import { bookings, clients, services } from "../db/schema";
 import { bookingsService } from "../supabase/bookings";
@@ -57,7 +57,7 @@ export const bookingRepository = {
 
   async create(userId: string, formData: any) {
     const now = new Date().toISOString();
-    const id = uuidv4();
+    const id = Crypto.randomUUID();
 
     const newBooking = {
       id,
@@ -149,25 +149,14 @@ export const bookingRepository = {
   },
 
   async delete(id: string) {
-    // soft delete locally
-    await db
-      .update(bookings)
-      .set({
-        status: "cancelled",
-        updatedAt: new Date().toISOString(),
-        isSynced: false,
-        localUpdatedAt: new Date().toISOString(),
-      } as any)
-      .where(eq(bookings.id, id));
+    // 1. Hapus dari SQLite Lokal
+    await db.delete(bookings).where(eq(bookings.id, id));
 
+    // 2. Hapus dari Remote (Supabase) jika online
     const state = await NetInfo.fetch();
     if (state.isConnected) {
       try {
         await bookingsService.delete(id);
-        await db
-          .update(bookings)
-          .set({ isSynced: true })
-          .where(eq(bookings.id, id));
       } catch (e) {
         console.warn("Sync delete booking failed:", e);
       }

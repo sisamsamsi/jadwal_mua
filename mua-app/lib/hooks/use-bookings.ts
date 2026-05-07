@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { bookingRepository } from "../repositories/booking-repository";
+import { clientRepository } from "../repositories/client-repository";
 import { useAuthStore } from "../stores/auth-store";
 
 export const bookingKeys = {
@@ -8,10 +9,40 @@ export const bookingKeys = {
   detail: (id: string) => ["bookings", "detail", id] as const,
 };
 
+export function useBookings() {
+  return useQuery({
+    queryKey: bookingKeys.all,
+    queryFn: async () => {
+      const bookings = await bookingRepository.getAll();
+      const clients = await clientRepository.getAll();
+      const clientMap = clients.reduce((acc: any, c: any) => ({ ...acc, [c.id]: c.name }), {});
+      return bookings.map((b: any) => ({ ...b, clientName: clientMap[b.clientId] || "Klien Tidak Dikenal" }));
+    },
+  });
+}
+
 export function useBookingsByDate(date: string) {
   return useQuery({
     queryKey: bookingKeys.byDate(date),
-    queryFn: () => bookingRepository.getByDate(date),
+    queryFn: async () => {
+      const bookings = await bookingRepository.getByDate(date);
+      const clients = await clientRepository.getAll();
+      const clientMap = clients.reduce((acc: any, c: any) => ({ ...acc, [c.id]: c.name }), {});
+      return bookings.map((b: any) => ({ ...b, clientName: clientMap[b.clientId] || "Klien Tidak Dikenal" }));
+    },
+  });
+}
+
+export function useBooking(id: string) {
+  return useQuery({
+    queryKey: bookingKeys.detail(id),
+    queryFn: async () => {
+      const booking = await bookingRepository.getById(id);
+      if (!booking) return null;
+      const client = await clientRepository.getById(booking.clientId);
+      return { ...booking, clientName: client?.name || "Klien Tidak Dikenal" };
+    },
+    enabled: !!id,
   });
 }
 
@@ -21,7 +52,10 @@ export function useCreateBooking() {
 
   return useMutation({
     mutationFn: (payload: any) => bookingRepository.create(user?.id ?? "", payload),
-    onSuccess: () => qc.invalidateQueries({ queryKey: bookingKeys.all }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: bookingKeys.all });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    },
   });
 }
 

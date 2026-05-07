@@ -1,5 +1,5 @@
 import NetInfo from "@react-native-community/netinfo";
-import { v4 as uuidv4 } from "uuid";
+import * as Crypto from "expo-crypto";
 import { db } from "../db/client";
 import { clients } from "../db/schema";
 import { clientsService } from "../supabase/clients";
@@ -22,12 +22,12 @@ export const clientRepository = {
 
   async getById(id: string) {
     const rows = await db.select().from(clients).where(eq(clients.id, id));
-    return rows[0] as any;
+    return rows[0] || null;
   },
 
   async create(payload: any) {
     const now = new Date().toISOString();
-    const id = uuidv4();
+    const id = Crypto.randomUUID();
     const rec = {
       ...payload,
       id,
@@ -133,4 +133,3 @@ async function syncClientsFromRemote() {
     console.warn("syncClientsFromRemote failed:", e);
   }
 }
-

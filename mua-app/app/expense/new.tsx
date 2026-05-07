@@ -1,44 +1,52 @@
 import React, { useState } from "react";
-import { View, Text, ScrollView, Alert } from "react-native";
+import { View, Text, ScrollView, Alert, TouchableOpacity, KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { useCreateExpense } from "@/lib/hooks/use-expenses";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { ChevronLeft, Receipt, Tag, Calendar, DollarSign } from "lucide-react-native";
-import { v4 as uuidv4 } from "uuid";
+import { ChevronLeft, DollarSign, Calendar as CalendarIcon, Tag } from "lucide-react-native";
+import { useCreateExpense } from "@/lib/hooks/use-expenses";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import * as Crypto from "expo-crypto";
+import DateTimePickerModal from "react-native-modal-datetime-picker";
+import { format } from "date-fns";
 
 export default function NewExpense() {
   const router = useRouter();
   const createExpenseMutation = useCreateExpense();
   const session = useAuthStore(s => s.session);
-
   const [loading, setLoading] = useState(false);
+  const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+  
   const [formData, setFormData] = useState({
-    description: "",
-    category: "Product",
-    amount: "0",
+    amount: "",
+    category: "Operasional",
     expenseDate: new Date().toISOString().split("T")[0],
-    notes: "",
+    description: "",
   });
 
+  const categories = ["Operasional", "Produk", "Marketing", "Gaji", "Lainnya"];
+
+  const handleConfirmDate = (date: Date) => {
+    setFormData(prev => ({ ...prev, expenseDate: format(date, "yyyy-MM-dd") }));
+    setDatePickerVisibility(false);
+  };
+
   const handleSave = async () => {
-    if (!formData.description || !formData.amount) {
-      Alert.alert("Error", "Deskripsi dan jumlah pengeluaran wajib diisi");
+    if (!formData.amount || parseFloat(formData.amount) <= 0) {
+      Alert.alert("Error", "Masukkan jumlah pengeluaran yang valid");
       return;
     }
 
     setLoading(true);
     try {
       const newExpense = {
-        id: uuidv4(),
+        id: Crypto.randomUUID(),
         userId: session?.user.id || "",
-        description: formData.description,
-        category: formData.category,
         amount: parseFloat(formData.amount),
+        category: formData.category,
         expenseDate: formData.expenseDate,
-        notes: formData.notes,
+        description: formData.description,
         createdAt: new Date().toISOString(),
       };
 
@@ -46,6 +54,7 @@ export default function NewExpense() {
       Alert.alert("Sukses", "Pengeluaran berhasil dicatat");
       router.back();
     } catch (error) {
+      console.error(error);
       Alert.alert("Error", "Gagal menyimpan pengeluaran");
     } finally {
       setLoading(false);
@@ -54,69 +63,89 @@ export default function NewExpense() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <View className="flex-row items-center px-6 py-4 border-b border-divider bg-surface">
-        <Button variant="ghost" size="icon" onPress={() => router.back()} className="mr-2">
-          <ChevronLeft {...({ size: 24, color: "#2D2D2D" } as any)} />
-        </Button>
-        <Text className="text-xl font-bold text-text-primary">Catat Pengeluaran</Text>
-      </View>
-
-      <ScrollView contentContainerStyle={{ padding: 24 }}>
-        <Input 
-          label="Deskripsi Pengeluaran *" 
-          placeholder="Misal: Beli Foundation, Transport Wedding"
-          value={formData.description} 
-          onChangeText={(v) => setFormData(p => ({ ...p, description: v }))}
-          leftIcon={<Receipt {...({ size: 18, color: "#BDBDBD" } as any)} />}
-        />
-        
-        <Input 
-          label="Kategori" 
-          placeholder="Product, Transport, Equipment, Rent, dll"
-          value={formData.category} 
-          onChangeText={(v) => setFormData(p => ({ ...p, category: v }))}
-          leftIcon={<Tag {...({ size: 18, color: "#BDBDBD" } as any)} />}
-        />
-
-        <View className="flex-row justify-between">
-          <View className="w-[48%]">
-            <Input 
-              label="Tanggal" 
-              value={formData.expenseDate} 
-              onChangeText={(v) => setFormData(p => ({ ...p, expenseDate: v }))}
-              leftIcon={<Calendar {...({ size: 18, color: "#BDBDBD" } as any)} />}
-            />
-          </View>
-          <View className="w-[48%]">
-            <Input 
-              label="Jumlah (Rp) *" 
-              value={formData.amount} 
-              onChangeText={(v) => setFormData(p => ({ ...p, amount: v }))}
-              keyboardType="numeric"
-              leftIcon={<DollarSign {...({ size: 18, color: "#BDBDBD" } as any)} />}
-            />
-          </View>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 20}
+      >
+        <View className="flex-row items-center px-6 py-4 border-b border-divider bg-surface">
+          <TouchableOpacity onPress={() => router.back()} className="mr-4 p-2">
+            <ChevronLeft size={24} color="#2D2D2D" />
+          </TouchableOpacity>
+          <Text className="text-xl font-bold text-text-primary">Catat Pengeluaran</Text>
         </View>
 
-        <Input 
-          label="Catatan" 
-          placeholder="Catatan tambahan..."
-          value={formData.notes} 
-          onChangeText={(v) => setFormData(p => ({ ...p, notes: v }))}
-          multiline
-          numberOfLines={3}
-          style={{ height: 80 }}
-        />
+        <ScrollView 
+          contentContainerStyle={{ padding: 24, paddingBottom: 100 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Input 
+            label="Jumlah Pengeluaran (Rp) *" 
+            placeholder="0"
+            value={formData.amount}
+            onChangeText={(v) => setFormData(p => ({ ...p, amount: v }))}
+            keyboardType="numeric"
+            leftIcon={<DollarSign size={18} color="#BDBDBD" />}
+          />
 
-        <Button 
-          variant="primary" 
-          label={loading ? "Menyimpan..." : "Simpan Pengeluaran"} 
-          onPress={handleSave}
-          loading={loading}
-          className="mt-6 h-14"
-        />
-      </ScrollView>
+          <TouchableOpacity onPress={() => setDatePickerVisibility(true)}>
+            <View pointerEvents="none">
+              <Input 
+                label="Tanggal Pengeluaran *" 
+                value={formData.expenseDate}
+                editable={false}
+                leftIcon={<CalendarIcon size={18} color="#BDBDBD" />}
+              />
+            </View>
+          </TouchableOpacity>
+
+          <DateTimePickerModal
+            isVisible={isDatePickerVisible}
+            mode="date"
+            onConfirm={handleConfirmDate}
+            onCancel={() => setDatePickerVisibility(false)}
+            date={new Date(formData.expenseDate)}
+          />
+
+          <View className="mb-6 mt-4">
+            <Text className="text-text-secondary text-sm font-bold mb-3 uppercase">Kategori</Text>
+            <View className="flex-row flex-wrap gap-2">
+              {categories.map((cat) => (
+                <TouchableOpacity 
+                  key={cat}
+                  onPress={() => setFormData(p => ({ ...p, category: cat }))}
+                  style={{
+                    backgroundColor: formData.category === cat ? '#F44336' : '#FFFFFF',
+                    borderColor: formData.category === cat ? '#F44336' : '#EEEEEE',
+                  }}
+                  className="px-4 py-2 rounded-xl border shadow-sm"
+                >
+                  <Text className={`font-bold ${formData.category === cat ? 'text-white' : 'text-text-secondary'}`}>{cat}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <Input 
+            label="Deskripsi Pengeluaran" 
+            placeholder="Misal: Beli Foundation, Bayar Listrik"
+            value={formData.description}
+            onChangeText={(v) => setFormData(p => ({ ...p, description: v }))}
+            multiline
+            numberOfLines={3}
+            style={{ height: 80 }}
+            leftIcon={<Tag size={18} color="#BDBDBD" />}
+          />
+
+          <Button 
+            variant="primary" 
+            label="Simpan Pengeluaran" 
+            onPress={handleSave}
+            loading={loading}
+            className="mt-6 h-14 rounded-2xl"
+          />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
-

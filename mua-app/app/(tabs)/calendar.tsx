@@ -1,20 +1,68 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { View, Text, FlatList, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import { Calendar } from "react-native-calendars";
-import { useBookingsByDate } from "@/lib/hooks/use-bookings";
+import { useBookingsByDate, useBookings } from "@/lib/hooks/use-bookings";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { Clock, MapPin, User } from "lucide-react-native";
+import { Clock, MapPin } from "lucide-react-native";
 import { formatDate } from "@/lib/utils/date";
 
+const PASTEL_COLORS = [
+  "#FFB3BA", // Pink Soft
+  "#BAFFC9", // Green Soft
+  "#BAE1FF", // Blue Soft
+  "#FFFFBA", // Yellow Soft
+  "#FFDFBA", // Orange Soft
+  "#E0BBE4", // Purple Soft
+];
+
 export default function CalendarScreen() {
-  const [selected, setSelected] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  const [selected, setSelected] = useState(new Date().toISOString().split("T")[0]);
   const router = useRouter();
-  const { data: bookings, isLoading } = useBookingsByDate(selected);
+  const { data: bookingsOnDate } = useBookingsByDate(selected);
+  const { data: allBookings = [] } = useBookings();
+
+  const markedDates = useMemo(() => {
+    const marks: any = {};
+
+    allBookings.forEach((b: any) => {
+      const date = b.bookingDate;
+      if (!marks[date]) {
+        const colorIndex = Math.abs(date.split('-').join('') % PASTEL_COLORS.length);
+        marks[date] = {
+          customStyles: {
+            container: {
+              backgroundColor: PASTEL_COLORS[colorIndex],
+              borderRadius: 12,
+            },
+            text: {
+              color: '#2D2D2D',
+              fontWeight: 'bold',
+            },
+          },
+        };
+      }
+    });
+
+    // Highlight Tanggal Terpilih (Warna Rose MUA)
+    marks[selected] = {
+      customStyles: {
+        container: {
+          backgroundColor: "#B76E79",
+          borderRadius: 12,
+          elevation: 4,
+        },
+        text: {
+          color: 'white',
+          fontWeight: 'bold',
+        },
+      },
+    };
+
+    return marks;
+  }, [allBookings, selected]);
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -25,27 +73,17 @@ export default function CalendarScreen() {
       <View className="px-4">
         <Card className="p-0 overflow-hidden border-none shadow-md">
           <Calendar
+            markingType={'custom'}
             onDayPress={(day: any) => setSelected(day.dateString)}
-            markedDates={{
-              [selected]: {
-                selected: true,
-                selectedColor: "#B76E79",
-                selectedTextColor: "white",
-              },
-            }}
+            markedDates={markedDates}
             theme={{
               calendarBackground: "#FFFFFF",
               textSectionTitleColor: "#BDBDBD",
-              selectedDayBackgroundColor: "#B76E79",
-              selectedDayTextColor: "#ffffff",
               todayTextColor: "#B76E79",
               dayTextColor: "#2D2D2D",
               textDisabledColor: "#EEEEEE",
-              dotColor: "#B76E79",
-              selectedDotColor: "#ffffff",
               arrowColor: "#B76E79",
               monthTextColor: "#2D2D2D",
-              indicatorColor: "#B76E79",
               textDayFontWeight: "500",
               textMonthFontWeight: "bold",
               textDayHeaderFontWeight: "bold",
@@ -59,54 +97,44 @@ export default function CalendarScreen() {
           <Text className="text-lg font-bold text-text-primary">
             Jadwal {selected === new Date().toISOString().split("T")[0] ? "Hari Ini" : formatDate(selected, "dd MMM")}
           </Text>
-          <Badge label={`${bookings?.length ?? 0} Booking`} variant="info" />
+          <Badge label={`${bookingsOnDate?.length ?? 0} Booking`} variant="info" />
         </View>
 
         <FlatList
-          data={bookings ?? []}
+          data={bookingsOnDate ?? []}
           keyExtractor={(item: any) => item.id}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
-            <View className="items-center justify-center py-10">
-              <Text className="text-text-hint">Tidak ada jadwal untuk hari ini</Text>
+            <View className="items-center justify-center py-10 bg-surface rounded-3xl border border-divider border-dashed">
+              <Text className="text-text-hint">Tidak ada jadwal untuk tanggal ini</Text>
             </View>
           }
-          renderItem={({ item }: any) => {
-            return (
-              <Card 
-                className="mb-4 p-4 border-l-4 border-l-primary"
-                onPress={() => router.push(`/booking/${item.id}`)}
-              >
-                <View className="flex-row items-center justify-between mb-2">
-                  <View className="flex-row items-center">
-                    <View className="mr-1">
-                      <Clock {...({ size: 14, color: "#757575" } as any)} />
-                    </View>
-                    <Text className="text-text-secondary text-sm font-medium">
-                      {item.startTime} - {item.endTime}
-                    </Text>
-                  </View>
-                  <Badge label={item.status} variant={item.status === 'completed' ? 'success' : 'warning'} />
-                </View>
-                
-                <Text className="text-lg font-bold text-text-primary mb-1">
-                  {item.clientId}
-                </Text>
-                
+          renderItem={({ item }: any) => (
+            <Card 
+              className="mb-4 p-4 border-l-4 border-l-primary"
+              onPress={() => router.push(`/booking/${item.id}` as any)}
+            >
+              <View className="flex-row items-center justify-between mb-2">
                 <View className="flex-row items-center">
-                  <View className="mr-1">
-                    <MapPin {...({ size: 14, color: "#BDBDBD" } as any)} />
-                  </View>
-                  <Text className="text-text-hint text-sm" numberOfLines={1}>
-                    {item.locationName ?? "Lokasi tidak ditentukan"}
+                  <Clock size={14} color="#757575" className="mr-1" />
+                  <Text className="text-text-secondary text-sm font-medium">
+                    {item.startTime} - {item.endTime}
                   </Text>
                 </View>
-              </Card>
-            );
-          }}
+                <Badge 
+                  label={item.status.toUpperCase()} 
+                  variant={item.status === 'completed' ? 'success' : 'warning'} 
+                />
+              </View>
+              <Text className="text-lg font-bold text-text-primary mb-1">{item.clientName}</Text>
+              <View className="flex-row items-center">
+                <MapPin size={14} color="#BDBDBD" className="mr-1" />
+                <Text className="text-text-hint text-sm" numberOfLines={1}>{item.locationName ?? "Lokasi tidak ditentukan"}</Text>
+              </View>
+            </Card>
+          )}
         />
       </View>
     </SafeAreaView>
   );
 }
-

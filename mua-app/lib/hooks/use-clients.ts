@@ -13,6 +13,14 @@ export function useClients() {
   });
 }
 
+export function useClient(id: string) {
+  return useQuery({
+    queryKey: clientKeys.detail(id),
+    queryFn: () => clientRepository.getById(id),
+    enabled: !!id,
+  });
+}
+
 export function useCreateClient() {
   const qc = useQueryClient();
   return useMutation({ 

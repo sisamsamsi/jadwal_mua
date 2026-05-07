@@ -18,29 +18,31 @@ export function Input({
   ...props
 }: InputProps) {
   return (
-    <View className={cn("w-full mb-4", className)}>
+    <View className={cn("w-full mb-5", className)}>
       {label && (
-        <Text className="text-text-secondary text-sm font-medium mb-1.5 ml-1">
+        <Text className="text-text-secondary text-sm font-semibold mb-2 ml-1">
           {label}
         </Text>
       )}
       <View
         className={cn(
-          "flex-row items-center bg-white border border-divider rounded-xl px-4 py-3 h-14",
+          "flex-row items-center bg-white border border-divider rounded-2xl px-4 min-h-[56px]",
           error && "border-status-error",
           props.editable === false && "bg-neutral-background opacity-60"
         )}
       >
         {leftIcon && <View className="mr-3">{leftIcon}</View>}
         <TextInput
-          className="flex-1 text-text-primary text-base"
-          placeholderTextColor="#BDBDBD"
+          className="flex-1 text-text-primary text-base py-3.5"
+          placeholderTextColor="#9CA3AF"
+          textAlignVertical="center"
           {...props}
+          style={[{ includeFontPadding: false }, props.style]}
         />
-        {rightIcon && <View className="ml-3">{rightIcon}</View>}
+        {rightIcon && <View className="ml-2">{rightIcon}</View>}
       </View>
       {error && (
-        <Text className="text-status-error text-xs mt-1 ml-1">{error}</Text>
+        <Text className="text-status-error text-xs mt-1.5 ml-1 font-medium">{error}</Text>
       )}
     </View>
   );

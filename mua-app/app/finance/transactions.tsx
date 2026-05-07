@@ -1,48 +1,83 @@
 import React from "react";
-import { View, Text, FlatList } from "react-native";
+import { View, Text, FlatList, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { usePayments } from "@/lib/hooks/use-payments";
+import { useExpenses } from "@/lib/hooks/use-expenses";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { ChevronLeft, TrendingUp, TrendingDown } from "lucide-react-native";
-import { formatCurrency } from "@/lib/utils/currency";
+import { ChevronLeft, TrendingUp, TrendingDown, Filter } from "lucide-react-native";
+import { formatCurrency, formatCurrencyCompact } from "@/lib/utils/currency";
 
 export default function TransactionHistory() {
   const router = useRouter();
+  const { data: payments = [], isLoading: loadingPayments } = usePayments();
+  const { data: expenses = [], isLoading: loadingExpenses } = useExpenses();
+
+  // Gabungkan dan urutkan berdasarkan tanggal terbaru
+  const allTransactions = [
+    ...payments.map((p: any) => ({ ...p, type: 'income' })),
+    ...expenses.map((e: any) => ({ ...e, type: 'expense' }))
+  ].sort((a, b) => new Date(b.createdAt || b.expenseDate).getTime() - new Date(a.createdAt || a.expenseDate).getTime());
+
+  const isLoading = loadingPayments || loadingExpenses;
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <View className="flex-row items-center px-6 py-4 border-b border-divider bg-surface">
-        <Button variant="ghost" size="icon" onPress={() => router.back()} className="mr-2">
-          <ChevronLeft {...({ size: 24, color: "#2D2D2D" } as any)} />
-        </Button>
-        <Text className="text-xl font-bold text-text-primary">Riwayat Transaksi</Text>
+      <View className="flex-row items-center justify-between px-6 py-4 border-b border-divider bg-surface">
+        <View className="flex-row items-center">
+          <TouchableOpacity onPress={() => router.back()} className="mr-4 p-2">
+            <ChevronLeft size={24} color="#2D2D2D" />
+          </TouchableOpacity>
+          <Text className="text-xl font-bold text-text-primary">Riwayat Transaksi</Text>
+        </View>
+        <TouchableOpacity className="p-2">
+          <Filter size={20} color="#B76E79" />
+        </TouchableOpacity>
       </View>
 
       <FlatList
-        data={[]}
+        data={allTransactions}
         keyExtractor={(item: any) => item.id}
         contentContainerStyle={{ padding: 24 }}
+        refreshing={isLoading}
         renderItem={({ item }: any) => (
           <Card className="mb-4 p-4">
              <View className="flex-row justify-between items-center">
-                <View>
-                  <Text className="font-bold text-text-primary">{item.description}</Text>
-                  <Text className="text-text-hint text-xs">{item.date}</Text>
+                <View className="flex-row items-center flex-1">
+                   <View className={`w-10 h-10 rounded-full items-center justify-center mr-4 ${item.type === 'income' ? 'bg-green-100' : 'bg-red-100'}`}>
+                      {item.type === 'income' ? 
+                        <TrendingUp size={18} color="#4CAF50" /> : 
+                        <TrendingDown size={18} color="#F44336" />
+                      }
+                   </View>
+                   <View className="flex-1">
+                     <Text className="font-bold text-text-primary text-base" numberOfLines={1}>
+                       {item.description || item.notes || (item.type === 'income' ? 'Pemasukan' : 'Pengeluaran')}
+                     </Text>
+                     <Text className="text-text-hint text-xs">
+                       {item.paymentDate || item.expenseDate} • {item.paymentMethod || item.category}
+                     </Text>
+                   </View>
                 </View>
-                <Text className={item.type === 'income' ? 'text-status-success' : 'text-status-error'}>
-                  {item.type === 'income' ? '+' : '-'} {formatCurrency(item.amount)}
+                <Text className={`font-bold text-base ${item.type === 'income' ? 'text-status-success' : 'text-status-error'}`}>
+                  {item.type === 'income' ? '+' : '-'} {formatCurrencyCompact(item.amount)}
                 </Text>
              </View>
           </Card>
         )}
         ListEmptyComponent={
           <View className="items-center justify-center py-20">
-            <Text className="text-text-hint">Belum ada riwayat transaksi.</Text>
+            <Text className="text-text-hint text-center">Belum ada riwayat transaksi.{"\n"}Ayo catat pemasukan pertama Anda!</Text>
+            <Button 
+              variant="primary" 
+              label="Catat Pemasukan" 
+              className="mt-6" 
+              onPress={() => router.push("/payment/new")} 
+            />
           </View>
         }
       />
     </SafeAreaView>
   );
 }
-

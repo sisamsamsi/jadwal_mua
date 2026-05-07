@@ -37,7 +37,10 @@ export default function ServiceList() {
         keyExtractor={(item: any) => item.id}
         contentContainerStyle={{ padding: 24 }}
         renderItem={({ item }: any) => (
-          <Card className="mb-4 p-4">
+          <Card 
+            className="mb-4 p-4"
+            onPress={() => router.push(`/service/${item.id}` as any)}
+          >
             <View className="flex-row justify-between mb-2">
               <Text className="text-lg font-bold text-text-primary">{item.name}</Text>
               <Badge label={item.category} variant="info" />
