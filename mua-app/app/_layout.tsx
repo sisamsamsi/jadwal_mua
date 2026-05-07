@@ -12,16 +12,12 @@ if (typeof global.crypto.randomUUID !== 'function') {
   } as any;
 }
 import React, { useEffect } from "react";
-import { Stack, useRouter } from "expo-router";
+import { Stack } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
 import { supabase } from "@/lib/supabase/client";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import * as Notifications from "expo-notifications";
-import { registerForPushNotificationsAsync } from "@/lib/utils/notifications";
-
-import Constants, { ExecutionEnvironment } from "expo-constants";
 
 import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
 import migrations from "../drizzle/migrations";
@@ -33,7 +29,6 @@ export default function RootLayout() {
   const { success, error } = useMigrations(db, migrations);
   const setSession = useAuthStore((s) => s.setSession);
   const setLoading = useAuthStore((s) => s.setLoading);
-  const router = useRouter();
 
   useEffect(() => {
     if (error) {
@@ -42,9 +37,6 @@ export default function RootLayout() {
   }, [error]);
 
   useEffect(() => {
-    // Registrasi izin notifikasi saat app dibuka
-    registerForPushNotificationsAsync().catch(err => console.warn("Push reg error:", err));
-
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session ?? null);
       setLoading(false);
@@ -57,17 +49,8 @@ export default function RootLayout() {
       },
     );
 
-    // Listener saat notifikasi diklik
-    const notificationSubscription = Notifications.addNotificationResponseReceivedListener((response: Notifications.NotificationResponse) => {
-      const { bookingId } = response.notification.request.content.data as any;
-      if (bookingId) {
-        router.push(`/booking/${bookingId}` as any);
-      }
-    });
-
     return () => {
       subscription?.subscription?.unsubscribe?.();
-      notificationSubscription.remove();
     };
   }, []);
 

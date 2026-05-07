@@ -1,12 +1,35 @@
 import React from "react";
-import { View, Text, ScrollView, Switch, TouchableOpacity } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Button } from "@/components/ui/Button";
-import { ChevronLeft, Bell, Lock, Globe, Eye, BookOpen, ChevronRight } from "lucide-react-native";
+import { ChevronLeft, Lock, Eye, BookOpen, ChevronRight, MessageSquare, Trash2 } from "lucide-react-native";
+import { paymentRepository } from "@/lib/repositories/payment-repository";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
+
+  const handleResetRevenue = () => {
+    Alert.alert(
+      "Reset Revenue",
+      "Apakah Anda yakin ingin menghapus semua catatan transaksi? Revenue akan kembali menjadi Rp 0. Tindakan ini tidak bisa dibatalkan.",
+      [
+        { text: "Batal", style: "cancel" },
+        { 
+          text: "Ya, Reset", 
+          style: "destructive", 
+          onPress: async () => {
+            await paymentRepository.deleteAll();
+            queryClient.invalidateQueries({ queryKey: ["payments"] });
+            queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+            Alert.alert("Sukses", "Data transaksi telah dibersihkan.");
+          }
+        }
+      ]
+    );
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -36,17 +59,34 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </Section>
 
-        <Section title="Notifikasi">
-          <SettingItem 
-            label="Pengingat Jadwal" 
-            icon={<Bell size={20} color="#B76E79" />} 
-            value={true} 
-          />
-          <SettingItem 
-            label="Notifikasi WhatsApp" 
-            icon={<Globe size={20} color="#4CAF50" />} 
-            value={true} 
-          />
+        <Section title="Data & Keuangan">
+          <TouchableOpacity 
+            onPress={handleResetRevenue}
+            className="flex-row items-center justify-between p-4"
+          >
+            <View className="flex-row items-center">
+              <View className="w-8 h-8 items-center justify-center mr-3 bg-red-50 rounded-lg">
+                <Trash2 size={20} color="#F44336" />
+              </View>
+              <View>
+                <Text className="text-status-error font-medium text-base">Reset Semua Revenue</Text>
+                <Text className="text-text-hint text-xs">Hapus semua riwayat pembayaran</Text>
+              </View>
+            </View>
+            <ChevronRight size={18} color="#BDBDBD" />
+          </TouchableOpacity>
+        </Section>
+
+        <Section title="Fitur WhatsApp">
+          <View className="p-4 flex-row items-center">
+            <View className="w-8 h-8 items-center justify-center mr-3 bg-green-50 rounded-lg">
+              <MessageSquare size={20} color="#4CAF50" />
+            </View>
+            <View className="flex-1">
+              <Text className="text-text-primary font-medium text-base">WhatsApp Reminder</Text>
+              <Text className="text-text-hint text-xs">Fitur kirim pengingat & invoice via WA aktif otomatis.</Text>
+            </View>
+          </View>
         </Section>
 
         <Section title="Keamanan (Pending)">
@@ -74,27 +114,6 @@ function Section({ title, children }: { title: string, children: React.ReactNode
       <View className="bg-surface rounded-2xl border border-divider overflow-hidden">
         {children}
       </View>
-    </View>
-  );
-}
-
-function SettingItem({ label, icon, value }: { label: string, icon: any, value: boolean }) {
-  const [isEnabled, setIsEnabled] = React.useState(value);
-
-  return (
-    <View className="flex-row items-center justify-between p-4 border-b border-divider last:border-b-0">
-      <View className="flex-row items-center">
-        <View className="w-8 h-8 items-center justify-center mr-3">
-          {icon}
-        </View>
-        <Text className="text-text-primary font-medium text-base">{label}</Text>
-      </View>
-      <Switch
-        trackColor={{ false: "#E0E0E0", true: "#B76E79" }}
-        thumbColor={isEnabled ? "#FFFFFF" : "#F5F5F5"}
-        onValueChange={() => setIsEnabled(!isEnabled)}
-        value={isEnabled}
-      />
     </View>
   );
 }

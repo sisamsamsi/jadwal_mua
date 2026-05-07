@@ -44,5 +44,10 @@ export const paymentRepository = {
     await db.delete(payments).where(eq(payments.id, id));
     // Background sync
     paymentService.delete(id).catch(() => {});
+  },
+
+  async deleteAll() {
+    await db.delete(payments);
+    // Note: This only clears local for now
   }
 };
