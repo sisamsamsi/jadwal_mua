@@ -6,7 +6,7 @@ import { useBookingsByDate, useBookings } from "@/lib/hooks/use-bookings";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { Clock, MapPin } from "lucide-react-native";
+import { Clock, MapPin, Plus } from "lucide-react-native";
 import { formatDate } from "@/lib/utils/date";
 
 const PASTEL_COLORS = [
@@ -66,8 +66,14 @@ export default function CalendarScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <View className="px-6 py-4">
+      <View className="px-6 py-4 flex-row items-center justify-between">
         <Text className="text-3xl font-bold text-text-primary">Kalender</Text>
+        <TouchableOpacity 
+          onPress={() => router.push("/booking/new")}
+          className="bg-primary p-3 rounded-full shadow-lg"
+        >
+          <Plus size={24} color="white" />
+        </TouchableOpacity>
       </View>
 
       <View className="px-4">
@@ -106,7 +112,7 @@ export default function CalendarScreen() {
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View className="items-center justify-center py-10 bg-surface rounded-3xl border border-divider border-dashed">
-              <Text className="text-text-hint">Tidak ada jadwal untuk tanggal ini</Text>
+              <Text className="text-text-hint text-center">Tidak ada jadwal untuk tanggal ini.{"\n"}Klik "+" untuk menambah jadwal.</Text>
             </View>
           }
           renderItem={({ item }: any) => (
@@ -123,7 +129,11 @@ export default function CalendarScreen() {
                 </View>
                 <Badge 
                   label={item.status.toUpperCase()} 
-                  variant={item.status === 'completed' ? 'success' : 'warning'} 
+                  variant={
+                    item.status === 'completed' ? 'success' : 
+                    item.status === 'cancelled' ? 'error' : 
+                    item.status === 'confirmed' ? 'info' : 'warning'
+                  } 
                 />
               </View>
               <Text className="text-lg font-bold text-text-primary mb-1">{item.clientName}</Text>

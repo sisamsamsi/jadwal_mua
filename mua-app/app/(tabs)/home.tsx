@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { View, Text, ScrollView, RefreshControl, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDashboardStats } from "@/lib/hooks/use-dashboard";
@@ -7,23 +7,45 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { formatCurrencyCompact } from "@/lib/utils/currency";
-import { Calendar, Users, DollarSign, Clock, Plus, ChevronRight } from "lucide-react-native";
+import { Calendar, Users, DollarSign, Clock, Plus, ChevronRight, Filter } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { formatDate } from "@/lib/utils/date";
+import { useQueryClient } from "@tanstack/react-query";
+
+const STATUS_FILTERS = [
+  { id: 'all', label: 'Semua', color: 'bg-gray-100', text: 'text-gray-600' },
+  { id: 'pending', label: 'Pending', color: 'bg-orange-100', text: 'text-orange-600' },
+  { id: 'confirmed', label: 'Fix', color: 'bg-blue-100', text: 'text-blue-600' },
+  { id: 'completed', label: 'Selesai', color: 'bg-green-100', text: 'text-green-600' },
+  { id: 'cancelled', label: 'Batal', color: 'bg-red-100', text: 'text-red-600' },
+];
 
 export default function DashboardScreen() {
   const { stats, isLoading } = useDashboardStats();
   const session = useAuthStore((s) => s.session);
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const [activeFilter, setActiveFilter] = useState('all');
 
   const userEmail = session?.user?.email ?? "MUA";
   const displayName = userEmail.split("@")[0];
+
+  const onRefresh = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    await queryClient.invalidateQueries({ queryKey: ["bookings"] });
+  };
+
+  const filterBookings = (bookings: any[]) => {
+    if (!bookings) return [];
+    if (activeFilter === 'all') return bookings;
+    return bookings.filter(b => b.status === activeFilter);
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-background">
       <ScrollView 
         contentContainerStyle={{ padding: 24 }}
-        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => {}} />}
+        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={onRefresh} />}
       >
         <View className="flex-row items-center justify-between mb-8">
           <View>
@@ -40,7 +62,7 @@ export default function DashboardScreen() {
           </Button>
         </View>
 
-        <View className="flex-row flex-wrap justify-between gap-y-4 mb-10">
+        <View className="flex-row flex-wrap justify-between gap-y-4 mb-8">
           <StatCard 
             label="Revenue" 
             value={formatCurrencyCompact(stats?.totalRevenue ?? 0)} 
@@ -67,15 +89,28 @@ export default function DashboardScreen() {
           />
         </View>
 
+        {/* Filter Bar */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6 -mx-2 px-2">
+          {STATUS_FILTERS.map(f => (
+            <TouchableOpacity 
+              key={f.id}
+              onPress={() => setActiveFilter(f.id)}
+              className={`mr-2 px-4 py-2 rounded-full border ${activeFilter === f.id ? 'bg-primary border-primary' : 'bg-surface border-divider'}`}
+            >
+              <Text className={`text-xs font-bold ${activeFilter === f.id ? 'text-white' : f.text}`}>{f.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
         {/* AGENDA HARI INI */}
         <Text className="text-xl font-bold text-text-primary mb-4">Agenda Hari Ini</Text>
-        {stats?.todayBookings && stats.todayBookings.length > 0 ? (
-          stats.todayBookings.map((booking: any) => (
+        {filterBookings(stats?.todayBookings || []).length > 0 ? (
+          filterBookings(stats?.todayBookings || []).map((booking: any) => (
             <BookingItem key={booking.id} booking={booking} onPress={() => router.push(`/booking/${booking.id}` as any)} />
           ))
         ) : (
-          <Card className="items-center justify-center py-8 bg-surface/50 border-dashed border-divider mb-6">
-            <Text className="text-text-hint text-center">Tidak ada jadwal untuk hari ini.</Text>
+          <Card className="items-center justify-center py-6 bg-surface/50 border-dashed border-divider mb-6">
+            <Text className="text-text-hint text-center">Tidak ada jadwal {activeFilter !== 'all' ? activeFilter : ''} hari ini.</Text>
           </Card>
         )}
 
@@ -87,8 +122,8 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
 
-        {stats?.upcomingBookings && stats.upcomingBookings.length > 0 ? (
-          stats.upcomingBookings.map((booking: any) => (
+        {filterBookings(stats?.upcomingBookings || []).length > 0 ? (
+          filterBookings(stats?.upcomingBookings || []).map((booking: any) => (
             <BookingItem 
               key={booking.id} 
               booking={booking} 
@@ -97,8 +132,8 @@ export default function DashboardScreen() {
             />
           ))
         ) : (
-          <Card className="items-center justify-center py-8 bg-surface/50 border-dashed border-divider">
-            <Text className="text-text-hint text-center">Belum ada jadwal mendatang.</Text>
+          <Card className="items-center justify-center py-6 bg-surface/50 border-dashed border-divider">
+            <Text className="text-text-hint text-center">Belum ada jadwal {activeFilter !== 'all' ? activeFilter : ''} mendatang.</Text>
           </Card>
         )}
       </ScrollView>
@@ -107,6 +142,16 @@ export default function DashboardScreen() {
 }
 
 function BookingItem({ booking, onPress, showDate }: { booking: any, onPress: () => void, showDate?: boolean }) {
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'success';
+      case 'confirmed': return 'info';
+      case 'cancelled': return 'error';
+      case 'pending': return 'warning';
+      default: return 'warning';
+    }
+  };
+
   return (
     <Card className="mb-4 p-4" onPress={onPress}>
       <View className="flex-row items-center justify-between">
@@ -115,9 +160,12 @@ function BookingItem({ booking, onPress, showDate }: { booking: any, onPress: ()
             <Text className="text-primary font-bold text-lg">{(booking.clientName || "K").substring(0, 1).toUpperCase()}</Text>
           </View>
           <View className="flex-1">
-            <Text className="text-text-primary font-bold text-base" numberOfLines={1}>{booking.clientName}</Text>
+            <View className="flex-row items-center mb-1">
+              <Text className="text-text-primary font-bold text-base mr-2" numberOfLines={1}>{booking.clientName}</Text>
+              <Badge label={booking.status} variant={getStatusColor(booking.status)} />
+            </View>
             <Text className="text-text-secondary text-xs">
-              {showDate ? `${formatDate(booking.bookingDate, "dd MMM")} • ` : ""}{booking.startTime} - {booking.endTime}
+              {showDate ? `${formatDate(booking.bookingDate, "dd MMM")} • ` : ""}{booking.startTime} - {booking.endTime} • {booking.numPersons || 1} Orang
             </Text>
           </View>
         </View>

@@ -1,16 +1,17 @@
-import React, { useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Alert, Linking, KeyboardAvoidingView, Platform, Share } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, ScrollView, TouchableOpacity, Alert, Linking, Share } from "react-native";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useBooking, useUpdateBooking, useDeleteBooking } from "@/lib/hooks/use-bookings";
+import { useBooking, useUpdateBooking, useDeleteBooking, useBookings } from "@/lib/hooks/use-bookings";
 import { useClient } from "@/lib/hooks/use-clients";
 import { usePaymentsByBooking, useCreatePayment } from "@/lib/hooks/use-payments";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
-import { ChevronLeft, Calendar, Clock, MapPin, User, FileText, Phone, MessageSquare, Trash2, CheckCircle2, XCircle, AlertCircle, Share2, RotateCcw } from "lucide-react-native";
+import { ChevronLeft, Calendar as CalendarIcon, Clock, MapPin, User, FileText, MessageSquare, Trash2, RotateCcw, Share2, Users } from "lucide-react-native";
 import { formatCurrency } from "@/lib/utils/currency";
+import DateTimePickerModal from "react-native-modal-datetime-picker";
 
 export default function BookingDetail() {
   const { id } = useLocalSearchParams();
@@ -18,6 +19,7 @@ export default function BookingDetail() {
   const updateBookingMutation = useUpdateBooking();
   const deleteBookingMutation = useDeleteBooking();
   const createPaymentMutation = useCreatePayment();
+  const { data: allBookings = [] } = useBookings();
   
   const { data: booking, isLoading: loadingBooking } = useBooking(id as string);
   const { data: client } = useClient(booking?.clientId || "");
@@ -25,16 +27,71 @@ export default function BookingDetail() {
 
   const [editMode, setEditMode] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
+  
+  // Edit State
+  const [editData, setEditData] = useState<any>(null);
+  const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+  const [isStartTimeVisible, setStartTimeVisibility] = useState(false);
+  const [isEndTimeVisible, setEndTimeVisibility] = useState(false);
 
   const totalPaid = (payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
   const remainingBalance = (booking?.totalPrice || 0) - totalPaid;
 
+  const startEdit = () => {
+    setEditData({ ...booking });
+    setEditMode(true);
+  };
+
+  const checkConflict = (date: string, start: string, end: string) => {
+    return allBookings.find(b => 
+      b.id !== id &&
+      b.bookingDate === date && 
+      b.status !== 'cancelled' &&
+      ((start >= b.startTime && start < b.endTime) || 
+       (end > b.startTime && end <= b.endTime) ||
+       (start <= b.startTime && end >= b.endTime))
+    );
+  };
+
+  const handleSaveEdit = async () => {
+    if (editData.endTime <= editData.startTime) {
+      Alert.alert("Jam Tidak Valid", "Jam selesai harus setelah jam mulai.");
+      return;
+    }
+
+    const conflict = checkConflict(editData.bookingDate, editData.startTime, editData.endTime);
+    if (conflict) {
+      Alert.alert(
+        "Jadwal Bentrok!", 
+        `Jam ini sudah ada bokingan lain (${conflict.clientName}). Tetap simpan?`,
+        [
+          { text: "Batal", style: "cancel" },
+          { text: "Tetap Simpan", onPress: submitUpdate }
+        ]
+      );
+    } else {
+      submitUpdate();
+    }
+  };
+
+  const submitUpdate = async () => {
+    try {
+      await updateBookingMutation.mutateAsync({
+        id: id as string,
+        updates: editData
+      });
+      setEditMode(false);
+      Alert.alert("Sukses", "Perubahan berhasil disimpan.");
+    } catch (error) {
+      Alert.alert("Error", "Gagal menyimpan perubahan.");
+    }
+  };
+
   const handleRefund = () => {
     if (totalPaid <= 0) return;
-
     Alert.alert(
       "Konfirmasi Refund",
-      `Apakah Anda yakin ingin mengembalikan dana sebesar ${formatCurrency(totalPaid)}? Ini akan mencatat nilai negatif di laporan keuangan.`,
+      `Apakah Anda yakin ingin mengembalikan dana sebesar ${formatCurrency(totalPaid)}?`,
       [
         { text: "Batal", style: "cancel" },
         { 
@@ -46,7 +103,7 @@ export default function BookingDetail() {
                 bookingId: id,
                 amount: -totalPaid,
                 paymentMethod: "Refund",
-                notes: "Pengembalian dana (Refund) karena pembatalan",
+                notes: "Pengembalian dana (Refund)",
                 paymentDate: new Date().toISOString().split('T')[0]
               });
               Alert.alert("Sukses", "Refund berhasil dicatat.");
@@ -76,7 +133,6 @@ export default function BookingDetail() {
         id: id as string,
         updates: { status: newStatus }
       });
-      Alert.alert("Sukses", `Status diperbarui menjadi ${newStatus}`);
     } catch (error) {
       Alert.alert("Error", "Gagal memperbarui status");
     } finally {
@@ -85,12 +141,7 @@ export default function BookingDetail() {
   };
 
   if (loadingBooking) return null;
-  if (!booking) return (
-    <SafeAreaView className="flex-1 items-center justify-center">
-      <Text className="text-text-hint">Memuat data atau data telah dihapus...</Text>
-      <Button label="Kembali" onPress={() => router.back()} className="mt-4" />
-    </SafeAreaView>
-  );
+  if (!booking) return null;
 
   return (
     <View className="flex-1 bg-background">
@@ -108,8 +159,8 @@ export default function BookingDetail() {
             <TouchableOpacity onPress={handleDelete} className="mr-4 p-2">
               <Trash2 size={22} color="#F44336" />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setEditMode(!editMode)} className="p-2">
-              <Text className="text-primary font-bold">{editMode ? "Batal" : "Edit"}</Text>
+            <TouchableOpacity onPress={editMode ? handleSaveEdit : startEdit} className="p-2">
+              <Text className="text-primary font-bold">{editMode ? "Simpan" : "Edit"}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -121,22 +172,22 @@ export default function BookingDetail() {
            <Text className="text-text-hint font-bold uppercase text-xs mb-3">Status Jadwal</Text>
            <View className="flex-row gap-2">
               {[
-                { id: 'pending', label: 'Pending', color: '#FF9800', icon: <AlertCircle size={14} color="white" /> },
-                { id: 'confirmed', label: 'Fix', color: '#2196F3', icon: <CheckCircle2 size={14} color="white" /> },
-                { id: 'completed', label: 'Selesai', color: '#4CAF50', icon: <CheckCircle2 size={14} color="white" /> },
-                { id: 'cancelled', label: 'Batal', color: '#F44336', icon: <XCircle size={14} color="white" /> },
+                { id: 'pending', label: 'Pending', color: '#FF9800' },
+                { id: 'confirmed', label: 'Fix', color: '#2196F3' },
+                { id: 'completed', label: 'Selesai', color: '#4CAF50' },
+                { id: 'cancelled', label: 'Batal', color: '#F44336' },
               ].map((s) => (
                 <TouchableOpacity 
                   key={s.id}
                   onPress={() => updateStatus(s.id)}
-                  disabled={statusLoading}
+                  disabled={statusLoading || editMode}
                   style={{ 
                     backgroundColor: booking.status === s.id ? s.color : '#F5F5F5',
                     flex: 1,
                     paddingVertical: 10,
                     borderRadius: 12,
                     alignItems: 'center',
-                    opacity: statusLoading ? 0.5 : 1
+                    opacity: (statusLoading || editMode) ? 0.5 : 1
                   }}
                 >
                    <Text style={{ color: booking.status === s.id ? 'white' : '#757575', fontWeight: 'bold', fontSize: 10 }}>
@@ -147,7 +198,7 @@ export default function BookingDetail() {
            </View>
         </View>
 
-        {/* Client Info Card */}
+        {/* Client Info */}
         <Card className="mb-6 p-4">
            <View className="flex-row items-center mb-4">
               <View className="w-12 h-12 rounded-full bg-primary-light items-center justify-center mr-4">
@@ -157,52 +208,88 @@ export default function BookingDetail() {
                  <Text className="text-lg font-bold text-text-primary">{booking.clientName || client?.name || "Klien"}</Text>
                  <Text className="text-text-secondary">{client?.phone || "-"}</Text>
               </View>
+              <View className="bg-primary/10 px-3 py-1 rounded-full flex-row items-center">
+                <Users size={14} color="#B76E79" className="mr-1" />
+                <Text className="text-primary font-bold">{booking.numPersons || 1} Orang</Text>
+              </View>
            </View>
-           <View className="flex-row gap-2">
-              <TouchableOpacity 
-                onPress={() => Linking.openURL(`whatsapp://send?phone=${client?.phone}`)}
-                className="flex-1 flex-row items-center justify-center bg-green-500 py-3 rounded-xl"
-              >
-                 <MessageSquare size={18} color="white" />
-                 <Text className="text-white font-bold ml-2">WhatsApp</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                onPress={() => router.push(`/booking/invoice/${booking.id}` as any)}
-                className="flex-1 flex-row items-center justify-center bg-primary py-3 rounded-xl"
-              >
-                 <FileText size={18} color="white" />
-                 <Text className="text-white font-bold ml-2">Invoice</Text>
-              </TouchableOpacity>
-           </View>
+           {!editMode && (
+             <View className="flex-row gap-2">
+                <TouchableOpacity 
+                  onPress={() => Linking.openURL(`whatsapp://send?phone=${client?.phone}`)}
+                  className="flex-1 flex-row items-center justify-center bg-green-500 py-3 rounded-xl"
+                >
+                   <MessageSquare size={18} color="white" />
+                   <Text className="text-white font-bold ml-2">WhatsApp</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  onPress={() => router.push(`/booking/invoice/${booking.id}` as any)}
+                  className="flex-1 flex-row items-center justify-center bg-primary py-3 rounded-xl"
+                >
+                   <FileText size={18} color="white" />
+                   <Text className="text-white font-bold ml-2">Invoice</Text>
+                </TouchableOpacity>
+             </View>
+           )}
         </Card>
 
-        {/* Schedule Info */}
+        {/* Schedule Detail */}
         <View className="mb-6">
            <Text className="text-text-hint font-bold uppercase text-xs mb-3">Detail Jadwal</Text>
            <Card className="p-4">
-              <View className="flex-row items-center mb-4">
-                 <Calendar size={20} color="#B76E79" className="mr-3" />
-                 <Text className="text-text-primary font-medium">{booking.bookingDate}</Text>
-              </View>
-              <View className="flex-row items-center mb-4">
-                 <Clock size={20} color="#B76E79" className="mr-3" />
-                 <Text className="text-text-primary font-medium">{booking.startTime} - {booking.endTime}</Text>
-              </View>
-              <View className="flex-row items-start">
-                 <MapPin size={20} color="#B76E79" className="mr-3 mt-1" />
-                 <View className="flex-1">
-                    <Text className="text-text-primary font-medium">{booking.locationName}</Text>
-                    <Text className="text-text-secondary text-sm">{booking.locationAddress}</Text>
-                 </View>
-              </View>
+              {editMode ? (
+                <>
+                  <TouchableOpacity onPress={() => setDatePickerVisibility(true)} className="mb-4 border-b border-divider pb-2 flex-row items-center">
+                    <CalendarIcon size={18} color="#B76E79" className="mr-3" />
+                    <Text className="text-text-primary text-base">{editData.bookingDate}</Text>
+                  </TouchableOpacity>
+                  <View className="flex-row gap-4 mb-4">
+                    <TouchableOpacity onPress={() => setStartTimeVisibility(true)} className="flex-1 border-b border-divider pb-2 flex-row items-center">
+                      <Clock size={18} color="#B76E79" className="mr-3" />
+                      <Text className="text-text-primary text-base font-bold">{editData.startTime}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setEndTimeVisibility(true)} className="flex-1 border-b border-divider pb-2 flex-row items-center">
+                      <Clock size={18} color="#B76E79" className="mr-3" />
+                      <Text className="text-text-primary text-base font-bold">{editData.endTime}</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View className="flex-row items-center mb-4">
+                    <Users size={18} color="#B76E79" className="mr-3" />
+                    <Text className="text-text-primary mr-4">Jumlah Orang:</Text>
+                    <TouchableOpacity onPress={() => setEditData({...editData, numPersons: Math.max(1, editData.numPersons - 1)})} className="w-8 h-8 bg-gray-100 rounded items-center justify-center"><Text>-</Text></TouchableOpacity>
+                    <Text className="mx-4 font-bold">{editData.numPersons}</Text>
+                    <TouchableOpacity onPress={() => setEditData({...editData, numPersons: editData.numPersons + 1})} className="w-8 h-8 bg-gray-100 rounded items-center justify-center"><Text>+</Text></TouchableOpacity>
+                  </View>
+                  <Input value={editData.locationName} onChangeText={(t) => setEditData({...editData, locationName: t})} placeholder="Nama Lokasi" className="mb-4" />
+                  <Input value={editData.locationAddress} onChangeText={(t) => setEditData({...editData, locationAddress: t})} placeholder="Alamat Lengkap" multiline />
+                </>
+              ) : (
+                <>
+                  <View className="flex-row items-center mb-4">
+                     <CalendarIcon size={20} color="#B76E79" className="mr-3" />
+                     <Text className="text-text-primary font-medium">{booking.bookingDate}</Text>
+                  </View>
+                  <View className="flex-row items-center mb-4">
+                     <Clock size={20} color="#B76E79" className="mr-3" />
+                     <Text className="text-text-primary font-medium">{booking.startTime} - {booking.endTime}</Text>
+                  </View>
+                  <View className="flex-row items-start">
+                     <MapPin size={20} color="#B76E79" className="mr-3 mt-1" />
+                     <View className="flex-1">
+                        <Text className="text-text-primary font-medium">{booking.locationName}</Text>
+                        <Text className="text-text-secondary text-sm">{booking.locationAddress}</Text>
+                     </View>
+                  </View>
+                </>
+              )}
            </Card>
         </View>
 
         {/* Finance Info */}
         <View className="mb-6">
            <View className="flex-row justify-between items-center mb-3">
-              <Text className="text-text-hint font-bold uppercase text-xs">Keuangan & Pembayaran</Text>
-              {totalPaid > 0 && (
+              <Text className="text-text-hint font-bold uppercase text-xs">Keuangan</Text>
+              {!editMode && totalPaid > 0 && (
                 <TouchableOpacity onPress={handleRefund} className="flex-row items-center">
                   <RotateCcw size={12} color="#F44336" className="mr-1" />
                   <Text className="text-status-error text-xs font-bold">Refund Dana</Text>
@@ -211,8 +298,15 @@ export default function BookingDetail() {
            </View>
            <Card className="p-4">
               <View className="flex-row justify-between mb-2">
-                 <Text className="text-text-secondary">Total Biaya</Text>
-                 <Text className="text-text-primary font-bold">{formatCurrency(booking.totalPrice)}</Text>
+                 <Text className="text-text-secondary">Total Biaya ({booking.numPersons || 1} org)</Text>
+                 {editMode ? (
+                   <View className="flex-row items-center">
+                     <Text className="mr-1">Rp</Text>
+                     <Input value={String(editData.totalPrice)} onChangeText={(t) => setEditData({...editData, totalPrice: Number(t)})} keyboardType="numeric" className="w-24 h-8" />
+                   </View>
+                 ) : (
+                   <Text className="text-text-primary font-bold">{formatCurrency(booking.totalPrice)}</Text>
+                 )}
               </View>
               <View className="flex-row justify-between mb-2">
                  <Text className="text-text-secondary">Telah Dibayar</Text>
@@ -223,42 +317,21 @@ export default function BookingDetail() {
                  <Text className="text-text-primary font-bold">Sisa Tagihan</Text>
                  <Text className="text-status-error font-bold">{formatCurrency(remainingBalance)}</Text>
               </View>
-
-              <View className="flex-row gap-2 mt-4">
-                <Button 
-                  variant="outline" 
-                  label="Kirim Pengingat" 
-                  onPress={() => {
-                    const msg = `Halo ${booking.clientName || client?.name}, sekadar mengingatkan jadwal makeup kita pada tanggal ${booking.bookingDate} jam ${booking.startTime}. Sampai jumpa! ✨`;
-                    Share.share({ message: msg });
-                  }}
-                  className="flex-1 rounded-xl"
-                  leftIcon={<Share2 size={18} color="#B76E79" />}
-                />
-                {remainingBalance > 0 && (
-                  <Button 
-                    variant="primary" 
-                    label="Bayar Sisa" 
-                    className="flex-1 rounded-xl"
-                    onPress={() => router.push({
-                      pathname: "/payment/new",
-                      params: { bookingId: booking.id, amount: remainingBalance }
-                    })}
-                  />
-                )}
-              </View>
+              
+              {!editMode && (
+                <View className="flex-row gap-2 mt-4">
+                  <Button variant="outline" label="Kirim Pengingat" onPress={() => Share.share({ message: `Halo ${booking.clientName}, mengingatkan jadwal makeup kita (untuk ${booking.numPersons} orang) tanggal ${booking.bookingDate} jam ${booking.startTime}.` })} className="flex-1 rounded-xl" leftIcon={<Share2 size={18} color="#B76E79" />} />
+                  {remainingBalance > 0 && (
+                    <Button variant="primary" label="Bayar Sisa" className="flex-1 rounded-xl" onPress={() => router.push({ pathname: "/payment/new", params: { bookingId: booking.id, amount: remainingBalance } })} />
+                  )}
+                </View>
+              )}
            </Card>
         </View>
 
-        {/* Catatan Section */}
-        <View className="mb-10">
-           <Text className="text-text-hint font-bold uppercase text-xs mb-3">Catatan Khusus</Text>
-           <Card className="p-4 bg-neutral-background border-dashed border-divider">
-              <Text className="text-text-secondary italic">
-                 {booking.notes || "Tidak ada catatan khusus untuk jadwal ini."}
-              </Text>
-           </Card>
-        </View>
+        <DateTimePickerModal isVisible={isDatePickerVisible} mode="date" onConfirm={(date) => { setEditData({ ...editData, bookingDate: date.toISOString().split('T')[0] }); setDatePickerVisibility(false); }} onCancel={() => setDatePickerVisibility(false)} />
+        <DateTimePickerModal isVisible={isStartTimeVisible} mode="time" is24Hour={true} onConfirm={(date) => { const time = date.getHours().toString().padStart(2, '0') + ":" + date.getMinutes().toString().padStart(2, '0'); setEditData({ ...editData, startTime: time }); setStartTimeVisibility(false); }} onCancel={() => setStartTimeVisibility(false)} />
+        <DateTimePickerModal isVisible={isEndTimeVisible} mode="time" is24Hour={true} onConfirm={(date) => { const time = date.getHours().toString().padStart(2, '0') + ":" + date.getMinutes().toString().padStart(2, '0'); setEditData({ ...editData, endTime: time }); setEndTimeVisibility(false); }} onCancel={() => setEndTimeVisibility(false)} />
       </ScrollView>
     </View>
   );
