@@ -15,6 +15,23 @@ export default function Login() {
   const router = useRouter();
   const [showPassword, setShowPassword] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [oauthLoading, setOauthLoading] = React.useState<string | null>(null);
+
+  const handleOAuth = async (provider: 'google' | 'facebook') => {
+    setOauthLoading(provider);
+    try {
+      await authService.signInWithOAuth(provider);
+    } catch (e: any) {
+      Alert.alert(
+        "Login Gagal",
+        provider === 'facebook'
+          ? "Login Facebook belum dikonfigurasi. Silakan gunakan Google atau Email."
+          : (e.message ?? String(e))
+      );
+    } finally {
+      setOauthLoading(null);
+    }
+  };
 
   async function onSubmit(data: any) {
     setIsLoading(true);
@@ -25,7 +42,6 @@ export default function Login() {
         router.replace("/home");
       }
     } catch (e: any) {
-      console.warn("Login failed", e.message ?? e);
       Alert.alert("Login Gagal", e.message ?? String(e));
     } finally {
       setIsLoading(false);
@@ -120,25 +136,34 @@ export default function Login() {
               <View className="flex-1 h-[1] bg-divider" />
             </View>
 
-            <View className="flex-row gap-4">
+            <View className="flex-col gap-3">
+              {/* Google */}
               <TouchableOpacity 
-                onPress={() => authService.signInWithOAuth('google')}
-                className="flex-1 flex-row items-center justify-center bg-surface border border-divider h-14 rounded-2xl shadow-sm"
+                onPress={() => handleOAuth('google')}
+                disabled={!!oauthLoading}
+                className="flex-row items-center justify-center bg-surface border border-divider h-14 rounded-2xl shadow-sm"
               >
-                <View className="w-6 h-6 bg-red-500 rounded-full items-center justify-center mr-2">
-                  <Text className="text-white font-bold text-xs">G</Text>
+                <View className="w-7 h-7 rounded-full items-center justify-center mr-3" style={{ backgroundColor: '#EA4335' }}>
+                  <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 13 }}>G</Text>
                 </View>
-                <Text className="text-text-primary font-bold">Google</Text>
+                <Text className="text-text-primary font-semibold text-base">
+                  {oauthLoading === 'google' ? "Menghubungkan..." : "Lanjutkan dengan Google"}
+                </Text>
               </TouchableOpacity>
 
+              {/* Facebook — tampilkan tapi beri peringatan jika belum dikonfigurasi */}
               <TouchableOpacity 
-                onPress={() => authService.signInWithOAuth('facebook')}
-                className="flex-1 flex-row items-center justify-center bg-blue-600 h-14 rounded-2xl shadow-sm"
+                onPress={() => handleOAuth('facebook')}
+                disabled={!!oauthLoading}
+                className="flex-row items-center justify-center h-14 rounded-2xl"
+                style={{ backgroundColor: '#1877F2' }}
               >
-                <View className="w-6 h-6 bg-white rounded-full items-center justify-center mr-2">
-                  <Text className="text-blue-600 font-bold text-xs">f</Text>
+                <View className="w-7 h-7 bg-white rounded-full items-center justify-center mr-3">
+                  <Text style={{ color: '#1877F2', fontWeight: 'bold', fontSize: 14 }}>f</Text>
                 </View>
-                <Text className="text-white font-bold">Facebook</Text>
+                <Text style={{ color: 'white', fontWeight: '600', fontSize: 16 }}>
+                  {oauthLoading === 'facebook' ? "Menghubungkan..." : "Lanjutkan dengan Facebook"}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>

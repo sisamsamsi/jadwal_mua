@@ -174,7 +174,9 @@ export default function NewBooking() {
         <TouchableOpacity onPress={() => router.back()} className="mr-4">
           <ChevronLeft size={24} color="#2D2D2D" />
         </TouchableOpacity>
-        <Text className="text-xl font-bold text-text-primary">Booking Kolektif</Text>
+        <Text className="text-xl font-bold text-text-primary">
+          {formData.numPersons > 1 ? "Booking Rombongan" : "Booking Jadwal"}
+        </Text>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 24 }}>
@@ -313,6 +315,32 @@ export default function NewBooking() {
           ))}
         </ScrollView>
 
+        {/* Lokasi */}
+        <Text className="text-text-hint font-bold uppercase text-xs mb-3">Lokasi Acara</Text>
+        <Input
+          value={formData.locationName}
+          onChangeText={(t) => setFormData({ ...formData, locationName: t })}
+          placeholder="Nama Gedung / Venue / Lokasi"
+          className="mb-3"
+        />
+        <Input
+          value={formData.locationAddress}
+          onChangeText={(t) => setFormData({ ...formData, locationAddress: t })}
+          placeholder="Alamat lengkap..."
+          multiline
+          className="mb-6"
+        />
+
+        {/* Catatan */}
+        <Text className="text-text-hint font-bold uppercase text-xs mb-3">Catatan Tambahan</Text>
+        <Input
+          value={formData.notes}
+          onChangeText={(t) => setFormData({ ...formData, notes: t })}
+          placeholder="Misal: Request khusus, alergi, dll."
+          multiline
+          className="mb-6"
+        />
+
         {/* Total Keseluruhan */}
         <View className="bg-primary/5 p-6 rounded-3xl border border-primary/10 mb-6">
           <Text className="text-text-hint text-center text-xs uppercase font-bold mb-1">Total Biaya Keseluruhan</Text>
@@ -324,7 +352,13 @@ export default function NewBooking() {
           </Text>
         </View>
 
-        <Button variant="primary" label="Simpan Jadwal Rombongan" onPress={handleSave} loading={createBooking.isPending} className="mb-10 h-14 rounded-2xl" />
+        <Button 
+          variant="primary" 
+          label={formData.numPersons > 1 ? "Simpan Jadwal Rombongan" : "Simpan Jadwal"} 
+          onPress={handleSave} 
+          loading={createBooking.isPending} 
+          className="mb-10 h-14 rounded-2xl" 
+        />
 
         <DateTimePickerModal isVisible={isDatePickerVisible} mode="date" onConfirm={(date) => { setFormData({ ...formData, bookingDate: date.toISOString().split('T')[0] }); setDatePickerVisibility(false); }} onCancel={() => setDatePickerVisibility(false)} />
         <DateTimePickerModal isVisible={isStartTimeVisible} mode="time" is24Hour={true} onConfirm={(date) => { const time = date.getHours().toString().padStart(2, '0') + ":" + date.getMinutes().toString().padStart(2, '0'); setFormData({ ...formData, startTime: time }); setStartTimeVisibility(false); }} onCancel={() => setStartTimeVisibility(false)} />

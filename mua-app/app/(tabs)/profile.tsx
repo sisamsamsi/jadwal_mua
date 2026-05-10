@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, ScrollView, TouchableOpacity, Image } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { authService } from "@/lib/supabase/auth";
@@ -21,7 +21,7 @@ import { useSettingsStore } from "@/lib/stores/settings-store";
 export default function ProfileScreen() {
   const { session } = useAuthStore();
   const router = useRouter();
-  const { showInventory } = useSettingsStore();
+  const { showInventory, isLicenseActive } = useSettingsStore();
 
   const handleLogout = async () => {
     await authService.signOut();
@@ -29,7 +29,11 @@ export default function ProfileScreen() {
   };
 
   const userEmail = session?.user?.email ?? "MUA Professional";
-  const displayName = userEmail.split("@")[0];
+  // Prioritaskan nama dari Google SSO (user_metadata), fallback ke prefix email
+  const displayName = 
+    session?.user?.user_metadata?.full_name ??
+    session?.user?.user_metadata?.name ??
+    userEmail.split("@")[0];
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -50,7 +54,10 @@ export default function ProfileScreen() {
           <Text className="text-text-secondary">{userEmail}</Text>
           
           <View className="flex-row mt-4 gap-x-2">
-            <Badge icon={<Star {...({ size: 12, color: "#D4A574" } as any)} />} label="Premium Member" />
+            <Badge 
+              icon={<Star {...({ size: 12, color: isLicenseActive ? "#D4A574" : "#9CA3AF" } as any)} />} 
+              label={isLicenseActive ? "Lisensi Aktif" : "Mode Trial"} 
+            />
           </View>
         </View>
 
@@ -76,14 +83,14 @@ export default function ProfileScreen() {
 
           <SectionTitle title="Aplikasi" />
           <ProfileLink 
-            label="Pengaturan" 
+            label="Pengaturan Fitur" 
             icon={<Settings {...({ size: 22, color: "#757575" } as any)} />} 
             onPress={() => router.push("/settings")} 
           />
           <ProfileLink 
             label="Bantuan & Support" 
             icon={<Info {...({ size: 22, color: "#757575" } as any)} />} 
-            onPress={() => {}} 
+            onPress={() => Alert.alert("Bantuan", "Untuk bantuan, hubungi kami via WhatsApp atau email support yang tertera di kemasan aplikasi.")} 
           />
           
           <Button 
