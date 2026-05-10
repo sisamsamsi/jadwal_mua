@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, ScrollView, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -95,17 +95,58 @@ export default function NewBooking() {
     try {
       const result = await aiService.parseBookingMessage(aiInputText);
       
+      // 1. Cari clientId jika ada nama yang cocok
+      let matchedClientId = "";
+      let matchedClientName = result.clientName || "";
+      
+      if (result.clientName) {
+        const match = clients.find((c: any) => 
+          c.name.toLowerCase().includes(result.clientName.toLowerCase())
+        );
+        if (match) {
+          matchedClientId = match.id;
+          matchedClientName = match.name;
+        }
+      }
+
+      // 2. Validasi Format Tanggal (YYYY-MM-DD)
+      let validDate = formData.bookingDate;
+      if (result.bookingDate && /^\d{4}-\d{2}-\d{2}$/.test(result.bookingDate)) {
+        validDate = result.bookingDate;
+      }
+
+      // 3. Update form data dengan fallback
       setFormData(prev => ({
         ...prev,
-        ...result,
+        clientId: matchedClientId || prev.clientId,
+        clientName: matchedClientName || prev.clientName,
+        bookingDate: validDate,
+        startTime: result.startTime || prev.startTime,
+        endTime: result.endTime || prev.endTime,
+        locationName: result.locationName || prev.locationName,
+        locationAddress: result.locationAddress || prev.locationAddress,
+        numPersons: result.numPersons || prev.numPersons,
+        eventType: result.eventType || prev.eventType,
+        notes: result.notes || prev.notes,
         totalPrice: prev.totalPrice 
       }));
 
-      Alert.alert("Berhasil!", "Data berhasil diekstrak oleh AI. Silakan periksa kembali.");
+      // 4. Buat ringkasan untuk user
+      const fields = [];
+      if (matchedClientId) fields.push("Klien");
+      if (result.bookingDate) fields.push("Tanggal");
+      if (result.startTime) fields.push("Waktu");
+      if (result.locationName) fields.push("Lokasi");
+      
+      const summary = fields.length > 0 
+        ? `Berhasil mengisi: ${fields.join(", ")}.` 
+        : "Beberapa data berhasil diekstrak.";
+
+      Alert.alert("Hasil AI", summary + "\n\nSilakan lengkapi bagian yang kosong.");
       setAiModalVisible(false);
       setAiInputText("");
     } catch (error: any) {
-      Alert.alert("Gagal Membaca", "Gagal memproses teks. Pastikan koneksi internet stabil dan API Key Groq sudah benar.");
+      Alert.alert("Gagal Membaca", "Gagal memproses teks. Pastikan koneksi internet stabil.");
     } finally {
       setIsParsing(false);
     }
@@ -119,10 +160,8 @@ export default function NewBooking() {
 
   const [conflictInfo, setConflictInfo] = useState<any>(null);
 
-  const checkConflict = (date: string, start: string, end: string) => {
-    // BUFFER TIME: 30 Menit untuk perjalanan/persiapan
+  const checkConflict = useCallback((date: string, start: string, end: string) => {
     const BUFFER = 30;
-    
     const toMinutes = (timeStr: string) => {
       const [h, m] = timeStr.split(':').map(Number);
       return h * 60 + m;
@@ -133,26 +172,21 @@ export default function NewBooking() {
 
     return allBookings.find(b => {
       if (b.bookingDate !== date || b.status === 'cancelled') return false;
-      
       const bStart = toMinutes(b.startTime);
       const bEnd = toMinutes(b.endTime);
 
-      // Cek bentrok langsung
       const isOverlap = (newStart >= bStart && newStart < bEnd) || 
                        (newEnd > bStart && newEnd <= bEnd) ||
                        (newStart <= bStart && newEnd >= bEnd);
-      
       if (isOverlap) return true;
 
-      // Cek Buffer Time (Terlalu mepet)
       const isTooClose = (newStart < bEnd + BUFFER && newStart >= bEnd) || 
                          (newEnd > bStart - BUFFER && newEnd <= bStart);
-      
       if (isTooClose) return true;
 
       return false;
     });
-  };
+  }, [allBookings]);
 
   // Real-time conflict check
   useEffect(() => {
@@ -160,7 +194,7 @@ export default function NewBooking() {
       const conflict = checkConflict(formData.bookingDate, formData.startTime, formData.endTime);
       setConflictInfo(conflict || null);
     }
-  }, [formData.bookingDate, formData.startTime, formData.endTime, allBookings]);
+  }, [formData.bookingDate, formData.startTime, formData.endTime, checkConflict]);
 
   const handleSave = async () => {
     if (!formData.clientId || !formData.bookingDate || !formData.startTime || !formData.endTime) {
@@ -449,17 +483,21 @@ export default function NewBooking() {
               </TouchableOpacity>
             </View>
 
-            <View className="bg-gray-50 rounded-2xl p-4 border border-divider mb-6">
+            <View className="bg-gray-50 rounded-2xl p-4 border border-divider mb-2">
               <Input
                 placeholder="Tempel pesan di sini... Contoh: 'Halo kak, mau booking buat akad tgl 12 Des jam 8 pagi di Gedung Serbaguna...'"
                 value={aiInputText}
                 onChangeText={setAiInputText}
                 multiline
                 numberOfLines={6}
+                maxLength={1000}
                 textAlignVertical="top"
                 className="bg-transparent border-0 h-40"
               />
             </View>
+            <Text className="text-right text-[10px] text-text-hint mb-6">
+              {aiInputText.length}/1000 karakter
+            </Text>
 
             <Button
               label={isParsing ? "Sedang Membaca..." : "Proses dengan AI"}

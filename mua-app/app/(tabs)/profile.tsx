@@ -13,15 +13,36 @@ import {
   ShoppingBag, 
   ChevronRight, 
   Star,
-  Info
+  Info,
+  Link as LinkIcon,
+  Copy,
+  Share2
 } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useSettingsStore } from "@/lib/stores/settings-store";
+import { Share, Clipboard } from "react-native";
 
 export default function ProfileScreen() {
   const { session } = useAuthStore();
   const router = useRouter();
-  const { showInventory, isLicenseActive } = useSettingsStore();
+  const { showInventory, isLicenseActive, businessName } = useSettingsStore();
+
+  const bookingLink = `https://mua-jadwal.web.app/book/${session?.user?.id}`;
+
+  const copyToClipboard = () => {
+    Clipboard.setString(bookingLink);
+    Alert.alert("Berhasil", "Link booking berhasil disalin ke clipboard.");
+  };
+
+  const shareLink = async () => {
+    try {
+      await Share.share({
+        message: `Halo! Kamu bisa cek jadwal dan booking rias langsung di sini: ${bookingLink}`,
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const handleLogout = async () => {
     await authService.signOut();
@@ -29,7 +50,6 @@ export default function ProfileScreen() {
   };
 
   const userEmail = session?.user?.email ?? "MUA Professional";
-  // Prioritaskan nama dari Google SSO (user_metadata), fallback ke prefix email
   const displayName = 
     session?.user?.user_metadata?.full_name ??
     session?.user?.user_metadata?.name ??
@@ -45,13 +65,16 @@ export default function ProfileScreen() {
             </View>
             <TouchableOpacity 
               className="absolute bottom-0 right-0 bg-primary w-10 h-10 rounded-full border-4 border-surface items-center justify-center"
-              onPress={() => {}}
+              onPress={() => router.push("/settings")}
             >
               <Settings {...({ size: 18, color: "white" } as any)} />
             </TouchableOpacity>
           </View>
           <Text className="text-2xl font-bold text-text-primary mt-4 capitalize">{displayName}</Text>
-          <Text className="text-text-secondary">{userEmail}</Text>
+          {businessName ? (
+            <Text className="text-primary font-bold text-sm italic">"{businessName}"</Text>
+          ) : null}
+          <Text className="text-text-secondary mt-1">{userEmail}</Text>
           
           <View className="flex-row mt-4 gap-x-2">
             <Badge 
@@ -80,6 +103,38 @@ export default function ProfileScreen() {
               onPress={() => router.push("/product")} 
             />
           )}
+
+          <SectionTitle title="Link Booking Publik" />
+          <Card className="p-4 bg-primary/5 border-dashed border-primary/30 mt-1">
+            <View className="flex-row items-center justify-between mb-3">
+              <View className="flex-row items-center">
+                <LinkIcon size={18} color="#B76E79" className="mr-2" />
+                <Text className="text-text-primary font-bold">Link Mandiri Klien</Text>
+              </View>
+              <View className="bg-primary/20 px-2 py-1 rounded">
+                <Text className="text-primary text-[10px] font-bold">PRO</Text>
+              </View>
+            </View>
+            <Text className="text-text-secondary text-xs mb-4">
+              Bagikan link ini ke Instagram/WA agar klien bisa isi jadwal sendiri tanpa DM.
+            </Text>
+            <View className="flex-row gap-x-2">
+              <TouchableOpacity 
+                onPress={copyToClipboard}
+                className="flex-1 bg-white border border-divider h-10 rounded-lg flex-row items-center justify-center"
+              >
+                <Copy size={14} color="#757575" className="mr-2" />
+                <Text className="text-text-primary text-xs font-medium">Salin Link</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={shareLink}
+                className="flex-1 bg-primary h-10 rounded-lg flex-row items-center justify-center"
+              >
+                <Share2 size={14} color="white" className="mr-2" />
+                <Text className="text-white text-xs font-medium">Bagikan</Text>
+              </TouchableOpacity>
+            </View>
+          </Card>
 
           <SectionTitle title="Aplikasi" />
           <ProfileLink 

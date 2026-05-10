@@ -19,6 +19,8 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
 import { supabase } from "@/lib/supabase/client";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { useSettingsStore } from "@/lib/stores/settings-store";
+import { useRouter, useSegments, useRootNavigationState } from "expo-router";
 
 import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
 import migrations from "../drizzle/migrations";
@@ -36,6 +38,28 @@ export default function RootLayout() {
       console.error("Migration error:", error);
     }
   }, [error]);
+
+  const hasSeenOnboarding = useSettingsStore((s) => s.hasSeenOnboarding);
+  const { session, isLoading } = useAuthStore();
+  const segments = useSegments();
+  const router = useRouter();
+  const navigationState = useRootNavigationState();
+
+  useEffect(() => {
+    if (!navigationState?.key || isLoading) return;
+
+    const inAuthGroup = segments[0] === "(auth)";
+    const inOnboarding = segments[0] === "onboarding";
+    const isPublicBooking = segments[0] === "book";
+
+    if (!session && !inAuthGroup && !isPublicBooking) {
+      router.replace("/(auth)/login" as any);
+    } else if (session && !hasSeenOnboarding && !inOnboarding && !isPublicBooking) {
+      router.replace("/onboarding" as any);
+    } else if (session && hasSeenOnboarding && (inAuthGroup || inOnboarding)) {
+      router.replace("/(tabs)" as any);
+    }
+  }, [session, isLoading, segments, hasSeenOnboarding, navigationState?.key]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {

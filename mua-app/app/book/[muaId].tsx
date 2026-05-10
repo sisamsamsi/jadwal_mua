@@ -1,0 +1,158 @@
+import React, { useState } from "react";
+import { View, Text, ScrollView, TouchableOpacity, Alert } from "react-native";
+import { useLocalSearchParams, Stack } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { supabase } from "@/lib/supabase/client";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
+import { Calendar, Clock, User, Phone, MessageSquare } from "lucide-react-native";
+import DateTimePickerModal from "react-native-modal-datetime-picker";
+
+export default function PublicBookingForm() {
+  const { muaId } = useLocalSearchParams();
+  const [loading, setLoading] = useState(false);
+  
+  const [formData, setFormData] = useState({
+    name: "",
+    phone: "",
+    date: "",
+    time: "",
+    notes: ""
+  });
+
+  const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+  const [isTimePickerVisible, setTimePickerVisibility] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!formData.name || !formData.phone || !formData.date || !formData.time) {
+      Alert.alert("Error", "Mohon isi semua data wajib.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // 1. Cari atau buat klien di database MUA tersebut
+      // (Ini disederhanakan: kita buat booking 'unregistered' atau handle later)
+      
+      const { error } = await supabase.from("bookings").insert({
+        user_id: muaId,
+        client_name: formData.name, // Kita simpan nama langsung untuk pending
+        booking_date: formData.date,
+        start_time: formData.time,
+        notes: `[Booking Publik] WA: ${formData.phone}\n\n${formData.notes}`,
+        status: "pending",
+        num_persons: 1,
+        total_price: 0
+      });
+
+      if (error) throw error;
+
+      Alert.alert(
+        "Berhasil!", 
+        "Permintaan booking Anda telah dikirim. MUA akan menghubungi Anda segera.",
+        [{ text: "OK" }]
+      );
+      
+      setFormData({ name: "", phone: "", date: "", time: "", notes: "" });
+    } catch (e: any) {
+      Alert.alert("Gagal", "Terjadi kesalahan saat mengirim data.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <SafeAreaView className="flex-1 bg-background">
+      <Stack.Screen options={{ title: "Form Booking MUA", headerShown: true }} />
+      <ScrollView contentContainerStyle={{ padding: 24 }}>
+        <View className="mb-8 items-center">
+          <View className="w-20 h-20 bg-primary/10 rounded-full items-center justify-center mb-4">
+            <Calendar size={40} color="#B76E79" />
+          </View>
+          <Text className="text-2xl font-bold text-text-primary text-center">Buat Janji Temu</Text>
+          <Text className="text-text-hint text-center mt-2 px-4">
+            Silakan isi detail di bawah ini untuk mengajukan jadwal rias.
+          </Text>
+        </View>
+
+        <View className="gap-y-4">
+          <Input 
+            label="Nama Lengkap" 
+            value={formData.name} 
+            onChangeText={(t) => setFormData({...formData, name: t})}
+            placeholder="Masukkan nama Anda"
+            leftIcon={<User size={18} color="#757575" />}
+          />
+          
+          <Input 
+            label="Nomor WhatsApp" 
+            value={formData.phone} 
+            onChangeText={(t) => setFormData({...formData, phone: t})}
+            placeholder="0812xxxxxx"
+            keyboardType="phone-pad"
+            leftIcon={<Phone size={18} color="#757575" />}
+          />
+
+          <TouchableOpacity onPress={() => setDatePickerVisibility(true)}>
+            <Input 
+              label="Tanggal Acara" 
+              value={formData.date} 
+              editable={false}
+              placeholder="Pilih Tanggal"
+              leftIcon={<Calendar size={18} color="#757575" />}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => setTimePickerVisibility(true)}>
+            <Input 
+              label="Jam Mulai" 
+              value={formData.time} 
+              editable={false}
+              placeholder="Pilih Jam"
+              leftIcon={<Clock size={18} color="#757575" />}
+            />
+          </TouchableOpacity>
+
+          <Input 
+            label="Catatan Tambahan (Opsional)" 
+            value={formData.notes} 
+            onChangeText={(t) => setFormData({...formData, notes: t})}
+            placeholder="Misal: Lokasi acara, jumlah orang, dll."
+            multiline
+            numberOfLines={4}
+            leftIcon={<MessageSquare size={18} color="#757575" />}
+          />
+
+          <Button 
+            label="Kirim Permintaan Booking" 
+            onPress={handleSubmit} 
+            loading={loading}
+            className="mt-6 h-14 rounded-2xl"
+          />
+        </View>
+
+        <DateTimePickerModal 
+          isVisible={isDatePickerVisible} 
+          mode="date" 
+          onConfirm={(date) => {
+            setFormData({...formData, date: date.toISOString().split('T')[0]});
+            setDatePickerVisibility(false);
+          }} 
+          onCancel={() => setDatePickerVisibility(false)} 
+        />
+
+        <DateTimePickerModal 
+          isVisible={isTimePickerVisible} 
+          mode="time" 
+          is24Hour={true}
+          onConfirm={(date) => {
+            const time = date.getHours().toString().padStart(2, '0') + ":" + date.getMinutes().toString().padStart(2, '0');
+            setFormData({...formData, time: time});
+            setTimePickerVisibility(false);
+          }} 
+          onCancel={() => setTimePickerVisibility(false)} 
+        />
+      </ScrollView>
+    </SafeAreaView>
+  );
+}

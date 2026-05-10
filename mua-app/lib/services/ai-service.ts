@@ -1,9 +1,11 @@
+// PENTING: Prefix 'EXPO_PUBLIC_' membuat key ini terekspos di bundle APK.
+// Untuk produksi, pindahkan logic ini ke server/proxy (Supabase Edge Function).
 const GROQ_API_KEY = process.env.EXPO_PUBLIC_GROQ_API_KEY;
 
 export const aiService = {
   async parseBookingMessage(message: string) {
-    if (!GROQ_API_KEY) {
-      throw new Error("GROQ_API_KEY belum dikonfigurasi di .env");
+    if (!GROQ_API_KEY || GROQ_API_KEY === "your_groq_api_key_here") {
+      throw new Error("GROQ_API_KEY belum dikonfigurasi. Tambahkan key di file .env Anda.");
     }
 
     try {

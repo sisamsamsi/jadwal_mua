@@ -27,8 +27,11 @@ export default function DashboardScreen() {
   const queryClient = useQueryClient();
   const [activeFilter, setActiveFilter] = useState('all');
 
-  const userEmail = session?.user?.email ?? "MUA";
-  const displayName = userEmail.split("@")[0];
+  const userEmail = session?.user?.email ?? "MUA Professional";
+  const displayName = 
+    session?.user?.user_metadata?.full_name ??
+    session?.user?.user_metadata?.name ??
+    userEmail.split("@")[0];
 
   const onRefresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });

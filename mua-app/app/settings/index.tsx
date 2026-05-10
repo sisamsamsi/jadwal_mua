@@ -1,10 +1,12 @@
-import React from "react";
-import { View, Text, ScrollView, TouchableOpacity, Switch } from "react-native";
+import React, { useState } from "react";
+import { View, Text, ScrollView, TouchableOpacity, Switch, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useRouter } from "expo-router";
 import { useSettingsStore } from "@/lib/stores/settings-store";
-import { ChevronLeft, Users, ShoppingBag, ShieldCheck } from "lucide-react-native";
+import { ChevronLeft, Users, ShoppingBag, ShieldCheck, Store, Phone } from "lucide-react-native";
 import { Card } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -12,9 +14,22 @@ export default function SettingsScreen() {
     showBridalParty, 
     showInventory, 
     isLicenseActive,
+    businessName: savedBusinessName,
+    whatsappNumber: savedWhatsapp,
+    waTemplates,
     toggleBridalParty, 
-    toggleInventory 
+    toggleInventory,
+    updateBusinessProfile,
+    updateTemplates
   } = useSettingsStore();
+
+  const [businessName, setBusinessName] = useState(savedBusinessName);
+  const [whatsapp, setWhatsapp] = useState(savedWhatsapp);
+
+  const handleSaveProfile = () => {
+    updateBusinessProfile(businessName, whatsapp);
+    Alert.alert("Berhasil", "Profil bisnis telah diperbarui.");
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -24,28 +39,99 @@ export default function SettingsScreen() {
         <TouchableOpacity onPress={() => router.back()} className="mr-4 p-2">
           <ChevronLeft size={24} color="#2D2D2D" />
         </TouchableOpacity>
-        <Text className="text-xl font-bold text-text-primary">Pengaturan Fitur</Text>
+        <Text className="text-xl font-bold text-text-primary">Pengaturan</Text>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 24 }}>
+        <Text className="text-text-hint font-bold uppercase text-xs mb-4">Profil Bisnis (Identitas MUA)</Text>
+        <Card className="p-4 mb-8">
+           <View className="mb-4">
+             <Input 
+               label="Nama Bisnis / Brand" 
+               value={businessName} 
+               onChangeText={setBusinessName}
+               placeholder="Contoh: Rahayu Makeup Artist"
+               leftIcon={<Store size={18} color="#757575" />}
+             />
+           </View>
+           <View className="mb-6">
+             <Input 
+               label="Nomor WhatsApp Bisnis" 
+               value={whatsapp} 
+               onChangeText={setWhatsapp}
+               placeholder="0812xxxxxx"
+               keyboardType="phone-pad"
+               leftIcon={<Phone size={18} color="#757575" />}
+             />
+           </View>
+           <Button 
+             label="Simpan Profil" 
+             onPress={handleSaveProfile}
+             className="h-12 rounded-xl"
+           />
+        </Card>
+
         <Text className="text-text-hint font-bold uppercase text-xs mb-4">Fitur Modul</Text>
         
-        <Card className="mb-6 overflow-hidden">
-          <ToggleItem 
-            label="Detail Rias Per Orang" 
-            description="Tampilkan rincian makeup & baju untuk setiap anggota rombongan."
-            icon={<Users size={22} color="#B76E79" />}
-            value={showBridalParty}
-            onToggle={toggleBridalParty}
-          />
-          <View className="h-[1] bg-divider ml-16" />
-          <ToggleItem 
-            label="Manajemen Inventaris" 
-            description="Aktifkan pencatatan stok alat rias dan produk."
-            icon={<ShoppingBag size={22} color="#2196F3" />}
-            value={showInventory}
-            onToggle={toggleInventory}
-          />
+        <Card className="mb-8 overflow-hidden">
+          <View className="flex-row items-center justify-between p-4 border-b border-divider">
+            <View className="flex-row items-center">
+              <Users size={20} color="#757575" className="mr-3" />
+              <Text className="text-text-primary font-medium">Modul Rombongan</Text>
+            </View>
+            <Switch value={showBridalParty} onValueChange={toggleBridalParty} trackColor={{ false: "#E0E0E0", true: "#B76E79" }} />
+          </View>
+          <View className="flex-row items-center justify-between p-4">
+            <View className="flex-row items-center">
+              <ShoppingBag size={20} color="#757575" className="mr-3" />
+              <Text className="text-text-primary font-medium">Modul Inventaris</Text>
+            </View>
+            <Switch value={showInventory} onValueChange={toggleInventory} trackColor={{ false: "#E0E0E0", true: "#B76E79" }} />
+          </View>
+        </Card>
+
+        <Text className="text-text-hint font-bold uppercase text-xs mb-4">Template Pesan WhatsApp</Text>
+        <Card className="p-4 mb-8">
+          <View className="bg-primary/5 p-3 rounded-lg mb-4">
+            <Text className="text-primary text-[10px] leading-4">
+              Gunakan placeholder:{"\n"}
+              <Text className="font-bold">{"{{nama}}"}</Text> : Nama Klien{"\n"}
+              <Text className="font-bold">{"{{layanan}}"}</Text> : Nama Layanan/Paket{"\n"}
+              <Text className="font-bold">{"{{tanggal}}"}</Text> : Tanggal Booking{"\n"}
+              <Text className="font-bold">{"{{jam}}"}</Text> : Jam Mulai
+            </Text>
+          </View>
+
+          <View className="mb-4">
+            <Input 
+              label="Pesan Konfirmasi" 
+              value={waTemplates.confirmation} 
+              onChangeText={(t) => updateTemplates({ confirmation: t })}
+              multiline
+              numberOfLines={3}
+            />
+          </View>
+          <View className="mb-4">
+            <Input 
+              label="Pesan Pengingat (Reminder)" 
+              value={waTemplates.reminder} 
+              onChangeText={(t) => updateTemplates({ reminder: t })}
+              multiline
+              numberOfLines={3}
+            />
+          </View>
+          <View className="mb-6">
+            <Input 
+              label="Pesan Ucapan Terima Kasih" 
+              value={waTemplates.thanks} 
+              onChangeText={(t) => updateTemplates({ thanks: t })}
+              multiline
+              numberOfLines={3}
+            />
+          </View>
+          <Text className="text-text-hint text-[10px] italic text-center">
+            * Perubahan otomatis tersimpan
+          </Text>
         </Card>
 
         <Text className="text-text-hint font-bold uppercase text-xs mb-4">Keamanan & Lisensi</Text>
