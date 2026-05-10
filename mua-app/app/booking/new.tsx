@@ -8,9 +8,10 @@ import { useCreateService, useServices } from "@/lib/hooks/use-services";
 import { usePackages } from "@/lib/hooks/use-packages";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { ChevronLeft, Calendar as CalendarIcon, Clock, Users, Plus, Tag, AlertCircle } from "lucide-react-native";
+import { ChevronLeft, Calendar as CalendarIcon, Clock, Users, Plus, Tag, AlertCircle, Sparkles } from "lucide-react-native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
-import { Modal } from "react-native";
+import { Modal, ActivityIndicator } from "react-native";
+import { aiService } from "@/lib/services/ai-service";
 
 export default function NewBooking() {
   const router = useRouter();
@@ -82,6 +83,33 @@ export default function NewBooking() {
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
   const [isStartTimeVisible, setStartTimeVisibility] = useState(false);
   const [isEndTimeVisible, setEndTimeVisibility] = useState(false);
+
+  // AI States
+  const [aiModalVisible, setAiModalVisible] = useState(false);
+  const [aiInputText, setAiInputText] = useState("");
+  const [isParsing, setIsParsing] = useState(false);
+
+  const handleAiParse = async () => {
+    if (!aiInputText.trim()) return;
+    setIsParsing(true);
+    try {
+      const result = await aiService.parseBookingMessage(aiInputText);
+      
+      setFormData(prev => ({
+        ...prev,
+        ...result,
+        totalPrice: prev.totalPrice 
+      }));
+
+      Alert.alert("Berhasil!", "Data berhasil diekstrak oleh AI. Silakan periksa kembali.");
+      setAiModalVisible(false);
+      setAiInputText("");
+    } catch (error: any) {
+      Alert.alert("Gagal Membaca", "Gagal memproses teks. Pastikan koneksi internet stabil dan API Key Groq sudah benar.");
+    } finally {
+      setIsParsing(false);
+    }
+  };
 
   // LOGIKA HITUNG OTOMATIS: Harga x Jumlah Orang
   useEffect(() => {
@@ -177,6 +205,13 @@ export default function NewBooking() {
         <Text className="text-xl font-bold text-text-primary">
           {formData.numPersons > 1 ? "Booking Rombongan" : "Booking Jadwal"}
         </Text>
+        <TouchableOpacity 
+          onPress={() => setAiModalVisible(true)}
+          className="ml-auto bg-primary/10 px-3 py-2 rounded-full flex-row items-center"
+        >
+          <Sparkles size={16} color="#B76E79" className="mr-1" />
+          <Text className="text-primary text-xs font-bold">Asisten AI</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 24 }}>
@@ -391,6 +426,50 @@ export default function NewBooking() {
               <Button variant="outline" label="Batal" onPress={() => setServiceModalVisible(false)} className="flex-1" />
               <Button variant="primary" label="Simpan" onPress={handleCreateService} loading={createServiceMutation.isPending} className="flex-1" />
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* AI ASISTEN MODAL */}
+      <Modal visible={aiModalVisible} animationType="slide" transparent>
+        <View className="flex-1 justify-end bg-black/50">
+          <View className="bg-white rounded-t-[40px] p-8">
+            <View className="flex-row justify-between items-center mb-6">
+              <View className="flex-row items-center">
+                <View className="w-10 h-10 bg-primary/10 rounded-full items-center justify-center mr-3">
+                  <Sparkles size={20} color="#B76E79" />
+                </View>
+                <View>
+                  <Text className="text-xl font-bold text-text-primary">Asisten AI MUA</Text>
+                  <Text className="text-text-hint text-xs">Tempel pesan WA untuk isi form otomatis</Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => setAiModalVisible(false)} className="p-2">
+                <Text className="text-text-hint font-bold">Batal</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View className="bg-gray-50 rounded-2xl p-4 border border-divider mb-6">
+              <Input
+                placeholder="Tempel pesan di sini... Contoh: 'Halo kak, mau booking buat akad tgl 12 Des jam 8 pagi di Gedung Serbaguna...'"
+                value={aiInputText}
+                onChangeText={setAiInputText}
+                multiline
+                numberOfLines={6}
+                textAlignVertical="top"
+                className="bg-transparent border-0 h-40"
+              />
+            </View>
+
+            <Button
+              label={isParsing ? "Sedang Membaca..." : "Proses dengan AI"}
+              onPress={handleAiParse}
+              loading={isParsing}
+              className="h-14 rounded-2xl"
+            />
+            <Text className="text-center text-[10px] text-text-hint mt-4 italic">
+              * AI akan mencoba mendeteksi Nama, Tanggal, Jam, dan Lokasi.
+            </Text>
           </View>
         </View>
       </Modal>
