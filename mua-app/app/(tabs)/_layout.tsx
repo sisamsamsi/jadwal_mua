@@ -1,7 +1,7 @@
 import React from "react";
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { View } from "react-native";
+import { View, Platform } from "react-native";
 
 export default function TabLayout() {
   return (
@@ -10,7 +10,23 @@ export default function TabLayout() {
         headerShown: false,
         tabBarActiveTintColor: "#B76E79",
         tabBarInactiveTintColor: "#BDBDBD",
-        tabBarStyle: { height: 60, paddingBottom: 6 },
+        tabBarHideOnKeyboard: true,
+        tabBarStyle: { 
+          height: Platform.OS === 'ios' ? 90 : 75, 
+          paddingBottom: Platform.OS === 'ios' ? 30 : 15,
+          paddingTop: 10,
+          backgroundColor: '#FFFFFF',
+          borderTopWidth: 0,
+          elevation: 20,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -10 },
+          shadowOpacity: 0.05,
+          shadowRadius: 10,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
+        }
       }}
     >
       <Tabs.Screen name="home" options={{ title: "Home", tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" size={size} color={color} /> }} />

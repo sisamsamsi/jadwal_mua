@@ -7,7 +7,6 @@
     "icon": "./assets/images/logo.png",
     "scheme": "mua-app",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/logo.png",
       "resizeMode": "contain",
@@ -23,6 +22,7 @@
         "backgroundColor": "#FAF7F5"
       },
       "package": "com.muaapp.app",
+      "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",

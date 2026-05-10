@@ -147,7 +147,7 @@ export default function SettingsScreen() {
         </Card>
 
         <Text className="text-text-hint font-bold uppercase text-xs mb-4">Keamanan & Lisensi</Text>
-        <Card className="p-4 bg-primary/5 border-primary/20">
+        <Card className="p-4 bg-primary/5 border-primary/20 mb-8">
           <View className="flex-row items-start">
              <View className="w-10 h-10 bg-primary/10 rounded-full items-center justify-center mr-4">
                 <ShieldCheck size={20} color="#B76E79" />
@@ -164,6 +164,39 @@ export default function SettingsScreen() {
                 )}
              </View>
           </View>
+        </Card>
+
+        <Text className="text-text-hint font-bold uppercase text-xs mb-4">Pusat Bantuan & Panduan</Text>
+        <Card className="mb-10 overflow-hidden">
+          <TouchableOpacity 
+            onPress={() => Alert.alert("Panduan AI", "1. Copy pesan booking dari WhatsApp klien.\n2. Buka 'Booking Baru' > klik 'Asisten AI'.\n3. Paste pesan dan klik 'Proses'.\n4. Data akan terisi otomatis!")}
+            className="flex-row items-center justify-between p-4 border-b border-divider"
+          >
+            <View className="flex-row items-center">
+              <Text className="text-text-primary font-medium">Cara Menggunakan Asisten AI</Text>
+            </View>
+            <ChevronLeft size={20} color="#BDBDBD" style={{ transform: [{ rotate: '180deg' }] }} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            onPress={() => Alert.alert("Panduan Booking", "Tipe Acara (Akad/Resepsi) digunakan untuk pengelompokan di kalender. Layanan digunakan untuk hitungan harga. Gunakan fitur 'Otomatis' dengan memilih layanan terlebih dahulu.")}
+            className="flex-row items-center justify-between p-4 border-b border-divider"
+          >
+            <View className="flex-row items-center">
+              <Text className="text-text-primary font-medium">Panduan Kelola Jadwal</Text>
+            </View>
+            <ChevronLeft size={20} color="#BDBDBD" style={{ transform: [{ rotate: '180deg' }] }} />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            onPress={() => Alert.alert("Link Booking Publik", "Kirimkan link yang ada di profil Anda ke klien (Bio IG/WA). Klien bisa mengisi data sendiri dan akan muncul di jadwal Anda sebagai 'Pending'.")}
+            className="flex-row items-center justify-between p-4"
+          >
+            <View className="flex-row items-center">
+              <Text className="text-text-primary font-medium">Cara Booking Mandiri oleh Klien</Text>
+            </View>
+            <ChevronLeft size={20} color="#BDBDBD" style={{ transform: [{ rotate: '180deg' }] }} />
+          </TouchableOpacity>
         </Card>
 
         <Text className="text-center text-text-hint mt-10 text-xs">MUA App v{APP_CONFIG.VERSION}</Text>

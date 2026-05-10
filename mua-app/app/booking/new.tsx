@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Alert } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useCreateBooking, useBookings } from "@/lib/hooks/use-bookings";
@@ -248,7 +248,15 @@ export default function NewBooking() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 24 }}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
+        style={{ flex: 1 }}
+      >
+        <ScrollView 
+          contentContainerStyle={{ padding: 24 }}
+          keyboardShouldPersistTaps="handled"
+        >
         {/* Tipe Acara */}
         <Text className="text-text-hint font-bold uppercase text-xs mb-3">Tipe Acara</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
@@ -361,7 +369,16 @@ export default function NewBooking() {
               key={s.id} 
               onPress={() => {
                 setBasePricePerPerson(s.basePrice || 0);
-                setFormData({ ...formData, serviceId: s.id, packageId: "" });
+                const name = s.name.toLowerCase();
+                let newEventType = formData.eventType;
+                if (name.includes("akad")) newEventType = "Akad";
+                else if (name.includes("resepsi")) newEventType = "Resepsi";
+                else if (name.includes("fitting")) newEventType = "Fitting";
+                else if (name.includes("lamaran")) newEventType = "Lamaran";
+                else if (name.includes("siraman")) newEventType = "Siraman";
+                else if (name.includes("rapat")) newEventType = "Rapat";
+                
+                setFormData({ ...formData, serviceId: s.id, packageId: "", eventType: newEventType });
               }}
               className={`mr-3 px-4 py-3 rounded-2xl border ${formData.serviceId === s.id ? 'bg-primary-light/20 border-primary' : 'bg-surface border-divider'}`}
             >
@@ -374,7 +391,16 @@ export default function NewBooking() {
               key={p.id} 
               onPress={() => {
                 setBasePricePerPerson(p.totalPrice || 0);
-                setFormData({ ...formData, packageId: p.id, serviceId: "" });
+                const name = p.name.toLowerCase();
+                let newEventType = formData.eventType;
+                if (name.includes("akad")) newEventType = "Akad";
+                else if (name.includes("resepsi")) newEventType = "Resepsi";
+                else if (name.includes("fitting")) newEventType = "Fitting";
+                else if (name.includes("lamaran")) newEventType = "Lamaran";
+                else if (name.includes("siraman")) newEventType = "Siraman";
+                else if (name.includes("rapat")) newEventType = "Rapat";
+
+                setFormData({ ...formData, packageId: p.id, serviceId: "", eventType: newEventType });
               }}
               className={`mr-3 px-4 py-3 rounded-2xl border ${formData.packageId === p.id ? 'bg-primary-light/20 border-primary' : 'bg-surface border-divider'}`}
             >
@@ -432,13 +458,17 @@ export default function NewBooking() {
         <DateTimePickerModal isVisible={isDatePickerVisible} mode="date" onConfirm={(date) => { setFormData({ ...formData, bookingDate: date.toISOString().split('T')[0] }); setDatePickerVisibility(false); }} onCancel={() => setDatePickerVisibility(false)} />
         <DateTimePickerModal isVisible={isStartTimeVisible} mode="time" is24Hour={true} onConfirm={(date) => { const time = date.getHours().toString().padStart(2, '0') + ":" + date.getMinutes().toString().padStart(2, '0'); setFormData({ ...formData, startTime: time }); setStartTimeVisibility(false); }} onCancel={() => setStartTimeVisibility(false)} />
         <DateTimePickerModal isVisible={isEndTimeVisible} mode="time" is24Hour={true} onConfirm={(date) => { const time = date.getHours().toString().padStart(2, '0') + ":" + date.getMinutes().toString().padStart(2, '0'); setFormData({ ...formData, endTime: time }); setEndTimeVisibility(false); }} onCancel={() => setEndTimeVisibility(false)} />
+        <View style={{ height: 100 }} />
       </ScrollView>
 
       {/* Modal Tambah Klien */}
-      <Modal visible={isClientModalVisible} animationType="slide" transparent>
-        <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-surface p-6 rounded-t-3xl">
-            <Text className="text-lg font-bold mb-4">Tambah Klien Baru</Text>
+      <Modal visible={isClientModalVisible} animationType="fade" transparent>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          className="flex-1 justify-center bg-black/50 px-6"
+        >
+          <View className="bg-surface p-6 rounded-3xl shadow-2xl border border-divider">
+            <Text className="text-lg font-bold mb-4 text-text-primary">Tambah Klien Baru</Text>
             <Input label="Nama Klien" value={newClientName} onChangeText={setNewClientName} placeholder="Contoh: Ibu Rina" className="mb-4" />
             <Input label="Nomor WhatsApp" value={newClientPhone} onChangeText={setNewClientPhone} placeholder="0812..." keyboardType="phone-pad" className="mb-6" />
             <View className="flex-row gap-3">
@@ -446,14 +476,17 @@ export default function NewBooking() {
               <Button variant="primary" label="Simpan" onPress={handleCreateClient} loading={createClientMutation.isPending} className="flex-1" />
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Modal Tambah Layanan */}
-      <Modal visible={isServiceModalVisible} animationType="slide" transparent>
-        <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-surface p-6 rounded-t-3xl">
-            <Text className="text-lg font-bold mb-4">Tambah Layanan Baru</Text>
+      <Modal visible={isServiceModalVisible} animationType="fade" transparent>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          className="flex-1 justify-center bg-black/50 px-6"
+        >
+          <View className="bg-surface p-6 rounded-3xl shadow-2xl border border-divider">
+            <Text className="text-lg font-bold mb-4 text-text-primary">Tambah Layanan Baru</Text>
             <Input label="Nama Layanan" value={newServiceName} onChangeText={setNewServiceName} placeholder="Contoh: Makeup Wisuda" className="mb-4" />
             <Input label="Harga Dasar (Rp)" value={newServicePrice} onChangeText={setNewServicePrice} placeholder="500000" keyboardType="numeric" className="mb-6" />
             <View className="flex-row gap-3">
@@ -461,43 +494,53 @@ export default function NewBooking() {
               <Button variant="primary" label="Simpan" onPress={handleCreateService} loading={createServiceMutation.isPending} className="flex-1" />
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
-
       {/* AI ASISTEN MODAL */}
-      <Modal visible={aiModalVisible} animationType="slide" transparent>
-        <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-white rounded-t-[40px] p-8">
+      <Modal visible={aiModalVisible} animationType="fade" transparent>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          className="flex-1 justify-center bg-black/50 px-6"
+        >
+          <View className="bg-white rounded-[32px] p-6 shadow-2xl">
             <View className="flex-row justify-between items-center mb-6">
-              <View className="flex-row items-center">
+              <View className="flex-row items-center flex-1">
                 <View className="w-10 h-10 bg-primary/10 rounded-full items-center justify-center mr-3">
                   <Sparkles size={20} color="#B76E79" />
                 </View>
-                <View>
-                  <Text className="text-xl font-bold text-text-primary">Asisten AI MUA</Text>
-                  <Text className="text-text-hint text-xs">Tempel pesan WA untuk isi form otomatis</Text>
+                <View className="flex-1">
+                  <Text className="text-lg font-bold text-text-primary">Asisten AI MUA</Text>
+                  <Text className="text-text-hint text-[10px]">Tempel pesan WA untuk isi otomatis</Text>
                 </View>
               </View>
-              <TouchableOpacity onPress={() => setAiModalVisible(false)} className="p-2">
-                <Text className="text-text-hint font-bold">Batal</Text>
+              <TouchableOpacity onPress={() => setAiModalVisible(false)} className="ml-2">
+                <Text className="text-primary font-bold">Batal</Text>
               </TouchableOpacity>
             </View>
 
-            <View className="bg-gray-50 rounded-2xl p-4 border border-divider mb-2">
-              <Input
-                placeholder="Tempel pesan di sini... Contoh: 'Halo kak, mau booking buat akad tgl 12 Des jam 8 pagi di Gedung Serbaguna...'"
-                value={aiInputText}
-                onChangeText={setAiInputText}
-                multiline
-                numberOfLines={6}
-                maxLength={1000}
-                textAlignVertical="top"
-                className="bg-transparent border-0 h-40"
-              />
+            <ScrollView showsVerticalScrollIndicator={false} className="max-h-80">
+              <View className="bg-gray-50 rounded-2xl p-4 border border-divider mb-4">
+                <Input
+                  placeholder="Tempel pesan di sini... Contoh: 'Halo kak, mau booking buat akad tgl 12 Des jam 8 pagi di Gedung Serbaguna...'"
+                  value={aiInputText}
+                  onChangeText={setAiInputText}
+                  multiline
+                  numberOfLines={6}
+                  maxLength={1000}
+                  textAlignVertical="top"
+                  className="bg-transparent border-0 min-h-[120px]"
+                />
+              </View>
+            </ScrollView>
+
+            <View className="flex-row justify-between items-center mb-4">
+              <Text className="text-[10px] text-text-hint italic">
+                * AI mendeteksi Nama, Tanggal, Jam & Lokasi
+              </Text>
+              <Text className="text-[10px] text-text-hint">
+                {aiInputText.length}/1000
+              </Text>
             </View>
-            <Text className="text-right text-[10px] text-text-hint mb-6">
-              {aiInputText.length}/1000 karakter
-            </Text>
 
             <Button
               label={isParsing ? "Sedang Membaca..." : "Proses dengan AI"}
@@ -505,12 +548,11 @@ export default function NewBooking() {
               loading={isParsing}
               className="h-14 rounded-2xl"
             />
-            <Text className="text-center text-[10px] text-text-hint mt-4 italic">
-              * AI akan mencoba mendeteksi Nama, Tanggal, Jam, dan Lokasi.
-            </Text>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
+
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
