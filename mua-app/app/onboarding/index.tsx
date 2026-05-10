@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { View, Text, FlatList, Dimensions, TouchableOpacity, Animated } from "react-native";
+import { View, Text, FlatList, Dimensions, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useSettingsStore } from "@/lib/stores/settings-store";

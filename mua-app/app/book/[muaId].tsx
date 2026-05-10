@@ -54,9 +54,16 @@ export default function PublicBookingForm() {
     fetchMuaProfile();
   }, [muaId]);
 
+  const phoneRegex = /^(\+62|62|0)[0-9]{8,12}$/;
+
   const handleSubmit = async () => {
     if (!formData.name || !formData.phone || !formData.date || !formData.time) {
       Alert.alert("Error", "Mohon isi semua data wajib.");
+      return;
+    }
+
+    if (!phoneRegex.test(formData.phone.replace(/\s/g, ""))) {
+      Alert.alert("Nomor Tidak Valid", "Masukkan nomor WhatsApp yang valid (contoh: 0812xxxxxx atau +628xxxxxxxx).");
       return;
     }
 
@@ -75,10 +82,10 @@ export default function PublicBookingForm() {
 
       if (clientError) throw clientError;
 
-      // 2. Insert ke bookings menggunakan clientId yang valid
+      // 2. Insert ke bookings menggunakan client_id yang valid (snake_case = nama kolom DB)
       const { error: bookingError } = await supabase.from("bookings").insert({
         user_id: muaId,
-        clientId: clientData.id,
+        client_id: clientData.id,
         booking_date: formData.date,
         start_time: formData.time,
         notes: `[Booking Publik]\n${formData.notes}`,
@@ -129,7 +136,7 @@ export default function PublicBookingForm() {
           Permintaan jadwal Anda telah terkirim ke <Text className="font-bold">{muaProfile?.businessName}</Text>. Kami akan menghubungi Anda via WhatsApp untuk konfirmasi selanjutnya.
         </Text>
         <Button 
-          label="Tutup" 
+          label="Buat Booking Lain" 
           onPress={() => setIsSuccess(false)} 
           className="w-full h-14 rounded-2xl" 
         />
@@ -211,7 +218,8 @@ export default function PublicBookingForm() {
 
         <DateTimePickerModal 
           isVisible={isDatePickerVisible} 
-          mode="date" 
+          mode="date"
+          minimumDate={new Date()}
           onConfirm={(date) => {
             setFormData({...formData, date: date.toISOString().split('T')[0]});
             setDatePickerVisibility(false);

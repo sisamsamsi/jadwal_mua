@@ -204,9 +204,14 @@ export default function BookingDetail() {
   };
 
   const handleSendReminder = () => {
+    // Susun label layanan dari eventType agar lebih deskriptif
+    const layananLabel = booking.eventType 
+      ? `Makeup ${booking.eventType}` 
+      : "Makeup";
+
     const message = formatWhatsAppTemplate(waTemplates.reminder, {
-      nama: booking.clientName || client?.name || "Klien",
-      layanan: booking.eventType || "Makeup",
+      nama: client?.name || booking.clientName || "Klien",
+      layanan: layananLabel,
       tanggal: booking.bookingDate,
       jam: booking.startTime
     });
@@ -218,8 +223,33 @@ export default function BookingDetail() {
     ]);
   };
 
-  if (loadingBooking) return null;
-  if (!booking) return null;
+  if (loadingBooking) {
+    return (
+      <SafeAreaView className="flex-1 bg-background items-center justify-center">
+        <Stack.Screen options={{ headerShown: false }} />
+        <Text className="text-text-hint mt-3">Memuat data jadwal...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (!booking) {
+    return (
+      <SafeAreaView className="flex-1 bg-background items-center justify-center p-6">
+        <Stack.Screen options={{ headerShown: false }} />
+        <AlertCircle size={40} color="#B76E79" />
+        <Text className="text-lg font-bold text-text-primary mt-4 text-center">Jadwal Tidak Ditemukan</Text>
+        <Text className="text-text-secondary text-center mt-2">
+          Jadwal ini mungkin sudah dihapus atau tidak tersedia.
+        </Text>
+        <TouchableOpacity 
+          onPress={() => router.back()} 
+          className="mt-6 bg-primary px-6 py-3 rounded-xl"
+        >
+          <Text className="text-white font-bold">Kembali</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <View className="flex-1 bg-background">

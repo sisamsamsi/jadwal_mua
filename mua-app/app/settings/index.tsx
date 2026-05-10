@@ -7,6 +7,7 @@ import { ChevronLeft, Users, ShoppingBag, ShieldCheck, Store, Phone } from "luci
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { APP_CONFIG } from "@/lib/constants/app";
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -165,7 +166,7 @@ export default function SettingsScreen() {
           </View>
         </Card>
 
-        <Text className="text-center text-text-hint mt-10 text-xs">MUA App v1.0.4 (Production Ready)</Text>
+        <Text className="text-center text-text-hint mt-10 text-xs">MUA App v{APP_CONFIG.VERSION}</Text>
       </ScrollView>
     </SafeAreaView>
   );

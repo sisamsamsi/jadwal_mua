@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, ScrollView, TouchableOpacity, Alert } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Alert, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { authService } from "@/lib/supabase/auth";
@@ -137,6 +137,13 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
           </Card>
+          {!APP_CONFIG.IS_WEB_APP_DEPLOYED && (
+            <View className="flex-row items-start bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mt-1">
+              <Text className="text-amber-600 text-xs leading-5">
+                ⚠️ <Text className="font-bold">Domain belum aktif.</Text> Link ini bisa dibagikan setelah web app dideploy. Form booking sudah bisa ditest secara langsung.
+              </Text>
+            </View>
+          )}
 
           <SectionTitle title="Aplikasi" />
           <ProfileLink 
@@ -147,7 +154,12 @@ export default function ProfileScreen() {
           <ProfileLink 
             label="Bantuan & Support" 
             icon={<Info {...({ size: 22, color: "#757575" } as any)} />} 
-            onPress={() => Alert.alert("Bantuan", "Untuk bantuan, hubungi kami via WhatsApp atau email support yang tertera di kemasan aplikasi.")} 
+            onPress={() => {
+              const waUrl = `whatsapp://send?phone=${APP_CONFIG.SUPPORT_WHATSAPP}&text=Halo, saya butuh bantuan dengan MUA App.`;
+              Linking.openURL(waUrl).catch(() => 
+                Alert.alert("WhatsApp tidak tersedia", "Pastikan WhatsApp terinstal di perangkat Anda.")
+              );
+            }} 
           />
           
           <Button 
@@ -160,7 +172,7 @@ export default function ProfileScreen() {
           </Button>
         </View>
 
-        <Text className="text-center text-text-hint mt-10 mb-6">MUA App v1.0.0</Text>
+        <Text className="text-center text-text-hint mt-10 mb-6">MUA App v{APP_CONFIG.VERSION}</Text>
       </ScrollView>
     </SafeAreaView>
   );
