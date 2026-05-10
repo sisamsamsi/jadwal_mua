@@ -46,7 +46,7 @@ export default function ClientDetail() {
       { text: "Batal", style: "cancel" },
       { text: "Hapus", style: "destructive", onPress: async () => {
         await deleteClientMutation.mutateAsync(id as string);
-        router.replace("/clients");
+        router.replace("/(tabs)/clients");
       }}
     ]);
   };

@@ -12,6 +12,7 @@ if (typeof global.crypto.randomUUID !== 'function') {
   } as any;
 }
 import React, { useEffect } from "react";
+import { View, Text } from "react-native";
 import { Stack } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -55,7 +56,16 @@ export default function RootLayout() {
   }, []);
 
   if (!success) {
-    return null;
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 20 }}>
+        <Text style={{ fontSize: 18, fontWeight: "bold", color: "#F44336", marginBottom: 10 }}>
+          Gagal Memuat Database
+        </Text>
+        <Text style={{ textAlign: "center", color: "#757575" }}>
+          {error?.message || "Terjadi kesalahan saat sinkronisasi data lokal. Silakan coba buka kembali aplikasinya."}
+        </Text>
+      </View>
+    );
   }
 
   return (

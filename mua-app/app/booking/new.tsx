@@ -3,17 +3,21 @@ import { View, Text, ScrollView, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useCreateBooking, useBookings } from "@/lib/hooks/use-bookings";
-import { useClients } from "@/lib/hooks/use-clients";
-import { useServices } from "@/lib/hooks/use-services";
+import { useCreateClient, useClients } from "@/lib/hooks/use-clients";
+import { useCreateService, useServices } from "@/lib/hooks/use-services";
 import { usePackages } from "@/lib/hooks/use-packages";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { ChevronLeft, Calendar as CalendarIcon, Clock, Users } from "lucide-react-native";
+import { ChevronLeft, Calendar as CalendarIcon, Clock, Users, Plus, Tag } from "lucide-react-native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
+import { Modal } from "react-native";
 
 export default function NewBooking() {
   const router = useRouter();
   const createBooking = useCreateBooking();
+  const createClientMutation = useCreateClient();
+  const createServiceMutation = useCreateService();
+  
   const { data: clients = [] } = useClients();
   const { data: services = [] } = useServices();
   const { packages = [] } = usePackages();
@@ -29,10 +33,50 @@ export default function NewBooking() {
     endTime: "10:00",
     locationName: "",
     locationAddress: "",
-    numPersons: 1, // DEFAULT 1 ORANG
+    numPersons: 1, 
     totalPrice: 0,
+    eventType: "Akad",
     notes: "",
   });
+
+  // Modal States
+  const [isClientModalVisible, setClientModalVisible] = useState(false);
+  const [isServiceModalVisible, setServiceModalVisible] = useState(false);
+  const [newClientName, setNewClientName] = useState("");
+  const [newClientPhone, setNewClientPhone] = useState("");
+  const [newServiceName, setNewServiceName] = useState("");
+  const [newServicePrice, setNewServicePrice] = useState("");
+
+  const handleCreateClient = async () => {
+    if (!newClientName) return;
+    try {
+      const result = await createClientMutation.mutateAsync({ name: newClientName, phone: newClientPhone });
+      setFormData({ ...formData, clientId: result.id, clientName: result.name });
+      setClientModalVisible(false);
+      setNewClientName("");
+      setNewClientPhone("");
+    } catch (e) {
+      Alert.alert("Error", "Gagal menambah klien");
+    }
+  };
+
+  const handleCreateService = async () => {
+    if (!newServiceName || !newServicePrice) return;
+    try {
+      const result = await createServiceMutation.mutateAsync({ 
+        name: newServiceName, 
+        basePrice: Number(newServicePrice),
+        category: "Makeup" 
+      });
+      setBasePricePerPerson(Number(newServicePrice));
+      setFormData({ ...formData, serviceId: result.id, packageId: "" });
+      setServiceModalVisible(false);
+      setNewServiceName("");
+      setNewServicePrice("");
+    } catch (e) {
+      Alert.alert("Error", "Gagal menambah layanan");
+    }
+  };
 
   const [basePricePerPerson, setBasePricePerPerson] = useState(0);
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
@@ -100,8 +144,28 @@ export default function NewBooking() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 24 }}>
-        {/* Pilih Klien (Bisa Instansi/Nama Rombongan) */}
-        <Text className="text-text-hint font-bold uppercase text-xs mb-3">Pilih Klien / Instansi</Text>
+        {/* Tipe Acara */}
+        <Text className="text-text-hint font-bold uppercase text-xs mb-3">Tipe Acara</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
+          {["Akad", "Resepsi", "Fitting", "Rapat", "Siraman", "Lamaran", "Lainnya"].map((type) => (
+            <TouchableOpacity 
+              key={type} 
+              onPress={() => setFormData({ ...formData, eventType: type })}
+              className={`mr-3 px-4 py-2 rounded-full border ${formData.eventType === type ? 'bg-primary border-primary' : 'bg-surface border-divider'}`}
+            >
+              <Text className={formData.eventType === type ? 'text-white font-bold' : 'text-text-secondary'}>{type}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Pilih Klien */}
+        <View className="flex-row items-center justify-between mb-3">
+          <Text className="text-text-hint font-bold uppercase text-xs">Pilih Klien / Instansi</Text>
+          <TouchableOpacity onPress={() => setClientModalVisible(true)} className="flex-row items-center">
+            <Plus size={14} color="#B76E79" className="mr-1" />
+            <Text className="text-primary text-xs font-bold">Tambah Klien</Text>
+          </TouchableOpacity>
+        </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
           {(clients || []).map((c: any) => (
             <TouchableOpacity 
@@ -112,9 +176,6 @@ export default function NewBooking() {
               <Text className={formData.clientId === c.id ? 'text-white font-bold' : 'text-text-secondary'}>{c.name}</Text>
             </TouchableOpacity>
           ))}
-          <TouchableOpacity onPress={() => router.push("/client/new")} className="px-4 py-2 rounded-full border border-primary border-dashed">
-            <Text className="text-primary">+ Baru</Text>
-          </TouchableOpacity>
         </ScrollView>
 
         {/* Tanggal & Waktu */}
@@ -169,7 +230,13 @@ export default function NewBooking() {
         </View>
 
         {/* Layanan/Paket */}
-        <Text className="text-text-hint font-bold uppercase text-xs mb-3">Layanan / Paket (Per Orang)</Text>
+        <View className="flex-row items-center justify-between mb-3">
+          <Text className="text-text-hint font-bold uppercase text-xs">Layanan / Paket (Per Orang)</Text>
+          <TouchableOpacity onPress={() => setServiceModalVisible(true)} className="flex-row items-center">
+            <Plus size={14} color="#B76E79" className="mr-1" />
+            <Text className="text-primary text-xs font-bold">Tambah Layanan</Text>
+          </TouchableOpacity>
+        </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
           {(services || []).map((s: any) => (
             <TouchableOpacity 
@@ -216,6 +283,36 @@ export default function NewBooking() {
         <DateTimePickerModal isVisible={isStartTimeVisible} mode="time" is24Hour={true} onConfirm={(date) => { const time = date.getHours().toString().padStart(2, '0') + ":" + date.getMinutes().toString().padStart(2, '0'); setFormData({ ...formData, startTime: time }); setStartTimeVisibility(false); }} onCancel={() => setStartTimeVisibility(false)} />
         <DateTimePickerModal isVisible={isEndTimeVisible} mode="time" is24Hour={true} onConfirm={(date) => { const time = date.getHours().toString().padStart(2, '0') + ":" + date.getMinutes().toString().padStart(2, '0'); setFormData({ ...formData, endTime: time }); setEndTimeVisibility(false); }} onCancel={() => setEndTimeVisibility(false)} />
       </ScrollView>
+
+      {/* Modal Tambah Klien */}
+      <Modal visible={isClientModalVisible} animationType="slide" transparent>
+        <View className="flex-1 justify-end bg-black/50">
+          <View className="bg-surface p-6 rounded-t-3xl">
+            <Text className="text-lg font-bold mb-4">Tambah Klien Baru</Text>
+            <Input label="Nama Klien" value={newClientName} onChangeText={setNewClientName} placeholder="Contoh: Ibu Rina" className="mb-4" />
+            <Input label="Nomor WhatsApp" value={newClientPhone} onChangeText={setNewClientPhone} placeholder="0812..." keyboardType="phone-pad" className="mb-6" />
+            <View className="flex-row gap-3">
+              <Button variant="outline" label="Batal" onPress={() => setClientModalVisible(false)} className="flex-1" />
+              <Button variant="primary" label="Simpan" onPress={handleCreateClient} loading={createClientMutation.isPending} className="flex-1" />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal Tambah Layanan */}
+      <Modal visible={isServiceModalVisible} animationType="slide" transparent>
+        <View className="flex-1 justify-end bg-black/50">
+          <View className="bg-surface p-6 rounded-t-3xl">
+            <Text className="text-lg font-bold mb-4">Tambah Layanan Baru</Text>
+            <Input label="Nama Layanan" value={newServiceName} onChangeText={setNewServiceName} placeholder="Contoh: Makeup Wisuda" className="mb-4" />
+            <Input label="Harga Dasar (Rp)" value={newServicePrice} onChangeText={setNewServicePrice} placeholder="500000" keyboardType="numeric" className="mb-6" />
+            <View className="flex-row gap-3">
+              <Button variant="outline" label="Batal" onPress={() => setServiceModalVisible(false)} className="flex-1" />
+              <Button variant="primary" label="Simpan" onPress={handleCreateService} loading={createServiceMutation.isPending} className="flex-1" />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

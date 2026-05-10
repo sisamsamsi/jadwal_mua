@@ -41,6 +41,14 @@ export default function DashboardScreen() {
     return bookings.filter(b => b.status === activeFilter);
   };
 
+  const getGreeting = () => {
+    const hours = new Date().getHours();
+    if (hours >= 5 && hours < 11) return "Selamat Pagi";
+    if (hours >= 11 && hours < 15) return "Selamat Siang";
+    if (hours >= 15 && hours < 18) return "Selamat Sore";
+    return "Selamat Malam";
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-background">
       <ScrollView 
@@ -49,7 +57,7 @@ export default function DashboardScreen() {
       >
         <View className="flex-row items-center justify-between mb-8">
           <View>
-            <Text className="text-text-secondary text-lg">Halo, Selamat Pagi</Text>
+            <Text className="text-text-secondary text-lg">Halo, {getGreeting()}</Text>
             <Text className="text-text-primary text-3xl font-bold capitalize">{displayName} ✨</Text>
           </View>
           <Button 

@@ -112,6 +112,7 @@ export const bookings = sqliteTable("bookings", {
   travelTimeMinutes: integer("travel_time_minutes").notNull().default(0),
   numPersons: integer("num_persons").notNull().default(1),
   status: text("status").notNull().default("pending"),
+  eventType: text("event_type"), // e.g., Akad, Resepsi, Fitting, Rapat
   notes: text("notes"),
   totalPrice: real("total_price").notNull().default(0),
   cancellationReason: text("cancellation_reason"),
@@ -130,6 +131,9 @@ export const bridalParty = sqliteTable("bridal_party", {
   name: text("name").notNull(),
   role: text("role"),
   serviceId: text("service_id"),
+  clothingDesc: text("clothing_desc"),
+  clothingSize: text("clothing_size"),
+  makeupRequest: text("makeup_request"),
   notes: text("notes"),
   price: real("price").default(0),
   isSynced: integer("is_synced", { mode: "boolean" }).notNull().default(true),

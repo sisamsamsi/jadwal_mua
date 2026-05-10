@@ -11,8 +11,8 @@ export function useDashboardStats() {
       const clients = await clientRepository.getAll();
       const payments = await paymentRepository.getAll();
 
-      // Filter hanya booking yang aktif (tidak cancel)
-      const bookings = allBookings.filter((b: any) => b.status !== "cancelled");
+      // Gunakan semua booking agar filter UI bisa bekerja (termasuk status cancelled)
+      const bookings = allBookings;
 
       const clientMap = clients.reduce((acc: any, client: any) => {
         acc[client.id] = client.name;

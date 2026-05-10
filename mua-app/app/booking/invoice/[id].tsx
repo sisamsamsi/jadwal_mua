@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useBooking } from "@/lib/hooks/use-bookings";
 import { useClient } from "@/lib/hooks/use-clients";
+import { useService } from "@/lib/hooks/use-services";
 import { usePaymentsByBooking } from "@/lib/hooks/use-payments";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -16,6 +17,7 @@ export default function InvoiceScreen() {
   
   const { data: booking } = useBooking(id as string);
   const { data: client } = useClient(booking?.clientId || "");
+  const { data: service } = useService(booking?.serviceId || "");
   const { data: payments = [] } = usePaymentsByBooking(id as string);
 
   const totalPaid = (payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
@@ -27,7 +29,7 @@ INVOICE MUA
 ------------------
 Klien: ${client?.name}
 Tanggal: ${booking?.bookingDate}
-Layanan: ${booking?.serviceName || "Makeup"}
+Layanan: ${service?.name || "Layanan Makeup"}
 
 Total Biaya: ${formatCurrency(booking?.totalPrice || 0)}
 Telah Dibayar: ${formatCurrency(totalPaid)}
@@ -87,7 +89,7 @@ Terima kasih!
             </View>
             <View className="flex-row justify-between py-2">
               <View className="flex-1 mr-4">
-                <Text className="text-text-primary font-bold">{booking.serviceName || "Layanan Makeup"}</Text>
+                <Text className="text-text-primary font-bold">{service?.name || "Layanan Makeup"}</Text>
                 <Text className="text-text-secondary text-xs">{booking.notes || "Tanpa catatan tambahan"}</Text>
               </View>
               <Text className="text-text-primary font-bold">{formatCurrency(booking.totalPrice)}</Text>

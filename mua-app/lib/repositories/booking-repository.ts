@@ -75,6 +75,7 @@ export const bookingRepository = {
       travelTimeMinutes: formData.travelTimeMinutes ?? 0,
       numPersons: formData.numPersons ?? 1,
       status: "pending",
+      eventType: formData.eventType ?? null,
       notes: formData.notes ?? null,
       totalPrice: formData.totalPrice ?? 0,
       createdAt: now,

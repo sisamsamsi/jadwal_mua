@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert } from "react-native";
 import { useForm, Controller } from "react-hook-form";
 import { authService } from "@/lib/supabase/auth";
 import { useAuthStore } from "@/lib/stores/auth-store";
@@ -26,11 +26,18 @@ export default function Login() {
       }
     } catch (e: any) {
       console.warn("Login failed", e.message ?? e);
-      alert("Login failed: " + (e.message ?? String(e)));
+      Alert.alert("Login Gagal", e.message ?? String(e));
     } finally {
       setIsLoading(false);
     }
   }
+
+  const handleForgotPassword = () => {
+    Alert.alert(
+      "Lupa Password",
+      "Fitur reset password akan segera tersedia. Silakan hubungi admin untuk bantuan."
+    );
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -89,7 +96,10 @@ export default function Login() {
               )}
             />
 
-            <TouchableOpacity className="items-end">
+            <TouchableOpacity 
+              className="items-end" 
+              onPress={handleForgotPassword}
+            >
               <Text className="text-primary font-semibold text-base">Lupa Password?</Text>
             </TouchableOpacity>
           </View>
@@ -114,3 +124,4 @@ export default function Login() {
     </SafeAreaView>
   );
 }
+

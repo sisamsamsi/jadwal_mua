@@ -27,24 +27,26 @@ export default function CalendarScreen() {
   const markedDates = useMemo(() => {
     const marks: any = {};
 
-    allBookings.forEach((b: any) => {
-      const date = b.bookingDate;
-      if (!marks[date]) {
-        const colorIndex = Math.abs(date.split('-').join('') % PASTEL_COLORS.length);
-        marks[date] = {
-          customStyles: {
-            container: {
-              backgroundColor: PASTEL_COLORS[colorIndex],
-              borderRadius: 12,
+    allBookings
+      .filter((b: any) => b.status !== "cancelled")
+      .forEach((b: any) => {
+        const date = b.bookingDate;
+        if (!marks[date]) {
+          const colorIndex = Math.abs(date.split('-').join('') % PASTEL_COLORS.length);
+          marks[date] = {
+            customStyles: {
+              container: {
+                backgroundColor: PASTEL_COLORS[colorIndex],
+                borderRadius: 12,
+              },
+              text: {
+                color: '#2D2D2D',
+                fontWeight: 'bold',
+              },
             },
-            text: {
-              color: '#2D2D2D',
-              fontWeight: 'bold',
-            },
-          },
-        };
-      }
-    });
+          };
+        }
+      });
 
     // Highlight Tanggal Terpilih (Warna Rose MUA)
     marks[selected] = {

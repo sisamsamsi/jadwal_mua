@@ -4,14 +4,16 @@ import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useBooking, useUpdateBooking, useDeleteBooking, useBookings } from "@/lib/hooks/use-bookings";
 import { useClient } from "@/lib/hooks/use-clients";
+import { useBridalParty, useCreateBridalPartyMember, useUpdateBridalPartyMember, useDeleteBridalPartyMember } from "@/lib/hooks/use-bridal-party";
 import { usePaymentsByBooking, useCreatePayment } from "@/lib/hooks/use-payments";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
-import { ChevronLeft, Calendar as CalendarIcon, Clock, MapPin, User, FileText, MessageSquare, Trash2, RotateCcw, Share2, Users } from "lucide-react-native";
+import { ChevronLeft, Calendar as CalendarIcon, Clock, MapPin, User, FileText, MessageSquare, Trash2, RotateCcw, Share2, Users, Plus, Edit2, CheckCircle2, Tag } from "lucide-react-native";
 import { formatCurrency } from "@/lib/utils/currency";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
+import { Modal } from "react-native";
 
 export default function BookingDetail() {
   const { id } = useLocalSearchParams();
@@ -19,11 +21,17 @@ export default function BookingDetail() {
   const updateBookingMutation = useUpdateBooking();
   const deleteBookingMutation = useDeleteBooking();
   const createPaymentMutation = useCreatePayment();
-  const { data: allBookings = [] } = useBookings();
   
+  // Bridal Party Mutations
+  const createMemberMutation = useCreateBridalPartyMember();
+  const updateMemberMutation = useUpdateBridalPartyMember();
+  const deleteMemberMutation = useDeleteBridalPartyMember();
+
+  const { data: allBookings = [] } = useBookings();
   const { data: booking, isLoading: loadingBooking } = useBooking(id as string);
   const { data: client } = useClient(booking?.clientId || "");
   const { data: payments = [] } = usePaymentsByBooking(id as string);
+  const { data: members = [] } = useBridalParty(id as string);
 
   const [editMode, setEditMode] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
@@ -36,6 +44,39 @@ export default function BookingDetail() {
 
   const totalPaid = (payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
   const remainingBalance = (booking?.totalPrice || 0) - totalPaid;
+
+  // Member State
+  const [memberModalVisible, setMemberModalVisible] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<any>(null);
+  const [memberForm, setMemberForm] = useState({
+    name: "",
+    role: "",
+    clothingDesc: "",
+    clothingSize: "",
+    makeupRequest: "",
+    notes: ""
+  });
+
+  const handleSaveMember = async () => {
+    if (!memberForm.name) return;
+    try {
+      if (selectedMember) {
+        await updateMemberMutation.mutateAsync({ 
+          id: selectedMember.id, 
+          updates: memberForm, 
+          bookingId: id 
+        });
+      } else {
+        await createMemberMutation.mutateAsync({ 
+          ...memberForm, 
+          bookingId: id 
+        });
+      }
+      setMemberModalVisible(false);
+    } catch (e) {
+      Alert.alert("Error", "Gagal menyimpan data");
+    }
+  };
 
   const startEdit = () => {
     setEditData({ ...booking });
@@ -121,7 +162,7 @@ export default function BookingDetail() {
       { text: "Batal", style: "cancel" },
       { text: "Hapus", style: "destructive", onPress: async () => {
         await deleteBookingMutation.mutateAsync(id as string);
-        router.replace("/calendar");
+        router.replace("/(tabs)/calendar");
       }}
     ]);
   };
@@ -235,10 +276,24 @@ export default function BookingDetail() {
 
         {/* Schedule Detail */}
         <View className="mb-6">
-           <Text className="text-text-hint font-bold uppercase text-xs mb-3">Detail Jadwal</Text>
+           <View className="flex-row justify-between items-center mb-3">
+             <Text className="text-text-hint font-bold uppercase text-xs">Detail Jadwal</Text>
+             {booking.eventType && <Badge label={booking.eventType} variant="info" />}
+           </View>
            <Card className="p-4">
               {editMode ? (
                 <>
+                  <View className="flex-row gap-2 mb-4">
+                    {["Akad", "Resepsi", "Fitting", "Rapat", "Lainnya"].map((t) => (
+                      <TouchableOpacity 
+                        key={t}
+                        onPress={() => setEditData({...editData, eventType: t})}
+                        className={`px-3 py-1 rounded-full border ${editData.eventType === t ? 'bg-primary border-primary' : 'bg-surface border-divider'}`}
+                      >
+                        <Text className={editData.eventType === t ? 'text-white text-[10px] font-bold' : 'text-text-secondary text-[10px]'}>{t}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                   <TouchableOpacity onPress={() => setDatePickerVisibility(true)} className="mb-4 border-b border-divider pb-2 flex-row items-center">
                     <CalendarIcon size={18} color="#B76E79" className="mr-3" />
                     <Text className="text-text-primary text-base">{editData.bookingDate}</Text>
@@ -276,13 +331,89 @@ export default function BookingDetail() {
                   <View className="flex-row items-start">
                      <MapPin size={20} color="#B76E79" className="mr-3 mt-1" />
                      <View className="flex-1">
-                        <Text className="text-text-primary font-medium">{booking.locationName}</Text>
+                        <Text className="text-text-primary font-medium">{booking.locationName || "Lokasi tidak ditentukan"}</Text>
                         <Text className="text-text-secondary text-sm">{booking.locationAddress}</Text>
                      </View>
                   </View>
                 </>
               )}
            </Card>
+        </View>
+
+        {/* BRIDAL PARTY / DETAIL PER ORANG */}
+        <View className="mb-6">
+           <View className="flex-row justify-between items-center mb-3">
+             <Text className="text-text-hint font-bold uppercase text-xs">Detail Rias Per Orang</Text>
+             <TouchableOpacity 
+               onPress={() => {
+                 setMemberForm({ name: "", role: "", clothingDesc: "", clothingSize: "", makeupRequest: "", notes: "" });
+                 setSelectedMember(null);
+                 setMemberModalVisible(true);
+               }}
+               className="flex-row items-center"
+             >
+                <Plus size={14} color="#B76E79" className="mr-1" />
+                <Text className="text-primary text-xs font-bold">Tambah Orang</Text>
+             </TouchableOpacity>
+           </View>
+
+           {members.length === 0 ? (
+             <Card className="p-6 border-dashed border-divider items-center">
+                <Text className="text-text-hint text-xs">Belum ada rincian orang yang dirias.</Text>
+             </Card>
+           ) : (
+             members.map((m: any) => (
+               <Card key={m.id} className="mb-3 p-4 border-l-2 border-l-primary/30">
+                  <View className="flex-row justify-between items-start mb-2">
+                    <View>
+                      <Text className="font-bold text-text-primary">{m.name}</Text>
+                      <Text className="text-[10px] text-primary font-bold uppercase">{m.role || "Anggota"}</Text>
+                    </View>
+                    <View className="flex-row">
+                      <TouchableOpacity 
+                        onPress={() => {
+                          setSelectedMember(m);
+                          setMemberForm({ ...m });
+                          setMemberModalVisible(true);
+                        }}
+                        className="p-1 mr-2"
+                      >
+                        <Edit2 size={14} color="#757575" />
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        onPress={() => {
+                          Alert.alert("Hapus", `Hapus data ${m.name}?`, [
+                            { text: "Batal", style: "cancel" },
+                            { text: "Hapus", style: "destructive", onPress: () => deleteMemberMutation.mutate({ id: m.id, bookingId: id }) }
+                          ]);
+                        }}
+                        className="p-1"
+                      >
+                        <Trash2 size={14} color="#F44336" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  
+                  <View className="flex-row flex-wrap gap-2">
+                    {m.makeupRequest && (
+                      <View className="bg-blue-50 px-2 py-1 rounded flex-row items-center">
+                        <CheckCircle2 size={10} color="#2196F3" className="mr-1" />
+                        <Text className="text-[10px] text-blue-700">Makeup: {m.makeupRequest}</Text>
+                      </View>
+                    )}
+                    {m.clothingSize && (
+                      <View className="bg-purple-50 px-2 py-1 rounded flex-row items-center">
+                        <Tag size={10} color="#9C27B0" className="mr-1" />
+                        <Text className="text-[10px] text-purple-700">Size: {m.clothingSize}</Text>
+                      </View>
+                    )}
+                  </View>
+                  {m.clothingDesc && (
+                    <Text className="text-[11px] text-text-secondary mt-2 italic">Baju: {m.clothingDesc}</Text>
+                  )}
+               </Card>
+             ))
+           )}
         </View>
 
         {/* Finance Info */}
@@ -333,6 +464,33 @@ export default function BookingDetail() {
         <DateTimePickerModal isVisible={isStartTimeVisible} mode="time" is24Hour={true} onConfirm={(date) => { const time = date.getHours().toString().padStart(2, '0') + ":" + date.getMinutes().toString().padStart(2, '0'); setEditData({ ...editData, startTime: time }); setStartTimeVisibility(false); }} onCancel={() => setStartTimeVisibility(false)} />
         <DateTimePickerModal isVisible={isEndTimeVisible} mode="time" is24Hour={true} onConfirm={(date) => { const time = date.getHours().toString().padStart(2, '0') + ":" + date.getMinutes().toString().padStart(2, '0'); setEditData({ ...editData, endTime: time }); setEndTimeVisibility(false); }} onCancel={() => setEndTimeVisibility(false)} />
       </ScrollView>
+
+      {/* MODAL DETAIL ORANG */}
+      <Modal visible={memberModalVisible} animationType="slide" transparent>
+        <View className="flex-1 justify-end bg-black/50">
+          <View className="bg-surface p-6 rounded-t-3xl h-[80%]">
+             <View className="flex-row justify-between items-center mb-6">
+                <Text className="text-lg font-bold">{selectedMember ? "Edit Detail Rias" : "Tambah Detail Rias"}</Text>
+                <TouchableOpacity onPress={() => setMemberModalVisible(false)}><Text className="text-primary font-bold">Tutup</Text></TouchableOpacity>
+             </View>
+             
+             <ScrollView showsVerticalScrollIndicator={false}>
+                <Input label="Nama Lengkap" value={memberForm.name} onChangeText={(t) => setMemberForm({...memberForm, name: t})} placeholder="Contoh: Ibu Siti" className="mb-4" />
+                <Input label="Peran / Role" value={memberForm.role} onChangeText={(t) => setMemberForm({...memberForm, role: t})} placeholder="Contoh: Ibu Pengantin / Pagar Ayu" className="mb-4" />
+                <Input label="Request Makeup" value={memberForm.makeupRequest} onChangeText={(t) => setMemberForm({...memberForm, makeupRequest: t})} placeholder="Contoh: Natural / Bold / Smokey" className="mb-4" />
+                <View className="flex-row gap-4 mb-4">
+                  <View className="flex-1">
+                    <Input label="Ukuran Baju" value={memberForm.clothingSize} onChangeText={(t) => setMemberForm({...memberForm, clothingSize: t})} placeholder="XL / 42" />
+                  </View>
+                </View>
+                <Input label="Deskripsi Baju" value={memberForm.clothingDesc} onChangeText={(t) => setMemberForm({...memberForm, clothingDesc: t})} placeholder="Contoh: Kebaya Biru Payet" multiline className="mb-4" />
+                <Input label="Catatan Tambahan" value={memberForm.notes} onChangeText={(t) => setMemberForm({...memberForm, notes: t})} placeholder="Misal: Alergi kosmetik tertentu" multiline className="mb-6" />
+                
+                <Button variant="primary" label="Simpan Detail" onPress={handleSaveMember} loading={createMemberMutation.isPending || updateMemberMutation.isPending} className="h-14 rounded-2xl mb-10" />
+             </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
