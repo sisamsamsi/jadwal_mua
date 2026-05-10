@@ -113,6 +113,36 @@ export default function Login() {
             />
           </View>
 
+          <View className="mt-8">
+            <View className="flex-row items-center mb-6">
+              <View className="flex-1 h-[1] bg-divider" />
+              <Text className="mx-4 text-text-hint text-sm">Atau masuk dengan</Text>
+              <View className="flex-1 h-[1] bg-divider" />
+            </View>
+
+            <View className="flex-row gap-4">
+              <TouchableOpacity 
+                onPress={() => authService.signInWithOAuth('google')}
+                className="flex-1 flex-row items-center justify-center bg-surface border border-divider h-14 rounded-2xl shadow-sm"
+              >
+                <View className="w-6 h-6 bg-red-500 rounded-full items-center justify-center mr-2">
+                  <Text className="text-white font-bold text-xs">G</Text>
+                </View>
+                <Text className="text-text-primary font-bold">Google</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                onPress={() => authService.signInWithOAuth('facebook')}
+                className="flex-1 flex-row items-center justify-center bg-blue-600 h-14 rounded-2xl shadow-sm"
+              >
+                <View className="w-6 h-6 bg-white rounded-full items-center justify-center mr-2">
+                  <Text className="text-blue-600 font-bold text-xs">f</Text>
+                </View>
+                <Text className="text-white font-bold">Facebook</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
           <View className="flex-row items-center justify-center mt-10">
             <Text className="text-text-secondary text-base">Belum punya akun? </Text>
             <TouchableOpacity onPress={() => router.push("/register")}>

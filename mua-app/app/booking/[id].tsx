@@ -6,11 +6,12 @@ import { useBooking, useUpdateBooking, useDeleteBooking, useBookings } from "@/l
 import { useClient } from "@/lib/hooks/use-clients";
 import { useBridalParty, useCreateBridalPartyMember, useUpdateBridalPartyMember, useDeleteBridalPartyMember } from "@/lib/hooks/use-bridal-party";
 import { usePaymentsByBooking, useCreatePayment } from "@/lib/hooks/use-payments";
+import { useSettingsStore } from "@/lib/stores/settings-store";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
-import { ChevronLeft, Calendar as CalendarIcon, Clock, MapPin, User, FileText, MessageSquare, Trash2, RotateCcw, Share2, Users, Plus, Edit2, CheckCircle2, Tag } from "lucide-react-native";
+import { ChevronLeft, Calendar as CalendarIcon, Clock, MapPin, User, FileText, MessageSquare, Trash2, RotateCcw, Share2, Users, Plus, Edit2, CheckCircle2, Tag, AlertCircle } from "lucide-react-native";
 import { formatCurrency } from "@/lib/utils/currency";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { Modal } from "react-native";
@@ -32,6 +33,7 @@ export default function BookingDetail() {
   const { data: client } = useClient(booking?.clientId || "");
   const { data: payments = [] } = usePaymentsByBooking(id as string);
   const { data: members = [] } = useBridalParty(id as string);
+  const { showBridalParty } = useSettingsStore();
 
   const [editMode, setEditMode] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
@@ -83,16 +85,36 @@ export default function BookingDetail() {
     setEditMode(true);
   };
 
+  const [conflictInfo, setConflictInfo] = useState<any>(null);
+
   const checkConflict = (date: string, start: string, end: string) => {
+    const BUFFER = 30;
+    const toMinutes = (timeStr: string) => {
+      const [h, m] = timeStr.split(':').map(Number);
+      return h * 60 + m;
+    };
+
+    const newStart = toMinutes(start);
+    const newEnd = toMinutes(end);
+
     return allBookings.find(b => 
       b.id !== id &&
       b.bookingDate === date && 
       b.status !== 'cancelled' &&
-      ((start >= b.startTime && start < b.endTime) || 
-       (end > b.startTime && end <= b.endTime) ||
-       (start <= b.startTime && end >= b.endTime))
+      ((newStart < toMinutes(b.endTime) + BUFFER && newStart >= toMinutes(b.endTime)) || 
+       (newEnd > toMinutes(b.startTime) - BUFFER && newEnd <= toMinutes(b.startTime)) ||
+       (newStart >= toMinutes(b.startTime) && newStart < toMinutes(b.endTime)) ||
+       (newEnd > toMinutes(b.startTime) && newEnd <= toMinutes(b.endTime)) ||
+       (newStart <= toMinutes(b.startTime) && newEnd >= toMinutes(b.endTime)))
     );
   };
+
+  useEffect(() => {
+    if (editMode && editData?.bookingDate && editData?.startTime && editData?.endTime) {
+      const conflict = checkConflict(editData.bookingDate, editData.startTime, editData.endTime);
+      setConflictInfo(conflict || null);
+    }
+  }, [editMode, editData?.bookingDate, editData?.startTime, editData?.endTime, allBookings]);
 
   const handleSaveEdit = async () => {
     if (editData.endTime <= editData.startTime) {
@@ -100,11 +122,10 @@ export default function BookingDetail() {
       return;
     }
 
-    const conflict = checkConflict(editData.bookingDate, editData.startTime, editData.endTime);
-    if (conflict) {
+    if (conflictInfo) {
       Alert.alert(
-        "Jadwal Bentrok!", 
-        `Jam ini sudah ada bokingan lain (${conflict.clientName}). Tetap simpan?`,
+        "Jadwal Bentrok / Mepet!", 
+        `Jadwal ini bentrok atau terlalu mepet dengan ${conflictInfo.clientName}. Tetap simpan?`,
         [
           { text: "Batal", style: "cancel" },
           { text: "Tetap Simpan", onPress: submitUpdate }
@@ -308,6 +329,19 @@ export default function BookingDetail() {
                       <Text className="text-text-primary text-base font-bold">{editData.endTime}</Text>
                     </TouchableOpacity>
                   </View>
+
+                  {conflictInfo && (
+                    <View className="bg-red-50 p-3 rounded-xl border border-red-100 mb-4 flex-row items-center">
+                      <AlertCircle size={16} color="#F44336" className="mr-2" />
+                      <View className="flex-1">
+                        <Text className="text-status-error font-bold text-[10px] uppercase">BENTROK / MEPET</Text>
+                        <Text className="text-text-primary text-[10px]">
+                          {conflictInfo.clientName} ({conflictInfo.startTime} - {conflictInfo.endTime})
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
                   <View className="flex-row items-center mb-4">
                     <Users size={18} color="#B76E79" className="mr-3" />
                     <Text className="text-text-primary mr-4">Jumlah Orang:</Text>
@@ -341,80 +375,82 @@ export default function BookingDetail() {
         </View>
 
         {/* BRIDAL PARTY / DETAIL PER ORANG */}
-        <View className="mb-6">
-           <View className="flex-row justify-between items-center mb-3">
-             <Text className="text-text-hint font-bold uppercase text-xs">Detail Rias Per Orang</Text>
-             <TouchableOpacity 
-               onPress={() => {
-                 setMemberForm({ name: "", role: "", clothingDesc: "", clothingSize: "", makeupRequest: "", notes: "" });
-                 setSelectedMember(null);
-                 setMemberModalVisible(true);
-               }}
-               className="flex-row items-center"
-             >
-                <Plus size={14} color="#B76E79" className="mr-1" />
-                <Text className="text-primary text-xs font-bold">Tambah Orang</Text>
-             </TouchableOpacity>
-           </View>
+        {showBridalParty && (
+          <View className="mb-6">
+             <View className="flex-row justify-between items-center mb-3">
+               <Text className="text-text-hint font-bold uppercase text-xs">Detail Rias Per Orang</Text>
+               <TouchableOpacity 
+                 onPress={() => {
+                   setMemberForm({ name: "", role: "", clothingDesc: "", clothingSize: "", makeupRequest: "", notes: "" });
+                   setSelectedMember(null);
+                   setMemberModalVisible(true);
+                 }}
+                 className="flex-row items-center"
+               >
+                  <Plus size={14} color="#B76E79" className="mr-1" />
+                  <Text className="text-primary text-xs font-bold">Tambah Orang</Text>
+               </TouchableOpacity>
+             </View>
 
-           {members.length === 0 ? (
-             <Card className="p-6 border-dashed border-divider items-center">
-                <Text className="text-text-hint text-xs">Belum ada rincian orang yang dirias.</Text>
-             </Card>
-           ) : (
-             members.map((m: any) => (
-               <Card key={m.id} className="mb-3 p-4 border-l-2 border-l-primary/30">
-                  <View className="flex-row justify-between items-start mb-2">
-                    <View>
-                      <Text className="font-bold text-text-primary">{m.name}</Text>
-                      <Text className="text-[10px] text-primary font-bold uppercase">{m.role || "Anggota"}</Text>
-                    </View>
-                    <View className="flex-row">
-                      <TouchableOpacity 
-                        onPress={() => {
-                          setSelectedMember(m);
-                          setMemberForm({ ...m });
-                          setMemberModalVisible(true);
-                        }}
-                        className="p-1 mr-2"
-                      >
-                        <Edit2 size={14} color="#757575" />
-                      </TouchableOpacity>
-                      <TouchableOpacity 
-                        onPress={() => {
-                          Alert.alert("Hapus", `Hapus data ${m.name}?`, [
-                            { text: "Batal", style: "cancel" },
-                            { text: "Hapus", style: "destructive", onPress: () => deleteMemberMutation.mutate({ id: m.id, bookingId: id }) }
-                          ]);
-                        }}
-                        className="p-1"
-                      >
-                        <Trash2 size={14} color="#F44336" />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                  
-                  <View className="flex-row flex-wrap gap-2">
-                    {m.makeupRequest && (
-                      <View className="bg-blue-50 px-2 py-1 rounded flex-row items-center">
-                        <CheckCircle2 size={10} color="#2196F3" className="mr-1" />
-                        <Text className="text-[10px] text-blue-700">Makeup: {m.makeupRequest}</Text>
-                      </View>
-                    )}
-                    {m.clothingSize && (
-                      <View className="bg-purple-50 px-2 py-1 rounded flex-row items-center">
-                        <Tag size={10} color="#9C27B0" className="mr-1" />
-                        <Text className="text-[10px] text-purple-700">Size: {m.clothingSize}</Text>
-                      </View>
-                    )}
-                  </View>
-                  {m.clothingDesc && (
-                    <Text className="text-[11px] text-text-secondary mt-2 italic">Baju: {m.clothingDesc}</Text>
-                  )}
+             {members.length === 0 ? (
+               <Card className="p-6 border-dashed border-divider items-center">
+                  <Text className="text-text-hint text-xs">Belum ada rincian orang yang dirias.</Text>
                </Card>
-             ))
-           )}
-        </View>
+             ) : (
+               members.map((m: any) => (
+                 <Card key={m.id} className="mb-3 p-4 border-l-2 border-l-primary/30">
+                    <View className="flex-row justify-between items-start mb-2">
+                      <View>
+                        <Text className="font-bold text-text-primary">{m.name}</Text>
+                        <Text className="text-[10px] text-primary font-bold uppercase">{m.role || "Anggota"}</Text>
+                      </View>
+                      <View className="flex-row">
+                        <TouchableOpacity 
+                          onPress={() => {
+                            setSelectedMember(m);
+                            setMemberForm({ ...m });
+                            setMemberModalVisible(true);
+                          }}
+                          className="p-1 mr-2"
+                        >
+                          <Edit2 size={14} color="#757575" />
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                          onPress={() => {
+                            Alert.alert("Hapus", `Hapus data ${m.name}?`, [
+                              { text: "Batal", style: "cancel" },
+                              { text: "Hapus", style: "destructive", onPress: () => deleteMemberMutation.mutate({ id: m.id, bookingId: id }) }
+                            ]);
+                          }}
+                          className="p-1"
+                        >
+                          <Trash2 size={14} color="#F44336" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                    
+                    <View className="flex-row flex-wrap gap-2">
+                      {m.makeupRequest && (
+                        <View className="bg-blue-50 px-2 py-1 rounded flex-row items-center">
+                          <CheckCircle2 size={10} color="#2196F3" className="mr-1" />
+                          <Text className="text-[10px] text-blue-700">Makeup: {m.makeupRequest}</Text>
+                        </View>
+                      )}
+                      {m.clothingSize && (
+                        <View className="bg-purple-50 px-2 py-1 rounded flex-row items-center">
+                          <Tag size={10} color="#9C27B0" className="mr-1" />
+                          <Text className="text-[10px] text-purple-700">Size: {m.clothingSize}</Text>
+                        </View>
+                      )}
+                    </View>
+                    {m.clothingDesc && (
+                      <Text className="text-[11px] text-text-secondary mt-2 italic">Baju: {m.clothingDesc}</Text>
+                    )}
+                 </Card>
+               ))
+             )}
+          </View>
+        )}
 
         {/* Finance Info */}
         <View className="mb-6">

@@ -8,7 +8,7 @@ import { useCreateService, useServices } from "@/lib/hooks/use-services";
 import { usePackages } from "@/lib/hooks/use-packages";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { ChevronLeft, Calendar as CalendarIcon, Clock, Users, Plus, Tag } from "lucide-react-native";
+import { ChevronLeft, Calendar as CalendarIcon, Clock, Users, Plus, Tag, AlertCircle } from "lucide-react-native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { Modal } from "react-native";
 
@@ -89,15 +89,50 @@ export default function NewBooking() {
     setFormData(prev => ({ ...prev, totalPrice: calculatedPrice }));
   }, [formData.numPersons, basePricePerPerson]);
 
+  const [conflictInfo, setConflictInfo] = useState<any>(null);
+
   const checkConflict = (date: string, start: string, end: string) => {
-    return allBookings.find(b => 
-      b.bookingDate === date && 
-      b.status !== 'cancelled' &&
-      ((start >= b.startTime && start < b.endTime) || 
-       (end > b.startTime && end <= b.endTime) ||
-       (start <= b.startTime && end >= b.endTime))
-    );
+    // BUFFER TIME: 30 Menit untuk perjalanan/persiapan
+    const BUFFER = 30;
+    
+    const toMinutes = (timeStr: string) => {
+      const [h, m] = timeStr.split(':').map(Number);
+      return h * 60 + m;
+    };
+
+    const newStart = toMinutes(start);
+    const newEnd = toMinutes(end);
+
+    return allBookings.find(b => {
+      if (b.bookingDate !== date || b.status === 'cancelled') return false;
+      
+      const bStart = toMinutes(b.startTime);
+      const bEnd = toMinutes(b.endTime);
+
+      // Cek bentrok langsung
+      const isOverlap = (newStart >= bStart && newStart < bEnd) || 
+                       (newEnd > bStart && newEnd <= bEnd) ||
+                       (newStart <= bStart && newEnd >= bEnd);
+      
+      if (isOverlap) return true;
+
+      // Cek Buffer Time (Terlalu mepet)
+      const isTooClose = (newStart < bEnd + BUFFER && newStart >= bEnd) || 
+                         (newEnd > bStart - BUFFER && newEnd <= bStart);
+      
+      if (isTooClose) return true;
+
+      return false;
+    });
   };
+
+  // Real-time conflict check
+  useEffect(() => {
+    if (formData.bookingDate && formData.startTime && formData.endTime) {
+      const conflict = checkConflict(formData.bookingDate, formData.startTime, formData.endTime);
+      setConflictInfo(conflict || null);
+    }
+  }, [formData.bookingDate, formData.startTime, formData.endTime, allBookings]);
 
   const handleSave = async () => {
     if (!formData.clientId || !formData.bookingDate || !formData.startTime || !formData.endTime) {
@@ -110,11 +145,10 @@ export default function NewBooking() {
       return;
     }
 
-    const conflict = checkConflict(formData.bookingDate, formData.startTime, formData.endTime);
-    if (conflict) {
+    if (conflictInfo) {
       Alert.alert(
-        "Jadwal Bentrok!", 
-        `Jam ini sudah ada bokingan untuk ${conflict.clientName || 'Klien lain'}. Tetap simpan?`,
+        "Peringatan Jadwal!", 
+        `Jadwal ini bentrok atau terlalu mepet dengan booking ${conflictInfo.clientName} (${conflictInfo.startTime} - ${conflictInfo.endTime}). Tetap simpan?`,
         [
           { text: "Batal", style: "cancel" },
           { text: "Tetap Simpan", onPress: submitData }
@@ -228,6 +262,19 @@ export default function NewBooking() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Real-time Conflict Warning */}
+        {conflictInfo && (
+          <View className="bg-red-50 p-4 rounded-2xl border border-red-100 mb-6 flex-row items-center">
+            <AlertCircle size={20} color="#F44336" className="mr-3" />
+            <View className="flex-1">
+              <Text className="text-status-error font-bold text-xs uppercase">Jadwal Bentrok / Mepet</Text>
+              <Text className="text-text-primary text-[11px]">
+                {conflictInfo.clientName} ({conflictInfo.startTime} - {conflictInfo.endTime})
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* Layanan/Paket */}
         <View className="flex-row items-center justify-between mb-3">

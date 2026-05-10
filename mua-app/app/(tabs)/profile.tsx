@@ -16,10 +16,12 @@ import {
   Info
 } from "lucide-react-native";
 import { useRouter } from "expo-router";
+import { useSettingsStore } from "@/lib/stores/settings-store";
 
 export default function ProfileScreen() {
   const { session } = useAuthStore();
   const router = useRouter();
+  const { showInventory } = useSettingsStore();
 
   const handleLogout = async () => {
     await authService.signOut();
@@ -64,11 +66,13 @@ export default function ProfileScreen() {
             icon={<Star {...({ size: 22, color: "#D4A574" } as any)} />} 
             onPress={() => router.push("/package")} 
           />
-          <ProfileLink 
-            label="Inventaris Produk" 
-            icon={<ShoppingBag {...({ size: 22, color: "#2196F3" } as any)} />} 
-            onPress={() => router.push("/product")} 
-          />
+          {showInventory && (
+            <ProfileLink 
+              label="Inventaris Produk" 
+              icon={<ShoppingBag {...({ size: 22, color: "#2196F3" } as any)} />} 
+              onPress={() => router.push("/product")} 
+            />
+          )}
 
           <SectionTitle title="Aplikasi" />
           <ProfileLink 
