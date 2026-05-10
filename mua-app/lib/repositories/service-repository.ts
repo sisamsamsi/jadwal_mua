@@ -21,8 +21,9 @@ export const serviceRepository = {
 
   async getById(id: string) {
     const rows = await db.select().from(services).where(eq(services.id, id));
-    return rows[0] as any;
+    return rows[0] || null;
   },
+
 
   async create(payload: any) {
     const now = new Date().toISOString();

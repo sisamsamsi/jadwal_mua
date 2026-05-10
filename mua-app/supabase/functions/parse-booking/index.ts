@@ -37,7 +37,10 @@ serve(async (req) => {
       );
     }
 
-    const today = new Date().toISOString().split("T")[0];
+    const today = new Date();
+    // Sesuaikan ke WIB (UTC+7) untuk referensi tanggal yang akurat bagi MUA di Indonesia
+    const wibDate = new Date(today.getTime() + (7 * 60 * 60 * 1000));
+    const todayStr = wibDate.toISOString().split("T")[0];
 
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
@@ -50,24 +53,28 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `Anda adalah asisten MUA yang ahli mengekstrak data dari pesan teks WhatsApp.
-Tanggal hari ini: ${today}. Gunakan ini sebagai referensi untuk "besok", "lusa", dll.
+            content: `Anda adalah asisten MUA profesional. Tugas Anda adalah mengekstrak data booking dari pesan teks.
+            
+REFERENSI WAKTU:
+- Tanggal HARI INI: ${todayStr}
+- Jika user menyebut "besok", maka tanggalnya adalah ${todayStr} + 1 hari.
+- Jika user menyebut "lusa", maka tanggalnya adalah ${todayStr} + 2 hari.
+- Jika user menyebut hari (misal: "hari Sabtu"), cari tanggal hari Sabtu terdekat SETELAH ${todayStr}.
 
-Ekstrak informasi berikut dalam format JSON:
+OUTPUT JSON:
 {
   "clientName": string,
-  "bookingDate": string (format YYYY-MM-DD),
-  "startTime": string (format HH:mm),
-  "endTime": string (format HH:mm),
+  "bookingDate": "YYYY-MM-DD",
+  "startTime": "HH:mm",
+  "endTime": "HH:mm" (tambah 2-3 jam dari startTime jika tidak disebut),
   "locationName": string,
   "locationAddress": string,
   "numPersons": number,
-  "eventType": string (pilih salah satu: Akad, Resepsi, Fitting, Rapat, Siraman, Lamaran, Lainnya),
+  "eventType": "Akad" | "Resepsi" | "Fitting" | "Rapat" | "Siraman" | "Lamaran" | "Lainnya",
   "notes": string
 }
 
-Jika data tidak ditemukan, gunakan string kosong "" untuk string atau null untuk angka.
-HANYA kembalikan JSON murni, tanpa penjelasan lain.`,
+HANYA kembalikan JSON. Jangan ada teks penjelasan.`,
           },
           {
             role: "user",

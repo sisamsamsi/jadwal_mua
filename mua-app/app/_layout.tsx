@@ -53,11 +53,11 @@ export default function RootLayout() {
     const isPublicBooking = segments[0] === "book";
 
     if (!session && !inAuthGroup && !isPublicBooking) {
-      router.replace("/(auth)/login" as any);
+      router.replace("/login");
     } else if (session && !hasSeenOnboarding && !inOnboarding && !isPublicBooking) {
-      router.replace("/onboarding" as any);
+      router.replace("/onboarding");
     } else if (session && hasSeenOnboarding && (inAuthGroup || inOnboarding)) {
-      router.replace("/(tabs)" as any);
+      router.replace("/home");
     }
   }, [session, isLoading, segments, hasSeenOnboarding, navigationState?.key]);
 

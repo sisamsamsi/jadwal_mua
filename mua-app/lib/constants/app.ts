@@ -8,3 +8,11 @@ export const APP_CONFIG = {
   // Flag untuk menandai apakah web app sudah dideploy (ubah ke true setelah deploy)
   IS_WEB_APP_DEPLOYED: false,
 };
+
+export const AppConstants = {
+  currency: {
+    code: "IDR",
+    locale: "id-ID",
+  },
+};
+
