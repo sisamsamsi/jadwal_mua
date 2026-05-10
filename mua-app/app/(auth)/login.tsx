@@ -18,19 +18,10 @@ export default function Login() {
   const [oauthLoading, setOauthLoading] = React.useState<string | null>(null);
 
   const handleOAuth = async (provider: 'google' | 'facebook') => {
-    setOauthLoading(provider);
-    try {
-      await authService.signInWithOAuth(provider);
-    } catch (e: any) {
-      Alert.alert(
-        "Login Gagal",
-        provider === 'facebook'
-          ? "Login Facebook belum dikonfigurasi. Silakan gunakan Google atau Email."
-          : (e.message ?? String(e))
-      );
-    } finally {
-      setOauthLoading(null);
-    }
+    Alert.alert(
+      "Fitur Segera Hadir",
+      `Login via ${provider === 'google' ? 'Google' : 'Facebook'} sedang dalam tahap konfigurasi keamanan. Untuk saat ini, silakan gunakan Email & Password.`
+    );
   };
 
   async function onSubmit(data: any) {
@@ -140,29 +131,27 @@ export default function Login() {
               {/* Google */}
               <TouchableOpacity 
                 onPress={() => handleOAuth('google')}
-                disabled={!!oauthLoading}
-                className="flex-row items-center justify-center bg-surface border border-divider h-14 rounded-2xl shadow-sm"
+                className="flex-row items-center justify-center bg-surface border border-divider h-14 rounded-2xl shadow-sm opacity-60"
               >
                 <View className="w-7 h-7 rounded-full items-center justify-center mr-3" style={{ backgroundColor: '#EA4335' }}>
                   <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 13 }}>G</Text>
                 </View>
                 <Text className="text-text-primary font-semibold text-base">
-                  {oauthLoading === 'google' ? "Menghubungkan..." : "Lanjutkan dengan Google"}
+                  Google (Coming Soon)
                 </Text>
               </TouchableOpacity>
 
-              {/* Facebook — tampilkan tapi beri peringatan jika belum dikonfigurasi */}
+              {/* Facebook */}
               <TouchableOpacity 
                 onPress={() => handleOAuth('facebook')}
-                disabled={!!oauthLoading}
-                className="flex-row items-center justify-center h-14 rounded-2xl"
+                className="flex-row items-center justify-center h-14 rounded-2xl opacity-60"
                 style={{ backgroundColor: '#1877F2' }}
               >
                 <View className="w-7 h-7 bg-white rounded-full items-center justify-center mr-3">
                   <Text style={{ color: '#1877F2', fontWeight: 'bold', fontSize: 14 }}>f</Text>
                 </View>
                 <Text style={{ color: 'white', fontWeight: '600', fontSize: 16 }}>
-                  {oauthLoading === 'facebook' ? "Menghubungkan..." : "Lanjutkan dengan Facebook"}
+                  Facebook (Coming Soon)
                 </Text>
               </TouchableOpacity>
             </View>
