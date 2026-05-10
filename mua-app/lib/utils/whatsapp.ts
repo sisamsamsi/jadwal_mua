@@ -13,6 +13,22 @@ export const sendWhatsApp = (phone: string, message: string) => {
   Linking.openURL(url);
 };
 
+export const formatWhatsAppTemplate = (
+  template: string, 
+  data: { 
+    nama: string; 
+    layanan: string; 
+    tanggal: string; 
+    jam: string; 
+  }
+) => {
+  return template
+    .replace(/{{nama}}/g, data.nama)
+    .replace(/{{layanan}}/g, data.layanan)
+    .replace(/{{tanggal}}/g, data.tanggal)
+    .replace(/{{jam}}/g, data.jam);
+};
+
 export const getBookingReminderTemplate = (clientName: string, date: string, time: string, serviceName: string) => {
   return `Halo ${clientName}, ini pengingat untuk jadwal makeup kamu:
 📅 Tanggal: ${date}

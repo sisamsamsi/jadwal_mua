@@ -20,17 +20,19 @@ import {
 } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useSettingsStore } from "@/lib/stores/settings-store";
-import { Share, Clipboard } from "react-native";
+import { Share } from "react-native";
+import * as Clipboard from "expo-clipboard";
+import { APP_CONFIG } from "@/lib/constants/app";
 
 export default function ProfileScreen() {
   const { session } = useAuthStore();
   const router = useRouter();
   const { showInventory, isLicenseActive, businessName } = useSettingsStore();
 
-  const bookingLink = `https://mua-jadwal.web.app/book/${session?.user?.id}`;
+  const bookingLink = `${APP_CONFIG.PUBLIC_BOOKING_BASE_URL}/${session?.user?.id}`;
 
-  const copyToClipboard = () => {
-    Clipboard.setString(bookingLink);
+  const copyToClipboard = async () => {
+    await Clipboard.setStringAsync(bookingLink);
     Alert.alert("Berhasil", "Link booking berhasil disalin ke clipboard.");
   };
 

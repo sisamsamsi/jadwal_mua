@@ -5,12 +5,15 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "@/lib/supabase/client";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Calendar, Clock, User, Phone, MessageSquare } from "lucide-react-native";
+import { Calendar, Clock, User, Phone, MessageSquare, CheckCircle2 } from "lucide-react-native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 
 export default function PublicBookingForm() {
   const { muaId } = useLocalSearchParams();
   const [loading, setLoading] = useState(false);
+  const [muaProfile, setMuaProfile] = useState<{ businessName: string; name: string } | null>(null);
+  const [isValidMua, setIsValidMua] = useState<boolean | null>(null);
+  const [isSuccess, setIsSuccess] = useState(false);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -23,6 +26,34 @@ export default function PublicBookingForm() {
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
   const [isTimePickerVisible, setTimePickerVisibility] = useState(false);
 
+  // 1. Validasi & Fetch Profil MUA
+  React.useEffect(() => {
+    async function fetchMuaProfile() {
+      if (!muaId) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("full_name, business_name")
+          .eq("id", muaId)
+          .single();
+        
+        if (error || !data) {
+          setIsValidMua(false);
+        } else {
+          setMuaProfile({
+            businessName: data.business_name || "",
+            name: data.full_name || ""
+          });
+          setIsValidMua(true);
+        }
+      } catch (e) {
+        setIsValidMua(false);
+      }
+    }
+    fetchMuaProfile();
+  }, [muaId]);
+
   const handleSubmit = async () => {
     if (!formData.name || !formData.phone || !formData.date || !formData.time) {
       Alert.alert("Error", "Mohon isi semua data wajib.");
@@ -31,35 +62,80 @@ export default function PublicBookingForm() {
 
     setLoading(true);
     try {
-      // 1. Cari atau buat klien di database MUA tersebut
-      // (Ini disederhanakan: kita buat booking 'unregistered' atau handle later)
-      
-      const { error } = await supabase.from("bookings").insert({
+      // 1. Buat atau cari klien terlebih dahulu
+      const { data: clientData, error: clientError } = await supabase
+        .from("clients")
+        .insert({
+          user_id: muaId,
+          name: formData.name,
+          phone: formData.phone,
+        })
+        .select()
+        .single();
+
+      if (clientError) throw clientError;
+
+      // 2. Insert ke bookings menggunakan clientId yang valid
+      const { error: bookingError } = await supabase.from("bookings").insert({
         user_id: muaId,
-        client_name: formData.name, // Kita simpan nama langsung untuk pending
+        clientId: clientData.id,
         booking_date: formData.date,
         start_time: formData.time,
-        notes: `[Booking Publik] WA: ${formData.phone}\n\n${formData.notes}`,
+        notes: `[Booking Publik]\n${formData.notes}`,
         status: "pending",
         num_persons: 1,
         total_price: 0
       });
 
-      if (error) throw error;
+      if (bookingError) throw bookingError;
 
-      Alert.alert(
-        "Berhasil!", 
-        "Permintaan booking Anda telah dikirim. MUA akan menghubungi Anda segera.",
-        [{ text: "OK" }]
-      );
-      
+      setIsSuccess(true);
       setFormData({ name: "", phone: "", date: "", time: "", notes: "" });
     } catch (e: any) {
-      Alert.alert("Gagal", "Terjadi kesalahan saat mengirim data.");
+      console.error("Submit Error:", e);
+      Alert.alert("Gagal", "Terjadi kesalahan saat mengirim data. Silakan coba lagi.");
     } finally {
       setLoading(false);
     }
   };
+
+  if (isValidMua === false) {
+    return (
+      <SafeAreaView className="flex-1 bg-background items-center justify-center p-6">
+        <Text className="text-xl font-bold text-status-error text-center mb-2">MUA Tidak Ditemukan</Text>
+        <Text className="text-text-secondary text-center">Link yang Anda gunakan tidak valid atau sudah tidak aktif.</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (isValidMua === null) {
+    return (
+      <SafeAreaView className="flex-1 bg-background items-center justify-center">
+        <Text className="text-text-hint">Memuat profil MUA...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (isSuccess) {
+    return (
+      <SafeAreaView className="flex-1 bg-background items-center justify-center p-8">
+        <View className="w-16 h-16 bg-status-success/10 rounded-full items-center justify-center mb-6">
+          <CheckCircle2 size={32} color="#4CAF50" />
+        </View>
+        <Text className="text-2xl font-bold text-text-primary text-center mb-3">
+          Booking Berhasil!
+        </Text>
+        <Text className="text-text-secondary text-center text-base leading-6 mb-8">
+          Permintaan jadwal Anda telah terkirim ke <Text className="font-bold">{muaProfile?.businessName}</Text>. Kami akan menghubungi Anda via WhatsApp untuk konfirmasi selanjutnya.
+        </Text>
+        <Button 
+          label="Tutup" 
+          onPress={() => setIsSuccess(false)} 
+          className="w-full h-14 rounded-2xl" 
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -69,9 +145,11 @@ export default function PublicBookingForm() {
           <View className="w-20 h-20 bg-primary/10 rounded-full items-center justify-center mb-4">
             <Calendar size={40} color="#B76E79" />
           </View>
-          <Text className="text-2xl font-bold text-text-primary text-center">Buat Janji Temu</Text>
+          <Text className="text-2xl font-bold text-text-primary text-center">
+            {muaProfile?.businessName || "Booking MUA"}
+          </Text>
           <Text className="text-text-hint text-center mt-2 px-4">
-            Silakan isi detail di bawah ini untuk mengajukan jadwal rias.
+            {muaProfile?.name ? `MUA: ${muaProfile.name}` : "Silakan isi detail di bawah ini untuk mengajukan jadwal rias."}
           </Text>
         </View>
 

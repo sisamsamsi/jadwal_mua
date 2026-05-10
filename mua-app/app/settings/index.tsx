@@ -25,10 +25,18 @@ export default function SettingsScreen() {
 
   const [businessName, setBusinessName] = useState(savedBusinessName);
   const [whatsapp, setWhatsapp] = useState(savedWhatsapp);
+  
+  // Local state for templates to avoid auto-saving while typing
+  const [localTemplates, setLocalTemplates] = useState(waTemplates);
 
   const handleSaveProfile = () => {
     updateBusinessProfile(businessName, whatsapp);
     Alert.alert("Berhasil", "Profil bisnis telah diperbarui.");
+  };
+
+  const handleSaveTemplates = () => {
+    updateTemplates(localTemplates);
+    Alert.alert("Berhasil", "Template WhatsApp telah disimpan.");
   };
 
   return (
@@ -105,8 +113,8 @@ export default function SettingsScreen() {
           <View className="mb-4">
             <Input 
               label="Pesan Konfirmasi" 
-              value={waTemplates.confirmation} 
-              onChangeText={(t) => updateTemplates({ confirmation: t })}
+              value={localTemplates.confirmation} 
+              onChangeText={(t) => setLocalTemplates({ ...localTemplates, confirmation: t })}
               multiline
               numberOfLines={3}
             />
@@ -114,8 +122,8 @@ export default function SettingsScreen() {
           <View className="mb-4">
             <Input 
               label="Pesan Pengingat (Reminder)" 
-              value={waTemplates.reminder} 
-              onChangeText={(t) => updateTemplates({ reminder: t })}
+              value={localTemplates.reminder} 
+              onChangeText={(t) => setLocalTemplates({ ...localTemplates, reminder: t })}
               multiline
               numberOfLines={3}
             />
@@ -123,15 +131,18 @@ export default function SettingsScreen() {
           <View className="mb-6">
             <Input 
               label="Pesan Ucapan Terima Kasih" 
-              value={waTemplates.thanks} 
-              onChangeText={(t) => updateTemplates({ thanks: t })}
+              value={localTemplates.thanks} 
+              onChangeText={(t) => setLocalTemplates({ ...localTemplates, thanks: t })}
               multiline
               numberOfLines={3}
             />
           </View>
-          <Text className="text-text-hint text-[10px] italic text-center">
-            * Perubahan otomatis tersimpan
-          </Text>
+          <Button 
+             label="Simpan Template" 
+             onPress={handleSaveTemplates}
+             variant="outline"
+             className="h-12 rounded-xl"
+           />
         </Card>
 
         <Text className="text-text-hint font-bold uppercase text-xs mb-4">Keamanan & Lisensi</Text>
@@ -154,30 +165,9 @@ export default function SettingsScreen() {
           </View>
         </Card>
 
-        <Text className="text-center text-text-hint mt-10 text-xs">MUA App v1.0.0 (Beta)</Text>
+        <Text className="text-center text-text-hint mt-10 text-xs">MUA App v1.0.4 (Production Ready)</Text>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function ToggleItem({ label, description, icon, value, onToggle }: any) {
-  return (
-    <View className="flex-row items-center justify-between p-4">
-      <View className="flex-row items-center flex-1 mr-4">
-        <View className="w-10 h-10 bg-neutral-background rounded-xl items-center justify-center mr-4">
-          {icon}
-        </View>
-        <View className="flex-1">
-          <Text className="text-text-primary font-bold">{label}</Text>
-          <Text className="text-text-hint text-xs">{description}</Text>
-        </View>
-      </View>
-      <Switch 
-        value={value} 
-        onValueChange={onToggle}
-        trackColor={{ false: "#E0E0E0", true: "#B76E79" }}
-        thumbColor={value ? "#FFFFFF" : "#F5F5F5"}
-      />
-    </View>
-  );
-}

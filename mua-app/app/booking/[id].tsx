@@ -15,6 +15,7 @@ import { ChevronLeft, Calendar as CalendarIcon, Clock, MapPin, User, FileText, M
 import { formatCurrency } from "@/lib/utils/currency";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { Modal } from "react-native";
+import { sendWhatsApp, formatWhatsAppTemplate } from "@/lib/utils/whatsapp";
 
 export default function BookingDetail() {
   const { id } = useLocalSearchParams();
@@ -33,7 +34,7 @@ export default function BookingDetail() {
   const { data: client } = useClient(booking?.clientId || "");
   const { data: payments = [] } = usePaymentsByBooking(id as string);
   const { data: members = [] } = useBridalParty(id as string);
-  const { showBridalParty } = useSettingsStore();
+  const { showBridalParty, waTemplates } = useSettingsStore();
 
   const [editMode, setEditMode] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
@@ -200,6 +201,21 @@ export default function BookingDetail() {
     } finally {
       setStatusLoading(false);
     }
+  };
+
+  const handleSendReminder = () => {
+    const message = formatWhatsAppTemplate(waTemplates.reminder, {
+      nama: booking.clientName || client?.name || "Klien",
+      layanan: booking.eventType || "Makeup",
+      tanggal: booking.bookingDate,
+      jam: booking.startTime
+    });
+    
+    Alert.alert("Kirim Pengingat", "Pilih metode pengiriman:", [
+      { text: "Batal", style: "cancel" },
+      { text: "WhatsApp", onPress: () => sendWhatsApp(client?.phone || "", message) },
+      { text: "Share Lainnya", onPress: () => Share.share({ message }) }
+    ]);
   };
 
   if (loadingBooking) return null;
@@ -485,9 +501,18 @@ export default function BookingDetail() {
                  <Text className="text-status-error font-bold">{formatCurrency(remainingBalance)}</Text>
               </View>
               
+               
+
+
               {!editMode && (
                 <View className="flex-row gap-2 mt-4">
-                  <Button variant="outline" label="Kirim Pengingat" onPress={() => Share.share({ message: `Halo ${booking.clientName}, mengingatkan jadwal makeup kita (untuk ${booking.numPersons} orang) tanggal ${booking.bookingDate} jam ${booking.startTime}.` })} className="flex-1 rounded-xl" leftIcon={<Share2 size={18} color="#B76E79" />} />
+                  <Button 
+                    variant="outline" 
+                    label="Kirim Pengingat" 
+                    onPress={handleSendReminder} 
+                    className="flex-1 rounded-xl" 
+                    leftIcon={<MessageSquare size={18} color="#B76E79" />} 
+                  />
                   {remainingBalance > 0 && (
                     <Button variant="primary" label="Bayar Sisa" className="flex-1 rounded-xl" onPress={() => router.push({ pathname: "/payment/new", params: { bookingId: booking.id, amount: remainingBalance } })} />
                   )}
