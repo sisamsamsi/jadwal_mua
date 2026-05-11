@@ -47,7 +47,6 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (!navigationState?.key || isLoading) return;
-    if (!segments[0]) return; // Guard: jangan redirect saat segmen belum ready
 
     const inAuthGroup = segments[0] === "(auth)";
     const inOnboarding = segments[0] === "onboarding";
@@ -63,20 +62,33 @@ export default function RootLayout() {
   }, [session, isLoading, segments, hasSeenOnboarding, navigationState?.key]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session ?? null);
+    // Pengaman: Jika dalam 3 detik status belum didapat, paksa matikan loading
+    const safetyTimeout = setTimeout(() => {
       setLoading(false);
-    });
+    }, 3000);
+
+    supabase.auth.getSession()
+      .then(({ data }) => {
+        setSession(data.session ?? null);
+        setLoading(false);
+        clearTimeout(safetyTimeout);
+      })
+      .catch(() => {
+        setLoading(false);
+        clearTimeout(safetyTimeout);
+      });
 
     const { data: subscription } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session ?? null);
         setLoading(false);
+        clearTimeout(safetyTimeout);
       },
     );
 
     return () => {
       subscription?.subscription?.unsubscribe?.();
+      clearTimeout(safetyTimeout);
     };
   }, []);
 
