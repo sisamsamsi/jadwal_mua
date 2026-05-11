@@ -5,6 +5,10 @@ import { bridalParty } from "../db/schema";
 import { eq } from "drizzle-orm";
 
 export const bridalPartyRepository = {
+  async getAll() {
+    return await db.select().from(bridalParty);
+  },
+
   async getByBookingId(bookingId: string) {
     return await db.select().from(bridalParty).where(eq(bridalParty.bookingId, bookingId));
   },

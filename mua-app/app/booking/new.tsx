@@ -260,8 +260,30 @@ export default function NewBooking() {
 
   const submitData = async () => {
     try {
-      await createBooking.mutateAsync(formData);
-      router.back();
+      const result = await createBooking.mutateAsync(formData);
+      
+      if (formData.numPersons > 1) {
+        Alert.alert(
+          "Jadwal Berhasil Disimpan",
+          "Booking rombongan berhasil dibuat. Ingin menambahkan rincian nama dan pilihan makeup untuk setiap orang sekarang?",
+          [
+            { 
+              text: "Nanti Saja", 
+              onPress: () => router.replace("/(tabs)/home") 
+            },
+            { 
+              text: "Tambah Rincian", 
+              onPress: () => router.replace(`/booking/${result.id}` as any) 
+            }
+          ]
+        );
+      } else {
+        Alert.alert(
+          "Sukses", 
+          "Jadwal berhasil disimpan.",
+          [{ text: "OK", onPress: () => router.back() }]
+        );
+      }
     } catch (error) {
       Alert.alert("Error", "Gagal menyimpan jadwal");
     }

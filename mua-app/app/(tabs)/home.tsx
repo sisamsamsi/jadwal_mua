@@ -11,6 +11,7 @@ import { Calendar, Users, DollarSign, Clock, Plus, ChevronRight, Filter } from "
 import { useRouter } from "expo-router";
 import { formatDate } from "@/lib/utils/date";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSettingsStore } from "@/lib/stores/settings-store";
 
 const STATUS_FILTERS = [
   { id: 'all', label: 'Semua', color: 'bg-gray-100', text: 'text-gray-600' },
@@ -23,6 +24,7 @@ const STATUS_FILTERS = [
 export default function DashboardScreen() {
   const { stats, isLoading } = useDashboardStats();
   const session = useAuthStore((s) => s.session);
+  const { showBridalParty } = useSettingsStore();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [activeFilter, setActiveFilter] = useState('all');
@@ -153,6 +155,7 @@ export default function DashboardScreen() {
 }
 
 function BookingItem({ booking, onPress, showDate }: { booking: any, onPress: () => void, showDate?: boolean }) {
+  const { showBridalParty } = useSettingsStore();
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed': return 'success';
@@ -178,6 +181,12 @@ function BookingItem({ booking, onPress, showDate }: { booking: any, onPress: ()
             <Text className="text-text-secondary text-xs">
               {showDate ? `${formatDate(booking.bookingDate, "dd MMM")} • ` : ""}{booking.startTime} - {booking.endTime} • {booking.numPersons || 1} Orang
             </Text>
+            {showBridalParty && booking.numPersons > 1 && (booking.bridalPartyCount || 0) < booking.numPersons && (
+              <View className="flex-row items-center mt-1">
+                <View className="w-1.5 h-1.5 rounded-full bg-orange-500 mr-1.5" />
+                <Text className="text-orange-600 text-[10px] font-bold uppercase">Detail orang belum lengkap</Text>
+              </View>
+            )}
           </View>
         </View>
         <ChevronRight size={18} color="#BDBDBD" />

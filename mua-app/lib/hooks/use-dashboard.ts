@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { bookingRepository } from "../repositories/booking-repository";
 import { clientRepository } from "../repositories/client-repository";
 import { paymentRepository } from "../repositories/payment-repository";
+import { bridalPartyRepository } from "../repositories/bridal-party-repository";
 
 export function useDashboardStats() {
   const statsQuery = useQuery({
@@ -19,6 +20,12 @@ export function useDashboardStats() {
         return acc;
       }, {});
 
+      const bridalPartyAll = await bridalPartyRepository.getAll();
+      const bridalPartyCounts = bridalPartyAll.reduce((acc: any, m: any) => {
+        acc[m.bookingId] = (acc[m.bookingId] || 0) + 1;
+        return acc;
+      }, {});
+
       const totalRevenue = payments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
       const pendingBookings = bookings.filter((b: any) => b.status === "pending" || b.status === "confirmed").length;
       
@@ -30,7 +37,8 @@ export function useDashboardStats() {
         .filter((b: any) => b.bookingDate === todayStr)
         .map((b: any) => ({
           ...b,
-          clientName: clientMap[b.clientId] || "Klien Umum"
+          clientName: clientMap[b.clientId] || "Klien Umum",
+          bridalPartyCount: bridalPartyCounts[b.id] || 0
         }));
 
       // Jadwal Mendatang (Setelah hari ini)
@@ -40,7 +48,8 @@ export function useDashboardStats() {
         .slice(0, 5) // Ambil 5 jadwal terdekat
         .map((b: any) => ({
           ...b,
-          clientName: clientMap[b.clientId] || "Klien Umum"
+          clientName: clientMap[b.clientId] || "Klien Umum",
+          bridalPartyCount: bridalPartyCounts[b.id] || 0
         }));
 
       return {
