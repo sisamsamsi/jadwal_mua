@@ -11,8 +11,8 @@ if (typeof global.crypto.randomUUID !== 'function') {
     });
   } as any;
 }
-import React, { useEffect } from "react";
-import { View, Text } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, ActivityIndicator } from "react-native";
 import { Stack } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -45,21 +45,35 @@ export default function RootLayout() {
   const router = useRouter();
   const navigationState = useRootNavigationState();
 
+  const [isHydrated, setIsHydrated] = useState(false);
+
   useEffect(() => {
-    if (!navigationState?.key || isLoading) return;
+    // Check hydration status to avoid reading false defaults
+    const unsubHydrate = useSettingsStore.persist.onFinishHydration(() => setIsHydrated(true));
+    setIsHydrated(useSettingsStore.persist.hasHydrated());
+    return () => {
+      if (unsubHydrate) unsubHydrate();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!navigationState?.key || isLoading || !isHydrated) return;
 
     const inAuthGroup = segments[0] === "(auth)";
     const inOnboarding = segments[0] === "onboarding";
     const isPublicBooking = segments[0] === "book";
 
-    if (!session && !inAuthGroup && !isPublicBooking) {
-      router.replace("/login");
-    } else if (session && !hasSeenOnboarding && !inOnboarding && !isPublicBooking) {
-      router.replace("/onboarding");
-    } else if (session && hasSeenOnboarding && (inAuthGroup || inOnboarding)) {
-      router.replace("/(tabs)/home"); // path lengkap untuk menghindari ambiguitas
-    }
-  }, [session, isLoading, segments, hasSeenOnboarding, navigationState?.key]);
+    // Use setTimeout to ensure Expo Router has finished its current update cycle
+    setTimeout(() => {
+      if (!session && !inAuthGroup && !isPublicBooking) {
+        router.replace("/login");
+      } else if (session && !hasSeenOnboarding && !inOnboarding && !isPublicBooking) {
+        router.replace("/onboarding");
+      } else if (session && hasSeenOnboarding && (inAuthGroup || inOnboarding)) {
+        router.replace("/(tabs)/home");
+      }
+    }, 0);
+  }, [session, isLoading, segments, hasSeenOnboarding, navigationState?.key, isHydrated]);
 
   useEffect(() => {
     // Pengaman: Jika dalam 3 detik status belum didapat, paksa matikan loading
@@ -92,15 +106,27 @@ export default function RootLayout() {
     };
   }, []);
 
-  if (!success) {
+  // FIX 3: Tampilkan error HANYA jika ada error nyata. 
+  // Jika !success tapi !error, berarti masih proses migrasi database.
+  if (!success && error) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 20 }}>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 20, backgroundColor: "#fff" }}>
         <Text style={{ fontSize: 18, fontWeight: "bold", color: "#F44336", marginBottom: 10 }}>
           Gagal Memuat Database
         </Text>
         <Text style={{ textAlign: "center", color: "#757575" }}>
-          {error?.message || "Terjadi kesalahan saat sinkronisasi data lokal. Silakan coba buka kembali aplikasinya."}
+          {error?.message || "Terjadi kesalahan saat sinkronisasi data lokal."}
         </Text>
+      </View>
+    );
+  }
+
+  // Jika migrasi belum sukses dan belum ada error, tampilkan loading utama
+  if (!success) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#FAF7F5" }}>
+        <ActivityIndicator size="large" color="#B76E79" />
+        <Text style={{ marginTop: 12, color: "#B76E79" }}>Menyiapkan Database...</Text>
       </View>
     );
   }
