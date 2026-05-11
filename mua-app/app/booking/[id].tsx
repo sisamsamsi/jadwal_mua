@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Alert, Linking, Share } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Alert, Linking, Share, ActivityIndicator } from "react-native";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useBooking, useUpdateBooking, useDeleteBooking, useBookings } from "@/lib/hooks/use-bookings";
@@ -227,6 +227,7 @@ export default function BookingDetail() {
     return (
       <SafeAreaView className="flex-1 bg-background items-center justify-center">
         <Stack.Screen options={{ headerShown: false }} />
+        <ActivityIndicator size="large" color="#B76E79" />
         <Text className="text-text-hint mt-3">Memuat data jadwal...</Text>
       </SafeAreaView>
     );

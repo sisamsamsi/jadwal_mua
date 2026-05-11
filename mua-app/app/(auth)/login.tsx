@@ -30,7 +30,8 @@ export default function Login() {
       const res = await authService.signIn(data.email, data.password);
       if (res?.session) {
         setSession(res.session);
-        router.replace("/home");
+        // Redirect dihandle oleh _layout.tsx via onAuthStateChange
+        // Tidak perlu router.replace di sini — mencegah triple redirect race condition
       }
     } catch (e: any) {
       Alert.alert("Login Gagal", e.message ?? String(e));

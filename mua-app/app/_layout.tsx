@@ -47,6 +47,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (!navigationState?.key || isLoading) return;
+    if (!segments[0]) return; // Guard: jangan redirect saat segmen belum ready
 
     const inAuthGroup = segments[0] === "(auth)";
     const inOnboarding = segments[0] === "onboarding";
@@ -57,7 +58,7 @@ export default function RootLayout() {
     } else if (session && !hasSeenOnboarding && !inOnboarding && !isPublicBooking) {
       router.replace("/onboarding");
     } else if (session && hasSeenOnboarding && (inAuthGroup || inOnboarding)) {
-      router.replace("/home");
+      router.replace("/(tabs)/home"); // path lengkap untuk menghindari ambiguitas
     }
   }, [session, isLoading, segments, hasSeenOnboarding, navigationState?.key]);
 

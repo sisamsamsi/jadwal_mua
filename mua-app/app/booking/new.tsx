@@ -2,19 +2,23 @@ import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, ScrollView, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { useAuthStore } from "@/lib/stores/auth-store";
 import { useCreateBooking, useBookings } from "@/lib/hooks/use-bookings";
 import { useCreateClient, useClients } from "@/lib/hooks/use-clients";
 import { useCreateService, useServices } from "@/lib/hooks/use-services";
 import { usePackages } from "@/lib/hooks/use-packages";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { ChevronLeft, Calendar as CalendarIcon, Clock, Users, Plus, Tag, AlertCircle, Sparkles } from "lucide-react-native";
+import { ChevronLeft, Calendar as CalendarIcon, Clock, Users, Plus, AlertCircle, Sparkles } from "lucide-react-native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
-import { Modal, ActivityIndicator } from "react-native";
+import { Modal } from "react-native";
 import { aiService } from "@/lib/services/ai-service";
 
 export default function NewBooking() {
   const router = useRouter();
+  const { session } = useAuthStore();
+  const userId = session?.user?.id ?? "";
+
   const createBooking = useCreateBooking();
   const createClientMutation = useCreateClient();
   const createServiceMutation = useCreateService();
@@ -51,8 +55,12 @@ export default function NewBooking() {
   const handleCreateClient = async () => {
     if (!newClientName) return;
     try {
-      const result = await createClientMutation.mutateAsync({ name: newClientName, phone: newClientPhone });
-      setFormData({ ...formData, clientId: result.id, clientName: result.name });
+      const result = await createClientMutation.mutateAsync({
+        name: newClientName,
+        phone: newClientPhone,
+        userId, // Fix Bug 1B: userId wajib untuk DB constraint NOT NULL
+      });
+      setFormData(prev => ({ ...prev, clientId: result.id, clientName: result.name })); // Fix Bug 1B: gunakan prev => untuk hindari stale closure
       setClientModalVisible(false);
       setNewClientName("");
       setNewClientPhone("");
@@ -67,10 +75,11 @@ export default function NewBooking() {
       const result = await createServiceMutation.mutateAsync({ 
         name: newServiceName, 
         basePrice: Number(newServicePrice),
-        category: "Makeup" 
+        category: "Makeup",
+        userId, // Fix Bug 1B: userId wajib untuk DB constraint NOT NULL
       });
       setBasePricePerPerson(Number(newServicePrice));
-      setFormData({ ...formData, serviceId: result.id, packageId: "" });
+      setFormData(prev => ({ ...prev, serviceId: result.id, packageId: "" })); // Fix Bug 1B: gunakan prev => untuk hindari stale closure
       setServiceModalVisible(false);
       setNewServiceName("");
       setNewServicePrice("");
@@ -95,31 +104,51 @@ export default function NewBooking() {
     try {
       const result = await aiService.parseBookingMessage(aiInputText);
       
-      // 1. Cari clientId jika ada nama yang cocok
+      // 1. Matching klien — DUA ARAH agar toleran variasi penulisan nama
+      // Contoh: AI kirim "Rina" → cocok dengan "Ibu Rina Wulandari" di DB, dan sebaliknya
       let matchedClientId = "";
       let matchedClientName = result.clientName || "";
       
       if (result.clientName) {
-        const match = clients.find((c: any) => 
-          c.name.toLowerCase().includes(result.clientName.toLowerCase())
-        );
+        const aiName = result.clientName.toLowerCase().trim();
+        const match = clients.find((c: any) => {
+          const dbName = c.name.toLowerCase().trim();
+          return dbName.includes(aiName) || aiName.includes(dbName);
+        });
         if (match) {
           matchedClientId = match.id;
           matchedClientName = match.name;
         }
       }
 
-      // 2. Validasi Format Tanggal (YYYY-MM-DD)
+      // 2. Matching layanan dari nama yang diekstrak AI
+      let matchedServiceId = "";
+      let matchedServicePrice = 0;
+
+      if (result.serviceName) {
+        const aiSvc = result.serviceName.toLowerCase().trim();
+        const matchedSvc = services.find((s: any) => {
+          const dbSvc = s.name.toLowerCase().trim();
+          return dbSvc.includes(aiSvc) || aiSvc.includes(dbSvc);
+        });
+        if (matchedSvc) {
+          matchedServiceId = matchedSvc.id;
+          matchedServicePrice = matchedSvc.basePrice || 0;
+        }
+      }
+
+      // 3. Validasi Format Tanggal (YYYY-MM-DD)
       let validDate = formData.bookingDate;
       if (result.bookingDate && /^\d{4}-\d{2}-\d{2}$/.test(result.bookingDate)) {
         validDate = result.bookingDate;
       }
 
-      // 3. Update form data dengan fallback
+      // 4. Update form data dengan fallback (pakai prev => agar tidak ada stale closure)
       setFormData(prev => ({
         ...prev,
         clientId: matchedClientId || prev.clientId,
         clientName: matchedClientName || prev.clientName,
+        serviceId: matchedServiceId || prev.serviceId,
         bookingDate: validDate,
         startTime: result.startTime || prev.startTime,
         endTime: result.endTime || prev.endTime,
@@ -128,21 +157,23 @@ export default function NewBooking() {
         numPersons: result.numPersons || prev.numPersons,
         eventType: result.eventType || prev.eventType,
         notes: result.notes || prev.notes,
-        totalPrice: prev.totalPrice 
+        totalPrice: prev.totalPrice,
       }));
 
-      // 4. Buat ringkasan untuk user
-      const fields = [];
-      if (matchedClientId) fields.push("Klien");
-      if (result.bookingDate) fields.push("Tanggal");
-      if (result.startTime) fields.push("Waktu");
-      if (result.locationName) fields.push("Lokasi");
-      
-      const summary = fields.length > 0 
-        ? `Berhasil mengisi: ${fields.join(", ")}.` 
-        : "Beberapa data berhasil diekstrak.";
+      if (matchedServiceId) setBasePricePerPerson(matchedServicePrice);
 
-      Alert.alert("Hasil AI", summary + "\n\nSilakan lengkapi bagian yang kosong.");
+      // 5. Ringkasan feedback per field dengan emoji
+      const fields: string[] = [];
+      if (matchedClientId) fields.push("✅ Klien ditemukan");
+      else if (result.clientName) fields.push(`⚠️ Klien "${result.clientName}" tidak ada di daftar`);
+      if (matchedServiceId) fields.push("✅ Layanan ditemukan");
+      else if (result.serviceName) fields.push(`⚠️ Layanan "${result.serviceName}" tidak ada di daftar`);
+      if (result.bookingDate) fields.push("✅ Tanggal");
+      if (result.startTime) fields.push("✅ Waktu");
+      if (result.locationName) fields.push("✅ Lokasi");
+
+      const summary = fields.length > 0 ? fields.join("\n") : "Beberapa data berhasil diekstrak.";
+      Alert.alert("Hasil AI", summary + "\n\nSilakan lengkapi bagian yang kosong.", [{ text: "OK" }]);
       setAiModalVisible(false);
       setAiInputText("");
     } catch (error: any) {
@@ -199,6 +230,12 @@ export default function NewBooking() {
   const handleSave = async () => {
     if (!formData.clientId || !formData.bookingDate || !formData.startTime || !formData.endTime) {
       Alert.alert("Error", "Mohon lengkapi data wajib (Klien, Tanggal, Waktu)");
+      return;
+    }
+
+    // Issue 8: Validasi layanan — booking tidak boleh disimpan tanpa layanan/paket
+    if (!formData.serviceId && !formData.packageId) {
+      Alert.alert("Pilih Layanan", "Mohon pilih layanan atau paket sebelum menyimpan jadwal. Booking tanpa layanan tidak bisa dihitung harganya.");
       return;
     }
 
@@ -535,7 +572,7 @@ export default function NewBooking() {
 
             <View className="flex-row justify-between items-center mb-4">
               <Text className="text-[10px] text-text-hint italic">
-                * AI mendeteksi Nama, Tanggal, Jam & Lokasi
+                * AI mendeteksi Nama, Layanan, Tanggal, Jam & Lokasi
               </Text>
               <Text className="text-[10px] text-text-hint">
                 {aiInputText.length}/1000

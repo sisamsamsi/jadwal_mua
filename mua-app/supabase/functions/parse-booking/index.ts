@@ -64,6 +64,7 @@ REFERENSI WAKTU:
 OUTPUT JSON:
 {
   "clientName": string,
+  "serviceName": string (nama layanan makeup yang disebutkan, misal: "Makeup Pengantin", "Makeup Wisuda". Kosong string jika tidak disebutkan),
   "bookingDate": "YYYY-MM-DD",
   "startTime": "HH:mm",
   "endTime": "HH:mm" (tambah 2-3 jam dari startTime jika tidak disebut),
