@@ -176,15 +176,18 @@ function BookingItem({ booking, onPress, showDate }: { booking: any, onPress: ()
           <View className="flex-1">
             <View className="flex-row items-center mb-1">
               <Text className="text-text-primary font-bold text-base mr-2" numberOfLines={1}>{booking.clientName}</Text>
-              <Badge label={booking.status} variant={getStatusColor(booking.status)} />
+              <Badge label={booking.status === 'confirmed' ? 'FIX' : booking.status} variant={getStatusColor(booking.status)} />
             </View>
             <Text className="text-text-secondary text-xs">
               {showDate ? `${formatDate(booking.bookingDate, "dd MMM")} • ` : ""}{booking.startTime} - {booking.endTime} • {booking.numPersons || 1} Orang
             </Text>
             {showBridalParty && booking.numPersons > 1 && (booking.bridalPartyCount || 0) < booking.numPersons && (
-              <View className="flex-row items-center mt-1">
-                <View className="w-1.5 h-1.5 rounded-full bg-orange-500 mr-1.5" />
-                <Text className="text-orange-600 text-[10px] font-bold uppercase">Detail orang belum lengkap</Text>
+              <View className="mt-2">
+                <Badge 
+                  label="Data Orang Belum Lengkap" 
+                  variant="warning" 
+                  className="bg-orange-50 border border-orange-200 py-1"
+                />
               </View>
             )}
           </View>

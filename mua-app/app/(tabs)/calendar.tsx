@@ -9,15 +9,6 @@ import { Badge } from "@/components/ui/Badge";
 import { Clock, MapPin, Plus } from "lucide-react-native";
 import { formatDate } from "@/lib/utils/date";
 
-const PASTEL_COLORS = [
-  "#FFB3BA", // Pink Soft
-  "#BAFFC9", // Green Soft
-  "#BAE1FF", // Blue Soft
-  "#FFFFBA", // Yellow Soft
-  "#FFDFBA", // Orange Soft
-  "#E0BBE4", // Purple Soft
-];
-
 export default function CalendarScreen() {
   const [selected, setSelected] = useState(new Date().toISOString().split("T")[0]);
   const router = useRouter();
@@ -27,29 +18,28 @@ export default function CalendarScreen() {
   const markedDates = useMemo(() => {
     const marks: any = {};
 
-    allBookings
-      .filter((b: any) => b.status !== "cancelled")
-      .forEach((b: any) => {
-        const date = b.bookingDate;
-        if (!marks[date]) {
-          const colorIndex = Math.abs(date.split('-').join('') % PASTEL_COLORS.length);
-          marks[date] = {
-            customStyles: {
-              container: {
-                backgroundColor: PASTEL_COLORS[colorIndex],
-                borderRadius: 12,
-              },
-              text: {
-                color: '#2D2D2D',
-                fontWeight: 'bold',
-              },
+    allBookings.forEach((b: any) => {
+      if (b.status === 'cancelled') return;
+      const date = b.bookingDate;
+      if (!marks[date]) {
+        marks[date] = {
+          customStyles: {
+            container: {
+              backgroundColor: "#FCE4EC", // Soft Pink for all booked dates
+              borderRadius: 12,
             },
-          };
-        }
-      });
+            text: {
+              color: '#B76E79',
+              fontWeight: 'bold',
+            },
+          },
+        };
+      }
+    });
 
     // Highlight Tanggal Terpilih (Warna Rose MUA)
     marks[selected] = {
+      ...marks[selected],
       customStyles: {
         container: {
           backgroundColor: "#B76E79",
@@ -98,6 +88,14 @@ export default function CalendarScreen() {
             }}
           />
         </Card>
+        
+        {/* Legenda Kalender */}
+        <View className="flex-row items-center mt-3 ml-1">
+          <View className="w-3 h-3 rounded-full bg-[#FCE4EC] border border-[#B76E79]/20 mr-2" />
+          <Text className="text-text-hint text-[11px] font-medium italic">
+            Warna Pink menandakan tanggal sudah ada agenda / terbooking
+          </Text>
+        </View>
       </View>
 
       <View className="flex-1 px-4 mt-6">
@@ -130,7 +128,7 @@ export default function CalendarScreen() {
                   </Text>
                 </View>
                 <Badge 
-                  label={item.status.toUpperCase()} 
+                  label={item.status === 'confirmed' ? 'FIX' : item.status.toUpperCase()} 
                   variant={
                     item.status === 'completed' ? 'success' : 
                     item.status === 'cancelled' ? 'error' : 

@@ -282,7 +282,7 @@ export default function BookingDetail() {
            <View className="flex-row gap-2">
               {[
                 { id: 'pending', label: 'Pending', color: '#FF9800' },
-                { id: 'confirmed', label: 'Fix', color: '#2196F3' },
+                { id: 'confirmed', label: 'FIX', color: '#2196F3' },
                 { id: 'completed', label: 'Selesai', color: '#4CAF50' },
                 { id: 'cancelled', label: 'Batal', color: '#F44336' },
               ].map((s) => (

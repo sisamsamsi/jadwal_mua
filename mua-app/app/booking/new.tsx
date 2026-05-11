@@ -244,6 +244,12 @@ export default function NewBooking() {
       return;
     }
 
+    const today = new Date().toISOString().split('T')[0];
+    if (formData.bookingDate < today) {
+      Alert.alert("Tanggal Mundur", "Anda tidak bisa membuat jadwal untuk tanggal yang sudah lewat.");
+      return;
+    }
+
     if (conflictInfo) {
       Alert.alert(
         "Peringatan Jadwal!", 

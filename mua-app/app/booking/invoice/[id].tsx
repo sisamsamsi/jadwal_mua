@@ -6,6 +6,7 @@ import { useBooking } from "@/lib/hooks/use-bookings";
 import { useClient } from "@/lib/hooks/use-clients";
 import { useService } from "@/lib/hooks/use-services";
 import { usePaymentsByBooking } from "@/lib/hooks/use-payments";
+import { useSettingsStore } from "@/lib/stores/settings-store";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ChevronLeft, Share2, Download, Printer, Scissors } from "lucide-react-native";
@@ -19,15 +20,18 @@ export default function InvoiceScreen() {
   const { data: client } = useClient(booking?.clientId || "");
   const { data: service } = useService(booking?.serviceId || "");
   const { data: payments = [] } = usePaymentsByBooking(id as string);
+  const { businessName, whatsappNumber, paymentInstructions } = useSettingsStore();
+
+  const clientName = client?.name || booking?.clientName || "Klien";
 
   const totalPaid = (payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
   const remainingBalance = (booking?.totalPrice || 0) - totalPaid;
 
   const handleShare = async () => {
     const message = `
-INVOICE MUA
+INVOICE ${businessName || "MUA"}
 ------------------
-Klien: ${client?.name}
+Klien: ${clientName}
 Tanggal: ${booking?.bookingDate}
 Layanan: ${service?.name || "Layanan Makeup"}
 
@@ -64,16 +68,20 @@ Terima kasih!
         <Card className="bg-white p-8 shadow-sm">
           {/* Header Invoice */}
           <View className="items-center border-b-2 border-divider pb-6 mb-6">
-            <Text className="text-2xl font-bold text-primary mb-1">INVOICE</Text>
-            <Text className="text-text-hint">No: INV/{booking.id.substring(0,8).toUpperCase()}</Text>
+            <Text className="text-xl font-bold text-text-primary mb-1 uppercase tracking-widest">{businessName || "MUA PROFESSIONAL"}</Text>
+            <Text className="text-text-hint text-xs mb-4">{whatsappNumber}</Text>
+            <View className="bg-primary/10 px-4 py-1 rounded-full mb-2">
+              <Text className="text-primary font-bold">INVOICE</Text>
+            </View>
+            <Text className="text-text-hint text-[10px]">No: INV/{booking.id.substring(0,8).toUpperCase()}</Text>
           </View>
 
           {/* Info Klien */}
           <View className="flex-row justify-between mb-8">
             <View>
               <Text className="text-text-hint text-xs font-bold uppercase mb-1">Kepada:</Text>
-              <Text className="text-lg font-bold text-text-primary">{client?.name}</Text>
-              <Text className="text-text-secondary text-sm">{client?.phone}</Text>
+              <Text className="text-lg font-bold text-text-primary">{clientName}</Text>
+              <Text className="text-text-secondary text-sm">{client?.phone || "-"}</Text>
             </View>
             <View className="items-end">
               <Text className="text-text-hint text-xs font-bold uppercase mb-1">Tanggal Jadwal:</Text>
@@ -112,6 +120,16 @@ Terima kasih!
               <Text className="text-lg font-bold text-status-error">{formatCurrency(remainingBalance)}</Text>
             </View>
           </View>
+
+          {/* Metode Pembayaran */}
+          {remainingBalance > 0 && (
+            <View className="mt-8 p-4 border border-divider rounded-xl border-dashed">
+              <Text className="text-text-hint text-[10px] font-bold uppercase mb-2">Instruksi Pembayaran:</Text>
+              <Text className="text-text-primary font-bold text-sm">
+                {paymentInstructions || "Transfer Bank / E-Wallet"}
+              </Text>
+            </View>
+          )}
 
           <View className="mt-10 items-center">
              <View className="flex-row items-center mb-4">

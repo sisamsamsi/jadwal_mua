@@ -21,11 +21,14 @@ export default function SettingsScreen() {
     toggleBridalParty, 
     toggleInventory,
     updateBusinessProfile,
-    updateTemplates
+    updateTemplates,
+    paymentInstructions: savedPaymentInstructions,
+    setPaymentInstructions
   } = useSettingsStore();
 
   const [businessName, setBusinessName] = useState(savedBusinessName);
   const [whatsapp, setWhatsapp] = useState(savedWhatsapp);
+  const [localPaymentInstructions, setLocalPaymentInstructions] = useState(savedPaymentInstructions);
   
   // Local state for templates to avoid auto-saving while typing
   const [localTemplates, setLocalTemplates] = useState(waTemplates);
@@ -38,6 +41,11 @@ export default function SettingsScreen() {
   const handleSaveTemplates = () => {
     updateTemplates(localTemplates);
     Alert.alert("Berhasil", "Template WhatsApp telah disimpan.");
+  };
+
+  const handleSavePaymentInstructions = () => {
+    setPaymentInstructions(localPaymentInstructions);
+    Alert.alert("Berhasil", "Instruksi pembayaran telah disimpan.");
   };
 
   return (
@@ -144,6 +152,26 @@ export default function SettingsScreen() {
              variant="outline"
              className="h-12 rounded-xl"
            />
+        </Card>
+
+        <Text className="text-text-hint font-bold uppercase text-xs mb-4">Instruksi Pembayaran (Muncul di Invoice)</Text>
+        <Card className="p-4 mb-8">
+           <View className="mb-4">
+             <Input 
+               label="Nomor Rekening / E-Wallet" 
+               value={localPaymentInstructions} 
+               onChangeText={setLocalPaymentInstructions}
+               placeholder="Contoh: BCA 123456 a/n MUA Name"
+               multiline
+               numberOfLines={4}
+             />
+           </View>
+           <Button 
+              label="Simpan Instruksi" 
+              onPress={handleSavePaymentInstructions}
+              variant="outline"
+              className="h-12 rounded-xl"
+            />
         </Card>
 
         <Text className="text-text-hint font-bold uppercase text-xs mb-4">Keamanan & Lisensi</Text>
