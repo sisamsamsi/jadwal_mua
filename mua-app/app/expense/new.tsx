@@ -10,12 +10,14 @@ import { useAuthStore } from "@/lib/stores/auth-store";
 import * as Crypto from "expo-crypto";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { format } from "date-fns";
+import { useAlertStore } from "@/lib/stores/alert-store";
 
 export default function NewExpense() {
   const router = useRouter();
   const createExpenseMutation = useCreateExpense();
   const session = useAuthStore(s => s.session);
   const [loading, setLoading] = useState(false);
+  const { showAlert } = useAlertStore();
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -34,7 +36,7 @@ export default function NewExpense() {
 
   const handleSave = async () => {
     if (!formData.amount || parseFloat(formData.amount) <= 0) {
-      Alert.alert("Error", "Masukkan jumlah pengeluaran yang valid");
+      showAlert("Input Tidak Valid", "Masukkan jumlah pengeluaran yang valid.");
       return;
     }
 
@@ -51,11 +53,12 @@ export default function NewExpense() {
       };
 
       await createExpenseMutation.mutateAsync(newExpense);
-      Alert.alert("Sukses", "Pengeluaran berhasil dicatat");
-      router.back();
+      showAlert("Sukses", "Pengeluaran Anda berhasil dicatat.", [
+        { text: "OK", onPress: () => router.back() }
+      ]);
     } catch (error) {
       console.error(error);
-      Alert.alert("Error", "Gagal menyimpan pengeluaran");
+      showAlert("Error", "Gagal menyimpan pengeluaran. Silakan coba lagi.");
     } finally {
       setLoading(false);
     }

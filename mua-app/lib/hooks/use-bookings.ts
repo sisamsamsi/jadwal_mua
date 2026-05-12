@@ -63,7 +63,11 @@ export function useUpdateBooking() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, updates }: any) => bookingRepository.update(id, updates),
-    onSuccess: () => qc.invalidateQueries({ queryKey: bookingKeys.all }),
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: bookingKeys.all });
+      qc.invalidateQueries({ queryKey: bookingKeys.detail(variables.id) });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    },
   });
 }
 
@@ -71,6 +75,9 @@ export function useDeleteBooking() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => bookingRepository.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: bookingKeys.all }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: bookingKeys.all });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    },
   });
 }

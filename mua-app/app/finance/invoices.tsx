@@ -40,7 +40,7 @@ export default function InvoiceManagement() {
                     INV/{item.id.substring(0,8).toUpperCase()}
                   </Text>
                   <Text className="text-lg font-bold text-text-primary" numberOfLines={1}>
-                    {item.client?.name || "Klien Umum"}
+                    {item.clientName || "Klien Umum"}
                   </Text>
                   <Text className="text-text-secondary text-xs">
                     {item.bookingDate} • {item.serviceName || "Layanan MUA"}

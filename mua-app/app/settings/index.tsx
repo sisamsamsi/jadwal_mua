@@ -180,24 +180,26 @@ export default function SettingsScreen() {
         </Card>
 
         <Text className="text-text-hint font-bold uppercase text-xs mb-4">Keamanan & Lisensi</Text>
-        <Card className="p-4 bg-primary/5 border-primary/20 mb-8">
-          <View className="flex-row items-start">
-             <View className="w-10 h-10 bg-primary/10 rounded-full items-center justify-center mr-4">
-                <ShieldCheck size={20} color="#B76E79" />
-             </View>
-             <View className="flex-1">
-                <Text className="font-bold text-text-primary">Status Lisensi</Text>
-                <Text className="text-text-secondary text-sm mb-2">
-                  {isLicenseActive ? "Lisensi Aktif (Versi Full)" : "Mode Development / Trial"}
-                </Text>
-                {!isLicenseActive && (
-                  <Text className="text-[10px] text-primary italic">
-                    * Sistem lisensi sedang dalam pengembangan dan dinonaktifkan untuk tester.
+        <TouchableOpacity onPress={() => router.push("/settings/subscription" as any)}>
+          <Card className="p-4 bg-primary/5 border-primary/20 mb-8">
+            <View className="flex-row items-start">
+              <View className="w-10 h-10 bg-primary/10 rounded-full items-center justify-center mr-4">
+                  <ShieldCheck size={20} color="#B76E79" />
+              </View>
+              <View className="flex-1">
+                  <Text className="font-bold text-text-primary">Status Lisensi</Text>
+                  <Text className="text-text-secondary text-sm mb-2">
+                    {isLicenseActive ? "Lisensi Aktif (Versi Full)" : "Mode Development / Trial"}
                   </Text>
-                )}
-             </View>
-          </View>
-        </Card>
+                  {!isLicenseActive && (
+                    <Text className="text-[10px] text-primary italic">
+                      Ketuk untuk perpanjang atau aktivasi fitur premium.
+                    </Text>
+                  )}
+              </View>
+            </View>
+          </Card>
+        </TouchableOpacity>
 
         <Text className="text-text-hint font-bold uppercase text-xs mb-4">Pusat Bantuan & Panduan</Text>
         <Card className="mb-10 overflow-hidden">

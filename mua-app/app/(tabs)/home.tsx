@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { View, Text, ScrollView, RefreshControl, TouchableOpacity } from "react-native";
+import { useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDashboardStats } from "@/lib/hooks/use-dashboard";
 import { useAuthStore } from "@/lib/stores/auth-store";
@@ -7,11 +8,13 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { formatCurrencyCompact } from "@/lib/utils/currency";
-import { Calendar, Users, DollarSign, Clock, Plus, ChevronRight, Filter } from "lucide-react-native";
+import { Calendar, Users, DollarSign, Clock, Plus, ChevronRight, Filter, User, Settings } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { formatDate } from "@/lib/utils/date";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSettingsStore } from "@/lib/stores/settings-store";
+import { useProfile } from "@/lib/hooks/use-profile";
+import { Image } from "react-native";
 
 const STATUS_FILTERS = [
   { id: 'all', label: 'Semua', color: 'bg-gray-100', text: 'text-gray-600' },
@@ -25,9 +28,17 @@ export default function DashboardScreen() {
   const { stats, isLoading } = useDashboardStats();
   const session = useAuthStore((s) => s.session);
   const { showBridalParty } = useSettingsStore();
+  const { data: profile } = useProfile();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [activeFilter, setActiveFilter] = useState('all');
+
+  useFocusEffect(
+    React.useCallback(() => {
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+    }, [])
+  );
 
   const userEmail = session?.user?.email ?? "MUA Professional";
   const displayName = 
@@ -65,14 +76,30 @@ export default function DashboardScreen() {
             <Text className="text-text-secondary text-lg">Halo, {getGreeting()}</Text>
             <Text className="text-text-primary text-3xl font-bold capitalize">{displayName} ✨</Text>
           </View>
-          <Button 
-            variant="primary" 
-            size="icon" 
-            onPress={() => router.push("/booking/new")}
-            className="rounded-full w-14 h-14"
-          >
-            <Plus size={28} color="white" />
-          </Button>
+          <View className="flex-row items-center">
+            <TouchableOpacity 
+              onPress={() => router.push("/settings")}
+              className="w-12 h-12 rounded-full bg-white items-center justify-center shadow-sm border border-divider mr-3"
+            >
+               <Settings size={22} color="#757575" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => router.push("/(tabs)/profile")}
+              className="w-14 h-14 rounded-full bg-white items-center justify-center shadow-sm border border-divider overflow-hidden"
+            >
+              {profile?.profilePhotoUrl ? (
+                <Image 
+                  source={{ uri: `${profile.profilePhotoUrl}?t=${new Date().getTime()}` }} 
+                  className="w-full h-full"
+                  resizeMode="cover"
+                />
+              ) : (
+                <View className="w-11 h-11 rounded-full bg-primary-light items-center justify-center">
+                  <User size={24} color="#B76E79" />
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View className="flex-row flex-wrap justify-between gap-y-4 mb-8">

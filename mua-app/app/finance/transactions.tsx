@@ -16,8 +16,16 @@ export default function TransactionHistory() {
 
   // Gabungkan dan urutkan berdasarkan tanggal terbaru
   const allTransactions = [
-    ...payments.map((p: any) => ({ ...p, type: 'income' })),
-    ...expenses.map((e: any) => ({ ...e, type: 'expense' }))
+    ...payments.map((p: any) => ({ 
+      ...p, 
+      type: p.paymentType === 'expense' ? 'expense' : 'income',
+      displayDescription: p.notes || (p.paymentType === 'expense' ? 'Refund' : 'Pemasukan')
+    })),
+    ...expenses.map((e: any) => ({ 
+      ...e, 
+      type: 'expense',
+      displayDescription: e.description
+    }))
   ].sort((a, b) => new Date(b.createdAt || b.expenseDate).getTime() - new Date(a.createdAt || a.expenseDate).getTime());
 
   const isLoading = loadingPayments || loadingExpenses;
@@ -61,7 +69,7 @@ export default function TransactionHistory() {
                    </View>
                 </View>
                 <Text className={`font-bold text-base ${item.type === 'income' ? 'text-status-success' : 'text-status-error'}`}>
-                  {item.type === 'income' ? '+' : '-'} {formatCurrencyCompact(item.amount)}
+                  {item.type === 'income' ? '+' : '-'} {formatCurrencyCompact(Math.abs(item.amount))}
                 </Text>
              </View>
           </Card>

@@ -1,23 +1,32 @@
 import React, { useState } from "react";
-import { View, Text, ScrollView, Alert, TouchableOpacity, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, ScrollView, Alert, TouchableOpacity, KeyboardAvoidingView, Platform, Modal } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { ChevronLeft, DollarSign, Calendar as CalendarIcon, Receipt } from "lucide-react-native";
+import { ChevronLeft, DollarSign, Calendar as CalendarIcon, Receipt, CheckCircle2 } from "lucide-react-native";
 import { useCreatePayment } from "@/lib/hooks/use-payments";
+import { useBooking, useUpdateBooking } from "@/lib/hooks/use-bookings";
+import { bookingRepository } from "@/lib/repositories/booking-repository";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import * as Crypto from "expo-crypto";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { format } from "date-fns";
+import { useAlertStore } from "@/lib/stores/alert-store";
+import { Card } from "@/components/ui/Card";
 
 export default function NewPayment() {
   const { bookingId, amount: initialAmount } = useLocalSearchParams();
   const router = useRouter();
   const createPaymentMutation = useCreatePayment();
+  const updateBookingMutation = useUpdateBooking();
+  const { data: booking } = useBooking(bookingId as string);
+  const { showAlert } = useAlertStore();
+  
   const session = useAuthStore(s => s.session);
   const [loading, setLoading] = useState(false);
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   
   const [formData, setFormData] = useState({
     amount: initialAmount ? String(initialAmount) : "",
@@ -33,7 +42,7 @@ export default function NewPayment() {
 
   const handleSave = async () => {
     if (!formData.amount || parseFloat(formData.amount) <= 0) {
-      Alert.alert("Error", "Masukkan jumlah pembayaran yang valid");
+      showAlert("Input Tidak Valid", "Masukkan jumlah pembayaran yang valid (lebih dari 0).");
       return;
     }
 
@@ -52,11 +61,30 @@ export default function NewPayment() {
       };
 
       await createPaymentMutation.mutateAsync(newPayment);
-      Alert.alert("Sukses", "Pembayaran berhasil dicatat");
-      router.back();
+
+      // Otomatis ubah status booking jadi FIX (confirmed) jika sebelumnya pending
+      if (bookingId && bookingId !== "manual-entry") {
+        // Ambil data terbaru dari repo jika data dari hook belum tersedia (loading)
+        let statusToFix = booking?.status;
+        if (!statusToFix) {
+          const b = await bookingRepository.getById(bookingId as string);
+          statusToFix = b?.status;
+        }
+
+        if (statusToFix === 'pending') {
+          await updateBookingMutation.mutateAsync({
+            id: bookingId as string,
+            updates: { status: 'confirmed' }
+          });
+        }
+      }
+
+      showAlert("Pembayaran Berhasil", "Pembayaran telah berhasil dicatat. Status jadwal Anda kini otomatis diperbarui.", [
+        { text: "Tutup", onPress: () => router.back() }
+      ]);
     } catch (error) {
       console.error(error);
-      Alert.alert("Error", "Gagal menyimpan pembayaran");
+      showAlert("Error", "Gagal menyimpan pembayaran. Silakan coba lagi.");
     } finally {
       setLoading(false);
     }
@@ -149,6 +177,8 @@ export default function NewPayment() {
           />
         </ScrollView>
       </KeyboardAvoidingView>
+
+
     </SafeAreaView>
   );
 }

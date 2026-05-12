@@ -23,6 +23,7 @@ export default function InvoiceScreen() {
   const { data: service } = useService(booking?.serviceId || "");
   const { data: payments = [] } = usePaymentsByBooking(id as string);
   const { businessName, whatsappNumber, paymentInstructions } = useSettingsStore();
+  const [isGenerating, setIsGenerating] = React.useState(false);
 
   const clientName = client?.name || booking?.clientName || "Klien";
 
@@ -47,6 +48,8 @@ Terima kasih!
   };
 
   const handleDownloadPDF = async () => {
+    if (isGenerating) return;
+    setIsGenerating(true);
     try {
       const htmlContent = `
         <html>
@@ -152,6 +155,8 @@ Terima kasih!
     } catch (error) {
       Alert.alert('Error', 'Gagal membuat file PDF');
       console.error(error);
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -258,6 +263,7 @@ Terima kasih!
              leftIcon={<Download size={18} color="#B76E79" />}
              className="flex-1 h-14 rounded-2xl border-primary"
              onPress={handleDownloadPDF}
+             loading={isGenerating}
            />
            <Button 
              variant="primary" 

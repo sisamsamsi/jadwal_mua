@@ -154,4 +154,47 @@ Saat ini di file `app/booking/invoice/[id].tsx` masih berupa alert.
 2. **Setup Supabase Edge Functions / Cron Job:**
    Buat fungsi terjadwal (misal jalan tiap jam 08:00 pagi). Fungsi ini akan mengecek tabel `bookings` untuk jadwal besok.
 3. Jika ditemukan, fungsi mengirimkan request ke layanan Expo Push Notification API (`https://exp.host/--/api/v2/push/send`) menggunakan Push Token dari MUA tersebut.
-4. **Update Aplikasi:** Anda harus menambahkan logika untuk meminta izin (permission) notifikasi saat pertama kali app dibuka, lalu menyimpan `ExpoPushToken` milik user ke profil mereka di Supabase.
+5. **Update Aplikasi:** Anda harus menambahkan logika untuk meminta izin (permission) notifikasi saat pertama kali app dibuka, lalu menyimpan `ExpoPushToken` milik user ke profil mereka di Supabase.
+
+---
+
+## 5. Update Aplikasi Otomatis (OTA Updates)
+
+Agar aplikasi bisa diperbarui tanpa harus mendownload ulang file APK (untuk distribusi di luar Play Store), kita menggunakan fitur **Expo Updates**. Ini memungkinkan user menerima fitur baru hanya dengan me-restart aplikasi.
+
+### A. Persiapan
+1. **Instal Library**: `npx expo install expo-updates`
+2. **Konfigurasi `app.json`**: Pastikan memiliki `runtimeVersion` dan URL update yang sesuai dengan akun Expo Anda.
+
+### B. Implementasi Cek Update di Dalam App
+Tambahkan logika di `app/_layout.tsx` (atau di halaman Home) agar setiap kali app dibuka, ia mengecek apakah ada versi baru di server.
+
+```javascript
+import * as Updates from 'expo-updates';
+
+async function onFetchUpdateAsync() {
+  try {
+    const update = await Updates.checkForUpdateAsync();
+    if (update.isAvailable) {
+      Alert.alert(
+        "Update Tersedia", 
+        "Versi terbaru Fixatif sudah tersedia. Ingin memperbarui aplikasi sekarang?",
+        [
+          { text: "Nanti" },
+          { text: "Update & Restart", onPress: async () => {
+              await Updates.fetchUpdateAsync();
+              await Updates.reloadAsync(); // App akan restart dengan versi baru
+          }}
+        ]
+      );
+    }
+  } catch (error) {
+    // Error biasanya terjadi di mode development, abaikan saja
+  }
+}
+```
+
+### C. Cara Publish Update
+Setiap kali ada perubahan kode (bukan perubahan native), jalankan:
+`npx expo export --platform android` lalu publish ke server Expo/EAS. User akan langsung menerima notifikasi update tersebut saat membuka aplikasi.
+

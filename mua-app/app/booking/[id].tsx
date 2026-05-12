@@ -7,6 +7,8 @@ import { useClient } from "@/lib/hooks/use-clients";
 import { useBridalParty, useCreateBridalPartyMember, useUpdateBridalPartyMember, useDeleteBridalPartyMember } from "@/lib/hooks/use-bridal-party";
 import { usePaymentsByBooking, useCreatePayment } from "@/lib/hooks/use-payments";
 import { useSettingsStore } from "@/lib/stores/settings-store";
+import { useAuthStore } from "@/lib/stores/auth-store";
+import * as Crypto from "expo-crypto";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -37,6 +39,7 @@ export default function BookingDetail() {
   const { data: payments = [] } = usePaymentsByBooking(id as string);
   const { data: members = [] } = useBridalParty(id as string);
   const { showBridalParty, waTemplates } = useSettingsStore();
+  const session = useAuthStore(s => s.session);
 
   const [editMode, setEditMode] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
@@ -185,11 +188,15 @@ export default function BookingDetail() {
           onPress: async () => {
             try {
               await createPaymentMutation.mutateAsync({
-                bookingId: id,
+                id: Crypto.randomUUID(),
+                userId: session?.user.id || "",
+                bookingId: id as string,
                 amount: -totalPaid,
                 paymentMethod: "Refund",
                 notes: "Pengembalian dana (Refund)",
-                paymentDate: new Date().toISOString().split('T')[0]
+                paymentDate: new Date().toISOString().split('T')[0],
+                paymentType: "expense",
+                createdAt: new Date().toISOString(),
               });
               showAlert("Sukses", "Refund berhasil dicatat.");
             } catch (error) {
@@ -214,16 +221,30 @@ export default function BookingDetail() {
   };
 
   const updateStatus = async (newStatus: string) => {
+    // Validasi Status vs Pembayaran
+    if (newStatus === 'confirmed' && totalPaid <= 0) {
+      showAlert("DP Belum Ada", "Status FIX (Confirmed) hanya bisa diaktifkan jika sudah ada pembayaran/DP masuk.");
+      return;
+    }
+
+    if (newStatus === 'completed' && remainingBalance > 0) {
+      showAlert("Belum Lunas", `Jadwal tidak bisa diselesaikan karena masih ada sisa tagihan sebesar ${formatCurrency(remainingBalance)}.`);
+      return;
+    }
+
     setStatusLoading(true);
     try {
       await updateBookingMutation.mutateAsync({
         id: id as string,
         updates: { status: newStatus }
       });
+      // Beri jeda sedikit agar DB sync selesai sebelum refresh
+      setTimeout(() => {
+        showAlert("Sukses", `Status berhasil diubah ke ${newStatus === 'confirmed' ? 'FIX' : newStatus}`);
+      }, 500);
     } catch (error) {
       showAlert("Error", "Gagal memperbarui status");
     } finally {
-
       setStatusLoading(false);
     }
   };

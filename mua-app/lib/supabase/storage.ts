@@ -1,6 +1,6 @@
 import { supabase } from "./client";
 import { Buckets } from "../constants/supabase";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { decode } from "base64-arraybuffer";
 
 export const storageService = {

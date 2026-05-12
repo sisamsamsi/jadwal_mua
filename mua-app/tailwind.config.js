@@ -24,6 +24,12 @@ module.exports = {
         "text-secondary": "#757575",
         "text-hint": "#BDBDBD",
         divider: "#EEEEEE",
+        status: {
+          success: "#4CAF50",
+          warning: "#FF9800",
+          error: "#F44336",
+          info: "#2196F3",
+        },
       },
     },
   },

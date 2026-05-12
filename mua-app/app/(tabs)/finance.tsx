@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDashboardStats } from "@/lib/hooks/use-dashboard";
 import { useExpenses } from "@/lib/hooks/use-expenses";
+import { usePayments } from "@/lib/hooks/use-payments";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { formatCurrency, formatCurrencyCompact } from "@/lib/utils/currency";
@@ -11,10 +12,33 @@ import { useRouter } from "expo-router";
 
 export default function FinanceScreen() {
   const { stats } = useDashboardStats();
-  const { data: expenses = [] } = useExpenses();
+  const { data: expensesData = [] } = useExpenses();
+  const { data: paymentsData = [] } = usePayments();
   const router = useRouter();
 
-  const totalExpense = expenses.reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
+  // Ambil pengeluaran dari tabel pengeluaran
+  const rawExpenses = expensesData.map((e: any) => ({
+    ...e,
+    type: 'expense',
+    displayDescription: e.description,
+    displayDate: e.expenseDate
+  }));
+
+  // Ambil refund dari tabel pembayaran
+  const refunds = paymentsData
+    .filter((p: any) => p.paymentType === 'expense')
+    .map((p: any) => ({
+      ...p,
+      type: 'expense',
+      displayDescription: p.notes || "Refund",
+      displayDate: p.paymentDate
+    }));
+
+  const allExpenses = [...rawExpenses, ...refunds].sort((a, b) => 
+    new Date(b.displayDate || b.createdAt).getTime() - new Date(a.displayDate || a.createdAt).getTime()
+  );
+
+  const totalExpense = allExpenses.reduce((sum: number, e: any) => sum + Math.abs(e.amount || 0), 0);
   const totalRevenue = stats?.totalRevenue ?? 0;
   const netProfit = totalRevenue - totalExpense;
 
@@ -93,19 +117,19 @@ export default function FinanceScreen() {
            </TouchableOpacity>
         </View>
 
-        {expenses.length === 0 ? (
+        {allExpenses.length === 0 ? (
           <Card className="p-10 items-center bg-surface/50 border-dashed border-divider">
              <Text className="text-text-hint">Belum ada catatan pengeluaran</Text>
           </Card>
         ) : (
-          expenses.slice(0, 5).map((expense: any) => (
+          allExpenses.slice(0, 5).map((expense: any) => (
             <Card key={expense.id} className="mb-3 p-4">
               <View className="flex-row items-center justify-between">
                 <View className="flex-1">
-                  <Text className="text-text-primary font-bold">{expense.description}</Text>
-                  <Text className="text-text-hint text-xs">{expense.expenseDate} • {expense.category}</Text>
+                  <Text className="text-text-primary font-bold">{expense.displayDescription}</Text>
+                  <Text className="text-text-hint text-xs">{expense.displayDate} • {expense.category || expense.paymentMethod}</Text>
                 </View>
-                <Text className="text-status-error font-bold">- {formatCurrencyCompact(expense.amount)}</Text>
+                <Text className="text-status-error font-bold">- {formatCurrencyCompact(Math.abs(expense.amount))}</Text>
               </View>
             </Card>
           ))

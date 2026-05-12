@@ -60,12 +60,6 @@ export default function CalendarScreen() {
     <SafeAreaView className="flex-1 bg-background">
       <View className="px-6 py-4 flex-row items-center justify-between">
         <Text className="text-3xl font-bold text-text-primary">Kalender</Text>
-        <TouchableOpacity 
-          onPress={() => router.push("/booking/new")}
-          className="bg-primary p-3 rounded-full shadow-lg"
-        >
-          <Plus size={24} color="white" />
-        </TouchableOpacity>
       </View>
 
       <View className="px-4">
@@ -112,7 +106,7 @@ export default function CalendarScreen() {
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View className="items-center justify-center py-10 bg-surface rounded-3xl border border-divider border-dashed">
-              <Text className="text-text-hint text-center">Tidak ada jadwal untuk tanggal ini.{"\n"}Klik "+" untuk menambah jadwal.</Text>
+              <Text className="text-text-hint text-center">Tidak ada jadwal untuk tanggal ini.{"\n"}Klik tombol melayang di bawah untuk menambah.</Text>
             </View>
           }
           renderItem={({ item }: any) => (

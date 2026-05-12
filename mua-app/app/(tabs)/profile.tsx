@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, ScrollView, TouchableOpacity, Alert, Linking } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Alert, Linking, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { authService } from "@/lib/supabase/auth";
@@ -16,20 +16,37 @@ import {
   Info,
   Link as LinkIcon,
   Copy,
-  Share2
+  Share2,
+  Plus
 } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useSettingsStore } from "@/lib/stores/settings-store";
 import { Share } from "react-native";
 import * as Clipboard from "expo-clipboard";
+import * as ImagePicker from "expo-image-picker";
 import { APP_CONFIG } from "@/lib/constants/app";
+import { useProfile, useUpdateProfile } from "@/lib/hooks/use-profile";
+import { storageService } from "@/lib/supabase/storage";
+import { Buckets } from "@/lib/constants/supabase";
+import { Image } from "react-native";
+import { useAlertStore } from "@/lib/stores/alert-store";
 
 export default function ProfileScreen() {
   const { session } = useAuthStore();
   const router = useRouter();
   const { showInventory, isLicenseActive, businessName } = useSettingsStore();
+  const { data: profile } = useProfile();
+  const updateProfileMutation = useUpdateProfile();
+  const [uploading, setUploading] = React.useState(false);
+  const { showAlert } = useAlertStore();
 
   const bookingLink = `${APP_CONFIG.PUBLIC_BOOKING_BASE_URL}/${session?.user?.id}`;
+
+  React.useEffect(() => {
+    if (profile?.profilePhotoUrl) {
+      console.log("Photo URL:", profile.profilePhotoUrl);
+    }
+  }, [profile?.profilePhotoUrl]);
 
   const copyToClipboard = async () => {
     await Clipboard.setStringAsync(bookingLink);
@@ -43,6 +60,39 @@ export default function ProfileScreen() {
       });
     } catch (error) {
       console.error(error);
+    }
+  };
+
+  const handlePickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      uploadPhoto(result.assets[0].uri);
+    }
+  };
+
+  const uploadPhoto = async (uri: string) => {
+    setUploading(true);
+    try {
+      const fileName = `${session?.user?.id}/${Date.now()}.jpg`;
+      const publicUrl = await storageService.uploadFile(Buckets.profilePhotos, fileName, uri);
+      
+      await updateProfileMutation.mutateAsync({
+        profilePhotoUrl: publicUrl,
+        email: session?.user?.email || ""
+      });
+      
+      showAlert("Upload Berhasil", "Foto profil Anda telah diperbarui dengan sukses.");
+    } catch (error) {
+      console.error(error);
+      showAlert("Error", "Gagal mengunggah foto profil. Silakan coba lagi.");
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -61,17 +111,29 @@ export default function ProfileScreen() {
     <SafeAreaView className="flex-1 bg-background">
       <ScrollView contentContainerStyle={{ padding: 24 }}>
         <View className="items-center mb-10">
-          <View className="relative">
-            <View className="w-32 h-32 rounded-full bg-primary-light/30 border-4 border-surface items-center justify-center">
-              <User {...({ size: 60, color: "#B76E79" } as any)} />
+          <TouchableOpacity onPress={handlePickImage} disabled={uploading} className="relative">
+            <View className="w-32 h-32 rounded-full bg-primary-light/30 border-4 border-surface items-center justify-center overflow-hidden">
+              {profile?.profilePhotoUrl ? (
+                <Image 
+                  source={{ uri: `${profile.profilePhotoUrl}?t=${new Date().getTime()}` }} 
+                  className="w-full h-full"
+                  resizeMode="cover"
+                />
+              ) : (
+                <User {...({ size: 60, color: "#B76E79" } as any)} />
+              )}
+              {uploading && (
+                <View className="absolute inset-0 bg-black/30 items-center justify-center">
+                  <ActivityIndicator color="white" />
+                </View>
+              )}
             </View>
-            <TouchableOpacity 
+            <View 
               className="absolute bottom-0 right-0 bg-primary w-10 h-10 rounded-full border-4 border-surface items-center justify-center"
-              onPress={() => router.push("/settings")}
             >
-              <Settings {...({ size: 18, color: "white" } as any)} />
-            </TouchableOpacity>
-          </View>
+              <Plus {...({ size: 18, color: "white" } as any)} />
+            </View>
+          </TouchableOpacity>
           <Text className="text-2xl font-bold text-text-primary mt-4 capitalize">{displayName}</Text>
           {businessName ? (
             <Text className="text-primary font-bold text-sm italic">"{businessName}"</Text>
