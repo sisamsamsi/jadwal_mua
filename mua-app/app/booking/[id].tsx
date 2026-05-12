@@ -12,7 +12,9 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
 import { ChevronLeft, Calendar as CalendarIcon, Clock, MapPin, User, FileText, MessageSquare, Trash2, RotateCcw, Share2, Users, Plus, Edit2, CheckCircle2, Tag, AlertCircle } from "lucide-react-native";
+import { showAlert } from "@/lib/utils/alert";
 import { formatCurrency } from "@/lib/utils/currency";
+
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { Modal } from "react-native";
 import { sendWhatsApp, formatWhatsAppTemplate } from "@/lib/utils/whatsapp";
@@ -78,8 +80,9 @@ export default function BookingDetail() {
       }
       setMemberModalVisible(false);
     } catch (e) {
-      Alert.alert("Error", "Gagal menyimpan data");
+      showAlert("Error", "Gagal menyimpan data");
     }
+
   };
 
   const startEdit = () => {
@@ -134,12 +137,13 @@ export default function BookingDetail() {
 
   const handleSaveEdit = async () => {
     if (editData.endTime <= editData.startTime) {
-      Alert.alert("Jam Tidak Valid", "Jam selesai harus setelah jam mulai.");
+      showAlert("Jam Tidak Valid", "Jam selesai harus setelah jam mulai.");
+
       return;
     }
 
     if (conflictInfo) {
-      Alert.alert(
+      showAlert(
         "Jadwal Bentrok / Mepet!", 
         `Jadwal ini bentrok atau terlalu mepet dengan ${conflictInfo.clientName}. Tetap simpan?`,
         [
@@ -147,6 +151,7 @@ export default function BookingDetail() {
           { text: "Tetap Simpan", onPress: submitUpdate }
         ]
       );
+
     } else {
       submitUpdate();
     }
@@ -159,15 +164,17 @@ export default function BookingDetail() {
         updates: editData
       });
       setEditMode(false);
-      Alert.alert("Sukses", "Perubahan berhasil disimpan.");
+      showAlert("Sukses", "Perubahan berhasil disimpan.");
+
     } catch (error) {
-      Alert.alert("Error", "Gagal menyimpan perubahan.");
+      showAlert("Error", "Gagal menyimpan perubahan.");
+
     }
   };
 
   const handleRefund = () => {
     if (totalPaid <= 0) return;
-    Alert.alert(
+    showAlert(
       "Konfirmasi Refund",
       `Apakah Anda yakin ingin mengembalikan dana sebesar ${formatCurrency(totalPaid)}?`,
       [
@@ -184,24 +191,26 @@ export default function BookingDetail() {
                 notes: "Pengembalian dana (Refund)",
                 paymentDate: new Date().toISOString().split('T')[0]
               });
-              Alert.alert("Sukses", "Refund berhasil dicatat.");
+              showAlert("Sukses", "Refund berhasil dicatat.");
             } catch (error) {
-              Alert.alert("Error", "Gagal mencatat refund.");
+              showAlert("Error", "Gagal mencatat refund.");
             }
           }
         }
       ]
     );
+
   };
 
   const handleDelete = () => {
-    Alert.alert("Hapus Jadwal", "Yakin ingin menghapus jadwal ini?", [
+    showAlert("Hapus Jadwal", "Yakin ingin menghapus jadwal ini?", [
       { text: "Batal", style: "cancel" },
       { text: "Hapus", style: "destructive", onPress: async () => {
         await deleteBookingMutation.mutateAsync(id as string);
         router.replace("/(tabs)/calendar");
       }}
     ]);
+
   };
 
   const updateStatus = async (newStatus: string) => {
@@ -212,8 +221,9 @@ export default function BookingDetail() {
         updates: { status: newStatus }
       });
     } catch (error) {
-      Alert.alert("Error", "Gagal memperbarui status");
+      showAlert("Error", "Gagal memperbarui status");
     } finally {
+
       setStatusLoading(false);
     }
   };
@@ -231,11 +241,12 @@ export default function BookingDetail() {
       jam: booking.startTime
     });
     
-    Alert.alert("Kirim Pengingat", "Pilih metode pengiriman:", [
+    showAlert("Kirim Pengingat", "Pilih metode pengiriman:", [
       { text: "Batal", style: "cancel" },
       { text: "WhatsApp", onPress: () => sendWhatsApp(client?.phone || "", message) },
       { text: "Share Lainnya", onPress: () => Share.share({ message }) }
     ]);
+
   };
 
   if (loadingBooking) {
@@ -479,10 +490,11 @@ export default function BookingDetail() {
                         </TouchableOpacity>
                         <TouchableOpacity 
                           onPress={() => {
-                            Alert.alert("Hapus", `Hapus data ${m.name}?`, [
+                            showAlert("Hapus", `Hapus data ${m.name}?`, [
                               { text: "Batal", style: "cancel" },
                               { text: "Hapus", style: "destructive", onPress: () => deleteMemberMutation.mutate({ id: m.id, bookingId: id }) }
                             ]);
+
                           }}
                           className="p-1"
                         >

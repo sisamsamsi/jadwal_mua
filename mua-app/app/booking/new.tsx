@@ -12,7 +12,9 @@ import { Input } from "@/components/ui/Input";
 import { ChevronLeft, Calendar as CalendarIcon, Clock, Users, Plus, AlertCircle, Sparkles } from "lucide-react-native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { Modal } from "react-native";
+import { showAlert } from "@/lib/utils/alert";
 import { aiService } from "@/lib/services/ai-service";
+
 
 export default function NewBooking() {
   const router = useRouter();
@@ -65,8 +67,9 @@ export default function NewBooking() {
       setNewClientName("");
       setNewClientPhone("");
     } catch (e) {
-      Alert.alert("Error", "Gagal menambah klien");
+      showAlert("Error", "Gagal menambah klien");
     }
+
   };
 
   const handleCreateService = async () => {
@@ -84,8 +87,9 @@ export default function NewBooking() {
       setNewServiceName("");
       setNewServicePrice("");
     } catch (e) {
-      Alert.alert("Error", "Gagal menambah layanan");
+      showAlert("Error", "Gagal menambah layanan");
     }
+
   };
 
   const [basePricePerPerson, setBasePricePerPerson] = useState(0);
@@ -173,11 +177,13 @@ export default function NewBooking() {
       if (result.locationName) fields.push("✅ Lokasi");
 
       const summary = fields.length > 0 ? fields.join("\n") : "Beberapa data berhasil diekstrak.";
-      Alert.alert("Hasil AI", summary + "\n\nSilakan lengkapi bagian yang kosong.", [{ text: "OK" }]);
+      showAlert("Hasil AI", summary + "\n\nSilakan lengkapi bagian yang kosong.");
+
       setAiModalVisible(false);
       setAiInputText("");
     } catch (error: any) {
-      Alert.alert("Gagal Membaca", "Gagal memproses teks. Pastikan koneksi internet stabil.");
+      showAlert("Gagal Membaca", "Gagal memproses teks. Pastikan koneksi internet stabil.");
+
     } finally {
       setIsParsing(false);
     }
@@ -229,29 +235,33 @@ export default function NewBooking() {
 
   const handleSave = async () => {
     if (!formData.clientId || !formData.bookingDate || !formData.startTime || !formData.endTime) {
-      Alert.alert("Error", "Mohon lengkapi data wajib (Klien, Tanggal, Waktu)");
+      showAlert("Error", "Mohon lengkapi data wajib (Klien, Tanggal, Waktu)");
+
       return;
     }
 
     // Issue 8: Validasi layanan — booking tidak boleh disimpan tanpa layanan/paket
     if (!formData.serviceId && !formData.packageId) {
-      Alert.alert("Pilih Layanan", "Mohon pilih layanan atau paket sebelum menyimpan jadwal. Booking tanpa layanan tidak bisa dihitung harganya.");
+      showAlert("Pilih Layanan", "Mohon pilih layanan atau paket sebelum menyimpan jadwal. Booking tanpa layanan tidak bisa dihitung harganya.");
+
       return;
     }
 
     if (formData.endTime <= formData.startTime) {
-      Alert.alert("Jam Tidak Valid", "Jam selesai harus setelah jam mulai.");
+      showAlert("Jam Tidak Valid", "Jam selesai harus setelah jam mulai.");
+
       return;
     }
 
     const today = new Date().toISOString().split('T')[0];
     if (formData.bookingDate < today) {
-      Alert.alert("Tanggal Mundur", "Anda tidak bisa membuat jadwal untuk tanggal yang sudah lewat.");
+      showAlert("Tanggal Mundur", "Anda tidak bisa membuat jadwal untuk tanggal yang sudah lewat.");
+
       return;
     }
 
     if (conflictInfo) {
-      Alert.alert(
+      showAlert(
         "Peringatan Jadwal!", 
         `Jadwal ini bentrok atau terlalu mepet dengan booking ${conflictInfo.clientName} (${conflictInfo.startTime} - ${conflictInfo.endTime}). Tetap simpan?`,
         [
@@ -259,6 +269,7 @@ export default function NewBooking() {
           { text: "Tetap Simpan", onPress: submitData }
         ]
       );
+
     } else {
       submitData();
     }
@@ -269,7 +280,7 @@ export default function NewBooking() {
       const result = await createBooking.mutateAsync(formData);
       
       if (formData.numPersons > 1) {
-        Alert.alert(
+        showAlert(
           "Jadwal Berhasil Disimpan",
           "Booking rombongan berhasil dibuat. Ingin menambahkan rincian nama dan pilihan makeup untuk setiap orang sekarang?",
           [
@@ -284,15 +295,17 @@ export default function NewBooking() {
           ]
         );
       } else {
-        Alert.alert(
+        showAlert(
           "Sukses", 
           "Jadwal berhasil disimpan.",
           [{ text: "OK", onPress: () => router.back() }]
         );
       }
+
     } catch (error) {
-      Alert.alert("Error", "Gagal menyimpan jadwal");
+      showAlert("Error", "Gagal menyimpan jadwal");
     }
+
   };
 
   return (
