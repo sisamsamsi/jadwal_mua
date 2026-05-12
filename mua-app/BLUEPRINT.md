@@ -1,12 +1,12 @@
-# Blueprint Pengembangan & Penyelesaian MUA App
+# Blueprint Pengembangan & Penyelesaian MUA App (Fixatif)
 
 Dokumen ini berisi panduan teknis, alur, dan tutorial langkah demi langkah untuk menyelesaikan fitur-fitur yang masih tertunda di MUA App, termasuk pendaftaran ke platform eksternal.
 
 ---
 
-## 1. Auth SSO (Google, Facebook, Instagram)
+## 1. Auth SSO (Google)
 
-Untuk memudahkan user (MUA) login tanpa mengingat password, kita menggunakan Supabase Auth yang dihubungkan dengan Google dan Meta (Facebook/Instagram).
+Untuk memudahkan user (MUA) login tanpa mengingat password, kita menggunakan Supabase Auth yang dihubungkan dengan Google.
 
 ### A. Tutorial Setup Google OAuth
 1. **Buka Google Cloud Console** (console.cloud.google.com) dan login dengan akun Google Anda.
@@ -21,25 +21,11 @@ Untuk memudahkan user (MUA) login tanpa mengingat password, kita menggunakan Sup
    - **Authorized redirect URIs**: Masukkan URL redirect dari Supabase Anda. Formatnya: `https://<project-ref>.supabase.co/auth/v1/callback` (Dapatkan `<project-ref>` dari dashboard Supabase Anda).
    - Klik Create. Anda akan mendapatkan **Client ID** dan **Client Secret**. Simpan ini.
 
-### B. Tutorial Setup Facebook / Instagram OAuth
-1. **Buka Meta for Developers** (developers.facebook.com) dan buat akun developer jika belum.
-2. Klik **My Apps > Create App**.
-3. Pilih tipe aplikasi (biasanya "Consumer" atau "None") dan isi nama aplikasi (misal: "MUA App").
-4. Di dashboard aplikasi, tambahkan produk **Facebook Login**.
-5. Pilih platform **Web**.
-   - Masukkan **Site URL**: `https://<project-ref>.supabase.co`
-6. Di menu kiri, buka **Facebook Login > Settings**.
-   - Pada kolom **Valid OAuth Redirect URIs**, masukkan: `https://<project-ref>.supabase.co/auth/v1/callback`.
-7. Buka menu **App Settings > Basic**.
-   - Di sini Anda akan melihat **App ID** dan **App Secret** (klik Show untuk melihatnya). Simpan kedua data ini.
-   - *(Catatan: Untuk menggunakan login Instagram dasar, biasanya di-handle melalui akun Meta/Facebook yang sama, namun Meta memiliki proses review yang cukup ketat sebelum aplikasi bisa public).*
-
-### C. Konfigurasi di Supabase
+### B. Konfigurasi di Supabase
 1. Buka Dashboard Supabase project Anda.
 2. Ke menu **Authentication > Providers**.
 3. Buka **Google**, aktifkan (Turn on), lalu masukkan **Client ID** dan **Client Secret** dari langkah A.
-4. Buka **Facebook**, aktifkan, lalu masukkan **App ID** dan **App Secret** dari langkah B.
-5. Ke menu **Authentication > URL Configuration**.
+4. Ke menu **Authentication > URL Configuration**.
    - **Site URL**: Masukkan skema aplikasi Anda (contoh: `mua-app://`).
    - **Redirect URLs**: Tambahkan `mua-app://**` agar Supabase mengizinkan pengalihan kembali ke aplikasi mobile.
 
@@ -102,33 +88,35 @@ Fitur booking mandiri klien (`app/book/[muaId].tsx`) bisa diakses via web browse
 
 ---
 
-## 3. Sistem Kode Aktivasi SaaS
+## 3. Sistem Berlangganan & Trial (SaaS) - Fixatif
 
-Sistem ini memastikan hanya MUA yang memiliki "Lisensi" atau "Kode Undangan" yang bisa mendaftar.
+Sistem ini memberikan akses gratis selama 7 hari (trial) kepada pengguna baru, kemudian dilanjutkan dengan sistem berlangganan (subscription) bulanan seharga Rp 79.000/bln. Saat ini, fitur pembayaran di dalam aplikasi belum terintegrasi secara otomatis, sehingga tombol "Berlangganan" akan mengarahkan pengguna (redirect) ke WhatsApp admin.
 
-### A. Desain Database di Supabase
-1. Buka SQL Editor di Supabase, jalankan query berikut:
+### A. Desain Database di Supabase (Penyesuaian User Profil)
+1. Kita perlu menambahkan field pada tabel profil MUA (misal tabel `users` atau `profiles`) untuk melacak status trial dan langganan.
 ```sql
-CREATE TABLE activation_codes (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  code VARCHAR(50) UNIQUE NOT NULL,
-  is_used BOOLEAN DEFAULT FALSE,
-  used_by UUID REFERENCES auth.users(id) NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+ALTER TABLE profiles ADD COLUMN trial_ends_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE profiles ADD COLUMN subscription_status VARCHAR(20) DEFAULT 'trial'; -- 'trial', 'active', 'expired'
+ALTER TABLE profiles ADD COLUMN subscription_ends_at TIMESTAMP WITH TIME ZONE;
 ```
-2. Anda (sebagai super-admin) dapat memasukkan kode secara manual dari dashboard Supabase untuk dibagikan ke calon pembeli/user.
+2. Saat registrasi, aplikasi secara otomatis mengatur `trial_ends_at` menjadi 7 hari dari waktu pendaftaran, dan statusnya menjadi `trial`.
 
-### B. Alur Aplikasi (Routing Guard)
-1. **Pembuatan Halaman Aktivasi (`app/(auth)/activation.tsx`):**
-   Halaman ini berisi satu input teks untuk memasukkan kode.
-2. **Logika Validasi:**
-   Saat user klik "Gunakan Kode", aplikasi mencari kode di tabel `activation_codes` yang `is_used = false`.
-   Jika valid, simpan status ini di `SecureStore` atau status lokal (misal: `hasValidInvite = true`), lalu navigasikan ke halaman `/register`.
-3. **Penguncian di `_layout.tsx`:**
-   Ubah logika pengalihan. Jika user belum login, dan `hasValidInvite` masih `false`, secara otomatis akan dilempar terus ke `/activation`.
-4. **Saat Pendaftaran Sukses:**
-   Setelah user berhasil membuat akun di halaman `/register`, lakukan update ke Supabase: `UPDATE activation_codes SET is_used = true, used_by = <user_id> WHERE code = <kode_tadi>`.
+### B. Alur Aplikasi (Routing & Subscription Guard)
+1. **Pembuatan Halaman Langganan (`app/(app)/subscription.tsx`):**
+   Halaman ini menampilkan sisa waktu trial atau status langganan. Jika sudah mau habis atau kedaluwarsa, tampilkan tombol "Perpanjang Langganan".
+2. **Tombol Redirect ke WhatsApp:**
+   Tombol tersebut tidak memproses pembayaran in-app, melainkan membuka WhatsApp:
+   ```typescript
+   import * as Linking from 'expo-linking';
+   
+   const handleSubscribe = () => {
+     const pesan = "Halo admin, saya ingin berlangganan aplikasi Fixatif bulanan (Rp 79.000). Akun saya: [Email/Nama MUA]";
+     Linking.openURL(`https://wa.me/628XXXXXXXXXX?text=${encodeURIComponent(pesan)}`);
+   };
+   ```
+3. **Penguncian Fitur di Aplikasi:**
+   Pada setiap masuk aplikasi (atau `_layout.tsx` utama), cek apakah tanggal hari ini sudah melewati `trial_ends_at` atau `subscription_ends_at`.
+   Jika iya, kunci sebagian besar navigasi aplikasi dan arahkan (redirect) pengguna ke halaman `/subscription` agar mereka memperpanjang langganan.
 
 ---
 

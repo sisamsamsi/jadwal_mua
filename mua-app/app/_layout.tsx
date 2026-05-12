@@ -21,6 +21,8 @@ import { supabase } from "@/lib/supabase/client";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useSettingsStore } from "@/lib/stores/settings-store";
 import { useRouter, useSegments, useRootNavigationState } from "expo-router";
+import { CustomAlert } from "@/components/ui/CustomAlert";
+
 
 import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
 import migrations from "../drizzle/migrations";
@@ -57,23 +59,46 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (!navigationState?.key || isLoading || !isHydrated) return;
+    // Tunggu sampai navigasi, auth, dan settings (hydration) siap
+    const isNavigationReady = !!navigationState?.key;
+    
+    if (!isNavigationReady || isLoading || !isHydrated) {
+      console.log("RootLayout: Waiting for...", { 
+        nav: isNavigationReady, 
+        auth: !isLoading, 
+        settings: isHydrated 
+      });
+      return;
+    }
 
     const inAuthGroup = segments[0] === "(auth)";
     const inOnboarding = segments[0] === "onboarding";
     const isPublicBooking = segments[0] === "book";
 
-    // Use setTimeout to ensure Expo Router has finished its current update cycle
-    setTimeout(() => {
-      if (!session && !inAuthGroup && !isPublicBooking) {
-        router.replace("/login");
-      } else if (session && !hasSeenOnboarding && !inOnboarding && !isPublicBooking) {
-        router.replace("/onboarding");
-      } else if (session && hasSeenOnboarding && (inAuthGroup || inOnboarding)) {
-        router.replace("/(tabs)/home");
+    if (isPublicBooking) return;
+
+    // Gunakan rAF atau setTimeout kecil untuk memastikan router siap
+    const timeout = setTimeout(() => {
+      try {
+        if (!hasSeenOnboarding) {
+          if (!inOnboarding) {
+            router.replace("/onboarding");
+          }
+        } else if (!session) {
+          if (!inAuthGroup) {
+            router.replace("/login");
+          }
+        } else if (inAuthGroup || inOnboarding) {
+          router.replace("/(tabs)/home");
+        }
+      } catch (err) {
+        console.error("RootLayout Navigation Error:", err);
       }
-    }, 0);
+    }, 10);
+
+    return () => clearTimeout(timeout);
   }, [session, isLoading, segments, hasSeenOnboarding, navigationState?.key, isHydrated]);
+
 
   useEffect(() => {
     // Pengaman: Jika dalam 3 detik status belum didapat, paksa matikan loading
@@ -81,24 +106,29 @@ export default function RootLayout() {
       setLoading(false);
     }, 3000);
 
+    console.log("RootLayout: Fetching session...");
     supabase.auth.getSession()
       .then(({ data }) => {
+        console.log("RootLayout: Session fetched", !!data.session);
         setSession(data.session ?? null);
         setLoading(false);
         clearTimeout(safetyTimeout);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error("RootLayout: Session fetch error", err);
         setLoading(false);
         clearTimeout(safetyTimeout);
       });
 
     const { data: subscription } = supabase.auth.onAuthStateChange(
       (_event, session) => {
+        console.log("RootLayout: Auth state changed", !!session);
         setSession(session ?? null);
         setLoading(false);
         clearTimeout(safetyTimeout);
       },
     );
+
 
     return () => {
       subscription?.subscription?.unsubscribe?.();
@@ -136,7 +166,9 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <StatusBar style="dark" />
         <Stack screenOptions={{ headerShown: false }} />
+        <CustomAlert />
       </QueryClientProvider>
+
     </GestureHandlerRootView>
   );
 }

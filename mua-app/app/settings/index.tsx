@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Switch, Alert } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Switch } from "react-native";
+import { showAlert } from "@/lib/utils/alert";
+
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useRouter } from "expo-router";
 import { useSettingsStore } from "@/lib/stores/settings-store";
@@ -35,18 +37,21 @@ export default function SettingsScreen() {
 
   const handleSaveProfile = () => {
     updateBusinessProfile(businessName, whatsapp);
-    Alert.alert("Berhasil", "Profil bisnis telah diperbarui.");
+    showAlert("Berhasil", "Profil bisnis telah diperbarui.");
   };
+
 
   const handleSaveTemplates = () => {
     updateTemplates(localTemplates);
-    Alert.alert("Berhasil", "Template WhatsApp telah disimpan.");
+    showAlert("Berhasil", "Template WhatsApp telah disimpan.");
   };
+
 
   const handleSavePaymentInstructions = () => {
     setPaymentInstructions(localPaymentInstructions);
-    Alert.alert("Berhasil", "Instruksi pembayaran telah disimpan.");
+    showAlert("Berhasil", "Instruksi pembayaran telah disimpan.");
   };
+
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -197,8 +202,9 @@ export default function SettingsScreen() {
         <Text className="text-text-hint font-bold uppercase text-xs mb-4">Pusat Bantuan & Panduan</Text>
         <Card className="mb-10 overflow-hidden">
           <TouchableOpacity 
-            onPress={() => Alert.alert("Panduan AI", "1. Copy pesan booking dari WhatsApp klien.\n2. Buka 'Booking Baru' > klik 'Asisten AI'.\n3. Paste pesan dan klik 'Proses'.\n4. Data akan terisi otomatis!")}
+            onPress={() => showAlert("Panduan AI", "1. Copy pesan booking dari WhatsApp klien.\n2. Buka 'Booking Baru' > klik 'Asisten AI'.\n3. Paste pesan dan klik 'Proses'.\n4. Data akan terisi otomatis!")}
             className="flex-row items-center justify-between p-4 border-b border-divider"
+
           >
             <View className="flex-row items-center">
               <Text className="text-text-primary font-medium">Cara Menggunakan Asisten AI</Text>
@@ -207,8 +213,9 @@ export default function SettingsScreen() {
           </TouchableOpacity>
           
           <TouchableOpacity 
-            onPress={() => Alert.alert("Panduan Booking", "Tipe Acara (Akad/Resepsi) digunakan untuk pengelompokan di kalender. Layanan digunakan untuk hitungan harga. Gunakan fitur 'Otomatis' dengan memilih layanan terlebih dahulu.")}
+            onPress={() => showAlert("Panduan Booking", "Tipe Acara (Akad/Resepsi) digunakan untuk pengelompokan di kalender. Layanan digunakan untuk hitungan harga. Gunakan fitur 'Otomatis' dengan memilih layanan terlebih dahulu.")}
             className="flex-row items-center justify-between p-4 border-b border-divider"
+
           >
             <View className="flex-row items-center">
               <Text className="text-text-primary font-medium">Panduan Kelola Jadwal</Text>
@@ -217,8 +224,9 @@ export default function SettingsScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity 
-            onPress={() => Alert.alert("Link Booking Publik", "Kirimkan link yang ada di profil Anda ke klien (Bio IG/WA). Klien bisa mengisi data sendiri dan akan muncul di jadwal Anda sebagai 'Pending'.")}
+            onPress={() => showAlert("Link Booking Publik", "Kirimkan link yang ada di profil Anda ke klien (Bio IG/WA). Klien bisa mengisi data sendiri dan akan muncul di jadwal Anda sebagai 'Pending'.")}
             className="flex-row items-center justify-between p-4"
+
           >
             <View className="flex-row items-center">
               <Text className="text-text-primary font-medium">Cara Booking Mandiri oleh Klien</Text>

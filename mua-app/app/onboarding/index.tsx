@@ -1,108 +1,283 @@
-import React, { useState, useRef } from "react";
-import { View, Text, FlatList, Dimensions, TouchableOpacity } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import React, { useState, useRef, useCallback } from "react";
+import {
+  View,
+  Text,
+  FlatList,
+  Dimensions,
+  TouchableOpacity,
+  ImageBackground,
+  StatusBar,
+  Platform,
+  Image,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useSettingsStore } from "@/lib/stores/settings-store";
-import { Sparkles, Users, Briefcase, ArrowRight } from "lucide-react-native";
+import { useAuthStore } from "@/lib/stores/auth-store";
+import { ArrowRight, Sparkles } from "lucide-react-native";
 
-const { width } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
+
+// ─── DATA SLIDES ────────────────────────────────────────────────────────────
 
 const slides = [
   {
+    id: "0",
+    image: require("@/assets/images/welcome.png"),
+    isWelcome: true,
+  },
+  {
     id: "1",
-    title: "Booking Cerdas",
-    description: "Catat jadwal MUA Anda lebih cepat dengan bantuan AI. Tempel pesan WA dan biarkan AI mengisi datanya.",
-    icon: <Sparkles size={80} color="#B76E79" />,
+    image: require("@/assets/images/slide1.png"),
+    headline: "Hai, Selamat Datang di Fixatif! 👋",
+    subheadline:
+      "Asisten bisnis kamu sebagai MUA — dari jadwal, klien, hingga keuangan. Semua dalam satu genggaman.",
+    caption: "Dibuat khusus untuk MUA Indonesia yang ingin kerja lebih rapi.",
   },
   {
     id: "2",
-    title: "Manajemen Klien",
-    description: "Simpan data pelanggan dengan rapi. Kirim pengingat otomatis agar tidak ada jadwal yang terlewat.",
-    icon: <Users size={80} color="#B76E79" />,
+    image: require("@/assets/images/slide2.png"),
+    headline: "Fixatif bisa bantu banyak hal 💄",
+    subheadline:
+      "Catat booking, buat invoice, kirim pengingat WA ke klien — bahkan baca pesan WA klien langsung jadi jadwal otomatis.",
+    features: [
+      { icon: "📅", label: "Jadwal & Kalender" },
+      { icon: "💰", label: "Keuangan & Invoice" },
+      { icon: "🤖", label: "AI dari Pesan WA" },
+    ],
   },
   {
     id: "3",
-    title: "Bisnis Modern",
-    description: "Kelola layanan, paket, dan inventaris Anda dalam satu aplikasi profesional yang minimalis.",
-    icon: <Briefcase size={80} color="#B76E79" />,
+    image: require("@/assets/images/slide3.png"),
+    headline: "Mulai sekarang, gratis dulu boleh! 🎉",
+    subheadline:
+      "Coba semua fitur selama 7 hari tanpa bayar. Kalau sudah cocok, lanjut bareng kami.",
+    caption: "Tidak perlu kartu kredit. Bisa batal kapan saja.",
   },
 ];
+
+// ─── KOMPONEN DOT INDICATOR ─────────────────────────────────────────────────
+
+const DotIndicator = ({ total, active }: { total: number; active: number }) => (
+  <View style={{ flexDirection: "row", justifyContent: "center", gap: 8, marginBottom: 20 }}>
+    {Array.from({ length: total }).map((_, i) => (
+      <View
+        key={i}
+        style={{
+          height: 8,
+          width: i === active ? 28 : 8,
+          borderRadius: 4,
+          backgroundColor: i === active ? "#B76E79" : "#E8D5D8",
+        }}
+      />
+    ))}
+  </View>
+);
+
+// ─── KOMPONEN SLIDE ──────────────────────────────────────────────────────────
+
+const SlideItem = ({
+  item,
+}: {
+  item: (typeof slides)[0];
+}) => {
+  const insets = useSafeAreaInsets();
+
+  if (item.isWelcome) {
+    return (
+      <View style={{ width, height }}>
+        <Image 
+          source={item.image} 
+          style={{ width, height }} 
+          resizeMode="cover"
+        />
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ width, height }}>
+      {/* ── Ilustrasi Fullscreen sebagai Background ── */}
+      <ImageBackground
+        source={item.image}
+        style={{ width, height }}
+        resizeMode="cover"
+      >
+        {/* Area Teks dikosongkan karena teks sudah ada di dalam gambar/asset */}
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "flex-end",
+            paddingHorizontal: 28,
+            paddingTop: insets.top + 20,
+            paddingBottom: 220 + insets.bottom, 
+          }}
+        />
+
+      </ImageBackground>
+    </View>
+  );
+};
+
+// ─── KOMPONEN UTAMA ──────────────────────────────────────────────────────────
 
 export default function OnboardingScreen() {
   const router = useRouter();
   const completeOnboarding = useSettingsStore((s) => s.completeOnboarding);
+  const session = useAuthStore((s) => s.session);
+  const insets = useSafeAreaInsets();
+  
   const [activeSlide, setActiveSlide] = useState(0);
-  const flatListRef = useRef<FlatList>(null);
+  const scrollRef = useRef<FlatList>(null);
+  const isLastSlide = activeSlide === slides.length - 1;
 
-  const handleNext = () => {
-    if (activeSlide < slides.length - 1) {
-      flatListRef.current?.scrollToIndex({ index: activeSlide + 1 });
-      setActiveSlide(activeSlide + 1);
+  const handleFinish = useCallback(() => {
+    completeOnboarding();
+    if (session) {
+      router.replace("/(tabs)/home" as any);
     } else {
-      completeOnboarding();
-      router.replace("/(tabs)" as any);
+      router.replace("/login");
     }
-  };
+  }, [completeOnboarding, router, session]);
 
-  const renderItem = ({ item }: { item: typeof slides[0] }) => (
-    <View style={{ width }} className="items-center justify-center px-10">
-      <View className="w-48 h-48 bg-primary/5 rounded-full items-center justify-center mb-10">
-        {item.icon}
-      </View>
-      <Text className="text-3xl font-bold text-text-primary text-center mb-4">
-        {item.title}
-      </Text>
-      <Text className="text-text-secondary text-center text-lg leading-6 px-4">
-        {item.description}
-      </Text>
-    </View>
-  );
+  const handleNext = useCallback(() => {
+    if (!isLastSlide) {
+      scrollRef.current?.scrollToIndex({ index: activeSlide + 1, animated: true });
+      setActiveSlide((prev) => prev + 1);
+    }
+  }, [activeSlide, isLastSlide]);
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <View style={{ flex: 1, backgroundColor: "#FAF7F5" }}>
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+
+      {/* ── FlatList Slides ── */}
       <FlatList
-        ref={flatListRef}
+        ref={scrollRef}
         data={slides}
-        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
+        scrollEventThrottle={16}
         onMomentumScrollEnd={(e) => {
           const index = Math.round(e.nativeEvent.contentOffset.x / width);
           setActiveSlide(index);
         }}
-        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <SlideItem item={item} />
+        )}
       />
 
-      <View className="px-10 pb-12">
-        <View className="flex-row justify-center mb-10 gap-x-2">
-          {slides.map((_, i) => (
-            <View 
-              key={i} 
-              className={`h-2 rounded-full ${i === activeSlide ? "w-8 bg-primary" : "w-2 bg-divider"}`}
-            />
-          ))}
-        </View>
+      {/* ── Bottom Navigation (fixed di atas semua slide) ── */}
+      <View
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: "transparent",
+          paddingHorizontal: 28,
+          paddingTop: 8,
+          paddingBottom: Platform.OS === "ios" ? insets.bottom + 10 : insets.bottom + 20,
+        }}
+      >
+        {/* Dot Indicator */}
+        <DotIndicator total={slides.length} active={activeSlide} />
 
-        <TouchableOpacity 
-          onPress={handleNext}
-          className="bg-primary h-16 rounded-2xl flex-row items-center justify-center"
-        >
-          <Text className="text-white font-bold text-lg mr-2">
-            {activeSlide === slides.length - 1 ? "Mulai Sekarang" : "Lanjut"}
-          </Text>
-          <ArrowRight size={20} color="white" />
-        </TouchableOpacity>
-        
-        {activeSlide < slides.length - 1 && (
-          <TouchableOpacity 
-            onPress={() => { completeOnboarding(); router.replace("/(tabs)" as any); }}
-            className="mt-4 items-center"
-          >
-            <Text className="text-text-hint font-medium">Lewati</Text>
-          </TouchableOpacity>
+        {/* CTA Buttons */}
+        {isLastSlide ? (
+          <View style={{ gap: 12 }}>
+            <TouchableOpacity
+              onPress={handleFinish}
+              activeOpacity={0.85}
+              style={{
+                backgroundColor: "#B76E79",
+                height: 56,
+                borderRadius: 16,
+                alignItems: "center",
+                justifyContent: "center",
+                shadowColor: "#B76E79",
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 4,
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Sparkles size={18} color="white" />
+                <Text style={{ color: "white", fontWeight: "700", fontSize: 16 }}>
+                  Coba Gratis 7 Hari
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleFinish}
+              activeOpacity={0.75}
+              style={{
+                borderWidth: 1.5,
+                borderColor: "#B76E79",
+                height: 52,
+                borderRadius: 16,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Text style={{ color: "#B76E79", fontWeight: "600", fontSize: 15 }}>
+                Mulai Berlangganan — Rp 79rb/bln
+              </Text>
+            </TouchableOpacity>
+
+            <Text
+              style={{
+                textAlign: "center",
+                fontSize: 11,
+                color: "#9CA3AF",
+                marginTop: -4,
+              }}
+            >
+              Tidak perlu kartu kredit · Bisa batal kapan saja
+            </Text>
+          </View>
+        ) : (
+          <View>
+            <TouchableOpacity
+              onPress={handleNext}
+              activeOpacity={0.85}
+              style={{
+                backgroundColor: "#B76E79",
+                height: 56,
+                borderRadius: 16,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                shadowColor: "#B76E79",
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 4,
+              }}
+            >
+              <Text style={{ color: "white", fontWeight: "700", fontSize: 16 }}>
+                {activeSlide === 0 ? "Mulai Sekarang" : "Lanjut"}
+              </Text>
+              <ArrowRight size={20} color="white" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleFinish}
+              activeOpacity={0.6}
+              style={{ alignItems: "center", paddingVertical: 14 }}
+            >
+              <Text style={{ color: activeSlide === 0 ? "rgba(0,0,0,0.3)" : "#9CA3AF", fontSize: 14, fontWeight: "500" }}>
+                Lewati
+              </Text>
+            </TouchableOpacity>
+          </View>
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }

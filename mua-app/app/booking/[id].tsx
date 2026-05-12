@@ -44,6 +44,7 @@ export default function BookingDetail() {
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
   const [isStartTimeVisible, setStartTimeVisibility] = useState(false);
   const [isEndTimeVisible, setEndTimeVisibility] = useState(false);
+  const [unitPrice, setUnitPrice] = useState(0);
 
   const totalPaid = (payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
   const remainingBalance = (booking?.totalPrice || 0) - totalPaid;
@@ -83,8 +84,22 @@ export default function BookingDetail() {
 
   const startEdit = () => {
     setEditData({ ...booking });
+    // Hitung harga per orang untuk kalkulasi otomatis saat edit pax
+    const initialUnitPrice = booking.totalPrice / (booking.numPersons || 1);
+    setUnitPrice(initialUnitPrice);
     setEditMode(true);
   };
+
+  // Sync Total Price when Pax changes
+  useEffect(() => {
+    if (editMode && editData && unitPrice > 0) {
+      const newTotal = unitPrice * editData.numPersons;
+      if (newTotal !== editData.totalPrice) {
+        setEditData((prev: any) => ({ ...prev, totalPrice: newTotal }));
+      }
+    }
+  }, [editData?.numPersons, unitPrice, editMode]);
+
 
   const [conflictInfo, setConflictInfo] = useState<any>(null);
 
@@ -516,7 +531,19 @@ export default function BookingDetail() {
                  {editMode ? (
                    <View className="flex-row items-center">
                      <Text className="mr-1">Rp</Text>
-                     <Input value={String(editData.totalPrice)} onChangeText={(t) => setEditData({...editData, totalPrice: Number(t)})} keyboardType="numeric" className="w-24 h-8" />
+                     <Input 
+                       value={String(editData.totalPrice)} 
+                       onChangeText={(t) => {
+                         const val = Number(t);
+                         setEditData({...editData, totalPrice: val});
+                         // Jika user edit manual totalnya, update unitPrice agar pax selanjutnya ikut harga baru
+                         if (editData.numPersons > 0) {
+                           setUnitPrice(val / editData.numPersons);
+                         }
+                       }} 
+                       keyboardType="numeric" 
+                       className="w-24 h-8" 
+                     />
                    </View>
                  ) : (
                    <Text className="text-text-primary font-bold">{formatCurrency(booking.totalPrice)}</Text>

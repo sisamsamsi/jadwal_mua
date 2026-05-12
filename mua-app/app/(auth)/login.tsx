@@ -8,6 +8,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react-native";
+import { showAlert } from "@/lib/utils/alert";
+
 
 export default function Login() {
   const { control, handleSubmit } = useForm({ defaultValues: { email: "", password: "" } });
@@ -18,11 +20,12 @@ export default function Login() {
   const [oauthLoading, setOauthLoading] = React.useState<string | null>(null);
 
   const handleOAuth = async (provider: 'google' | 'facebook') => {
-    Alert.alert(
+    showAlert(
       "Fitur Segera Hadir",
       `Login via ${provider === 'google' ? 'Google' : 'Facebook'} sedang dalam tahap konfigurasi keamanan. Untuk saat ini, silakan gunakan Email & Password.`
     );
   };
+
 
   async function onSubmit(data: any) {
     setIsLoading(true);
@@ -34,18 +37,20 @@ export default function Login() {
         // Tidak perlu router.replace di sini — mencegah triple redirect race condition
       }
     } catch (e: any) {
-      Alert.alert("Login Gagal", e.message ?? String(e));
+      showAlert("Login Gagal", e.message ?? String(e));
     } finally {
+
       setIsLoading(false);
     }
   }
 
   const handleForgotPassword = () => {
-    Alert.alert(
+    showAlert(
       "Lupa Password",
       "Fitur reset password akan segera tersedia. Silakan hubungi admin untuk bantuan."
     );
   };
+
 
   return (
     <SafeAreaView className="flex-1 bg-background">
