@@ -44,6 +44,22 @@ export const authService = {
     return data.session;
   },
 
+  async resetPasswordForEmail(email: string) {
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'mua-app://reset-password',
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  async updateUserPassword(password: string) {
+    const { data, error } = await supabase.auth.updateUser({
+      password: password
+    });
+    if (error) throw error;
+    return data;
+  },
+
   onAuthStateChange(callback: (event: string, session: any) => void) {
     return supabase.auth.onAuthStateChange(callback);
   },

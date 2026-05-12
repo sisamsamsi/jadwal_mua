@@ -10,6 +10,8 @@ import { useSettingsStore } from "@/lib/stores/settings-store";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ChevronLeft, Share2, Download, Printer, Scissors } from "lucide-react-native";
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { formatCurrency } from "@/lib/utils/currency";
 
 export default function InvoiceScreen() {
@@ -42,6 +44,115 @@ Sisa Tagihan: ${formatCurrency(remainingBalance)}
 Terima kasih!
     `;
     await Share.share({ message });
+  };
+
+  const handleDownloadPDF = async () => {
+    try {
+      const htmlContent = `
+        <html>
+          <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+            <style>
+              body { font-family: 'Helvetica Neue', 'Helvetica', Arial, sans-serif; padding: 20px; color: #333; }
+              .header { text-align: center; border-bottom: 2px solid #eee; padding-bottom: 20px; margin-bottom: 20px; }
+              .title { font-size: 24px; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 2px; }
+              .subtitle { color: #666; font-size: 14px; margin-bottom: 15px; }
+              .invoice-badge { display: inline-block; background-color: #fce4e4; color: #cc0000; padding: 5px 15px; border-radius: 15px; font-weight: bold; margin-bottom: 10px; }
+              .invoice-no { font-size: 10px; color: #999; }
+              .info-row { display: flex; justify-content: space-between; margin-bottom: 30px; }
+              .info-col { flex: 1; }
+              .info-col.right { text-align: right; }
+              .label { font-size: 10px; color: #999; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
+              .value { font-size: 16px; font-weight: bold; margin-bottom: 5px; }
+              .sub-value { font-size: 12px; color: #666; }
+              .table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+              .table th { text-align: left; padding: 10px 0; border-bottom: 1px solid #eee; font-size: 10px; color: #999; text-transform: uppercase; }
+              .table th.right { text-align: right; }
+              .table td { padding: 15px 0; border-bottom: 1px solid #eee; }
+              .table td.right { text-align: right; font-weight: bold; }
+              .item-name { font-weight: bold; margin-bottom: 5px; }
+              .item-desc { font-size: 12px; color: #666; }
+              .summary { background-color: #f9f9f9; padding: 20px; border-radius: 10px; margin-bottom: 30px; }
+              .summary-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
+              .summary-row.total { border-top: 1px solid #ddd; margin-top: 10px; padding-top: 10px; font-size: 18px; font-weight: bold; }
+              .summary-row.total .amount { color: #cc0000; }
+              .payment-info { border: 1px dashed #ccc; padding: 15px; border-radius: 10px; }
+              .footer { text-align: center; margin-top: 50px; font-size: 12px; color: #999; font-style: italic; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <div class="title">${businessName || "MUA PROFESSIONAL"}</div>
+              <div class="subtitle">${whatsappNumber || ""}</div>
+              <div class="invoice-badge">INVOICE</div>
+              <div class="invoice-no">No: INV/${booking?.id.substring(0,8).toUpperCase()}</div>
+            </div>
+            
+            <div class="info-row">
+              <div class="info-col">
+                <div class="label">Kepada:</div>
+                <div class="value">${clientName}</div>
+                <div class="sub-value">${client?.phone || "-"}</div>
+              </div>
+              <div class="info-col right">
+                <div class="label">Tanggal Jadwal:</div>
+                <div class="value">${booking?.bookingDate}</div>
+              </div>
+            </div>
+            
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Deskripsi</th>
+                  <th class="right">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <div class="item-name">${service?.name || "Layanan Makeup"}</div>
+                    <div class="item-desc">${booking?.notes || "Tanpa catatan tambahan"}</div>
+                  </td>
+                  <td class="right">${formatCurrency(booking?.totalPrice || 0)}</td>
+                </tr>
+              </tbody>
+            </table>
+            
+            <div class="summary">
+              <div class="summary-row">
+                <span>Subtotal</span>
+                <span>${formatCurrency(booking?.totalPrice || 0)}</span>
+              </div>
+              <div class="summary-row">
+                <span>Telah Dibayar</span>
+                <span style="color: #4CAF50; font-weight: bold;">${formatCurrency(totalPaid)}</span>
+              </div>
+              <div class="summary-row total">
+                <span>Sisa Tagihan</span>
+                <span class="amount">${formatCurrency(remainingBalance)}</span>
+              </div>
+            </div>
+            
+            ${remainingBalance > 0 ? `
+            <div class="payment-info">
+              <div class="label">Instruksi Pembayaran:</div>
+              <div class="item-name">${paymentInstructions || "Transfer Bank / E-Wallet"}</div>
+            </div>
+            ` : ''}
+            
+            <div class="footer">
+              Terima kasih atas kepercayaan Anda menggunakan jasa kami.
+            </div>
+          </body>
+        </html>
+      `;
+
+      const { uri } = await Print.printToFileAsync({ html: htmlContent });
+      await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
+    } catch (error) {
+      Alert.alert('Error', 'Gagal membuat file PDF');
+      console.error(error);
+    }
   };
 
   if (!booking) return null;
@@ -146,7 +257,7 @@ Terima kasih!
              label="Unduh PDF" 
              leftIcon={<Download size={18} color="#B76E79" />}
              className="flex-1 h-14 rounded-2xl border-primary"
-             onPress={() => Alert.alert("Fitur Download", "Fungsi cetak PDF sedang disiapkan.")}
+             onPress={handleDownloadPDF}
            />
            <Button 
              variant="primary" 

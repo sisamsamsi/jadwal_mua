@@ -26,7 +26,7 @@ export default function Register() {
       Alert.alert(
         "Registrasi Berhasil! 🎉",
         "Akun kamu berhasil dibuat. Silakan masuk sekarang.",
-        [{ text: "Masuk", onPress: () => router.replace("/login") }]
+        [{ text: "Masuk", onPress: () => router.replace("/(auth)/login" as any) }]
       );
     } catch (e: any) {
       const msg = e.message ?? String(e);
@@ -185,7 +185,7 @@ export default function Register() {
 
           <View className="flex-row items-center justify-center mt-10 mb-8">
             <Text className="text-text-secondary text-base">Sudah punya akun? </Text>
-            <TouchableOpacity onPress={() => router.push("/login")}>
+            <TouchableOpacity onPress={() => router.push("/(auth)/login" as any)}>
               <Text className="text-primary font-bold text-base">Masuk Di Sini</Text>
             </TouchableOpacity>
           </View>

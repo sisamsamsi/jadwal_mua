@@ -45,10 +45,7 @@ export default function Login() {
   }
 
   const handleForgotPassword = () => {
-    showAlert(
-      "Lupa Password",
-      "Fitur reset password akan segera tersedia. Silakan hubungi admin untuk bantuan."
-    );
+    router.push("/(auth)/forgot-password" as any);
   };
 
 
@@ -165,7 +162,7 @@ export default function Login() {
 
           <View className="flex-row items-center justify-center mt-10">
             <Text className="text-text-secondary text-base">Belum punya akun? </Text>
-            <TouchableOpacity onPress={() => router.push("/register")}>
+            <TouchableOpacity onPress={() => router.push("/(auth)/register" as any)}>
               <Text className="text-primary font-bold text-base">Daftar Sekarang</Text>
             </TouchableOpacity>
           </View>
