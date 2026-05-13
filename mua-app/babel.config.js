@@ -8,6 +8,15 @@ module.exports = function (api) {
     plugins: [
       ["inline-import", { "extensions": [".sql"] }],
       "react-native-reanimated/plugin",
+      function () {
+        return {
+          visitor: {
+            MetaProperty(path) {
+              path.replaceWithSourceString('process');
+            },
+          },
+        };
+      },
     ],
   };
 };
