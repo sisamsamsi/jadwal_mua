@@ -30,11 +30,18 @@
         "android.permission.RECORD_AUDIO"
       ]
     },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/46c5b27f-195d-406e-8558-0043cfa211b8"
+    },
     "plugins": [
       "expo-router",
       "expo-secure-store",
       "expo-image-picker",
       "expo-sqlite",
+      "expo-updates",
       "@react-native-community/datetimepicker"
     ],
     "experiments": {

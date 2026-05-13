@@ -21,6 +21,9 @@ export interface Profile extends ProfileFormValues {
   license_type: string;
   license_key: string | null;
   license_expires_at: string | null;
+  subscription_status: string;
+  trial_ends_at: string | null;
+  subscription_ends_at: string | null;
   created_at: string;
   updated_at: string;
 }

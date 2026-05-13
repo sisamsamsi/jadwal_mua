@@ -40,7 +40,22 @@ export const profileRepository = {
     // Background sync to Supabase
     const syncToSupabase = async () => {
       try {
-        const { error } = await supabase.from("profiles").update(updates).eq("id", id);
+        // Map camelCase to snake_case for Supabase
+        const supabaseUpdates = { ...updates };
+        if (updates.subscriptionStatus) {
+          supabaseUpdates.subscription_status = updates.subscriptionStatus;
+          delete supabaseUpdates.subscriptionStatus;
+        }
+        if (updates.trialEndsAt) {
+          supabaseUpdates.trial_ends_at = updates.trialEndsAt;
+          delete supabaseUpdates.trialEndsAt;
+        }
+        if (updates.subscriptionEndsAt) {
+          supabaseUpdates.subscription_ends_at = updates.subscriptionEndsAt;
+          delete supabaseUpdates.subscriptionEndsAt;
+        }
+
+        const { error } = await supabase.from("profiles").update(supabaseUpdates).eq("id", id);
         if (!error) {
           await db.update(profiles).set({ isSynced: true }).where(eq(profiles.id, id));
         }

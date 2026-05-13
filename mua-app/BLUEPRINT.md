@@ -4,6 +4,17 @@ Dokumen ini berisi panduan teknis, alur, dan tutorial langkah demi langkah untuk
 
 ---
 
+## 📊 Progress Status
+- [ ] **1. Auth SSO (Google)** - *Pending*
+- [ ] **2. Deploy Web App Open Booking** - *Pending*
+- [x] **3. Sistem Berlangganan & Trial (SaaS)** - **[DONE]**
+- [x] **4. Fitur Placeholder & Debugging** - **[DONE]** (Lupa Password, Profile Photo Fix)
+- [ ] **4.A Cetak / Unduh PDF Invoice** - *Pending*
+- [ ] **4.C Push Notifications** - *Pending*
+- [x] **5. Update Aplikasi Otomatis (OTA Updates)** - **[DONE]**
+
+---
+
 ## 1. Auth SSO (Google)
 
 Untuk memudahkan user (MUA) login tanpa mengingat password, kita menggunakan Supabase Auth yang dihubungkan dengan Google.
@@ -88,7 +99,7 @@ Fitur booking mandiri klien (`app/book/[muaId].tsx`) bisa diakses via web browse
 
 ---
 
-## 3. Sistem Berlangganan & Trial (SaaS) - Fixatif
+## 3. Sistem Berlangganan & Trial (SaaS) - **[DONE]**
 
 Sistem ini memberikan akses gratis selama 7 hari (trial) kepada pengguna baru, kemudian dilanjutkan dengan sistem berlangganan (subscription) bulanan seharga Rp 79.000/bln. Saat ini, fitur pembayaran di dalam aplikasi belum terintegrasi secara otomatis, sehingga tombol "Berlangganan" akan mengarahkan pengguna (redirect) ke WhatsApp admin.
 
@@ -138,7 +149,7 @@ Saat ini di file `app/booking/invoice/[id].tsx` masih berupa alert.
    };
    ```
 
-### B. Lupa Password
+### B. Lupa Password - **[DONE]**
 1. Buat file `app/(auth)/forgot-password.tsx`.
 2. Halaman ini hanya meminta alamat Email.
 3. Fungsi Supabase:
@@ -158,7 +169,7 @@ Saat ini di file `app/booking/invoice/[id].tsx` masih berupa alert.
 
 ---
 
-## 5. Update Aplikasi Otomatis (OTA Updates)
+## 5. Update Aplikasi Otomatis (OTA Updates) - **[DONE]**
 
 Agar aplikasi bisa diperbarui tanpa harus mendownload ulang file APK (untuk distribusi di luar Play Store), kita menggunakan fitur **Expo Updates**. Ini memungkinkan user menerima fitur baru hanya dengan me-restart aplikasi.
 

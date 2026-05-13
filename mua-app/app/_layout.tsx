@@ -22,6 +22,9 @@ import { useAuthStore } from "@/lib/stores/auth-store";
 import { useSettingsStore } from "@/lib/stores/settings-store";
 import { useRouter, useSegments, useRootNavigationState } from "expo-router";
 import { CustomAlert } from "@/components/ui/CustomAlert";
+import * as Updates from "expo-updates";
+import { Alert } from "react-native";
+import { profileRepository } from "@/lib/repositories/profile-repository";
 
 
 import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
@@ -73,12 +76,13 @@ export default function RootLayout() {
 
     const inAuthGroup = segments[0] === "(auth)";
     const inOnboarding = segments[0] === "onboarding";
+    const isSubscriptionPage = (segments[0] as string) === "subscription";
     const isPublicBooking = segments[0] === "book";
 
     if (isPublicBooking) return;
 
     // Gunakan rAF atau setTimeout kecil untuk memastikan router siap
-    const timeout = setTimeout(() => {
+    const timeout = setTimeout(async () => {
       try {
         if (!hasSeenOnboarding) {
           if (!inOnboarding) {
@@ -88,8 +92,37 @@ export default function RootLayout() {
           if (!inAuthGroup) {
             router.replace("/login");
           }
-        } else if (inAuthGroup || inOnboarding) {
-          router.replace("/(tabs)/home");
+        } else {
+          // USER LOGGED IN - Check Subscription
+          const profile = await profileRepository.getById(session.user.id);
+          
+          // Logika Penentuan Status
+          let isExpired = false;
+          if (profile) {
+            const expiryDate = profile.subscriptionStatus === "trial" 
+              ? profile.trialEndsAt 
+              : profile.subscriptionEndsAt;
+            
+            if (expiryDate) {
+              isExpired = new Date(expiryDate) < new Date();
+            } else {
+              // Jika data langganan belum ada sama sekali (user baru), buatkan trial 7 hari
+              const trialEnd = new Date();
+              trialEnd.setDate(trialEnd.getDate() + 7);
+              await profileRepository.update(session.user.id, {
+                subscriptionStatus: "trial",
+                trialEndsAt: trialEnd.toISOString(),
+              });
+            }
+          }
+
+          if (isExpired) {
+            if (!isSubscriptionPage) {
+              router.replace("/subscription" as any);
+            }
+          } else if (inAuthGroup || inOnboarding || isSubscriptionPage) {
+            router.replace("/(tabs)/home" as any);
+          }
         }
       } catch (err) {
         console.error("RootLayout Navigation Error:", err);
@@ -98,6 +131,35 @@ export default function RootLayout() {
 
     return () => clearTimeout(timeout);
   }, [session, isLoading, segments, hasSeenOnboarding, navigationState?.key, isHydrated]);
+
+  useEffect(() => {
+    async function onFetchUpdateAsync() {
+      try {
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          Alert.alert(
+            "Update Tersedia",
+            "Versi terbaru Fixatif sudah tersedia. Ingin memperbarui aplikasi sekarang?",
+            [
+              { text: "Nanti" },
+              {
+                text: "Update & Restart",
+                onPress: async () => {
+                  await Updates.fetchUpdateAsync();
+                  await Updates.reloadAsync();
+                },
+              },
+            ]
+          );
+        }
+      } catch (error) {
+        // Error di development mode diabaikan
+        console.log("Updates error:", error);
+      }
+    }
+
+    onFetchUpdateAsync();
+  }, []);
 
 
   useEffect(() => {

@@ -19,6 +19,9 @@ export const profiles = sqliteTable("profiles", {
   updatedAt: text("updated_at").notNull(),
   isSynced: integer("is_synced", { mode: "boolean" }).notNull().default(true),
   localUpdatedAt: text("local_updated_at"),
+  subscriptionStatus: text("subscription_status").default("trial"),
+  trialEndsAt: text("trial_ends_at"),
+  subscriptionEndsAt: text("subscription_ends_at"),
 });
 
 // ============================================================
