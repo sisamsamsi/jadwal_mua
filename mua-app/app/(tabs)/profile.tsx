@@ -50,7 +50,7 @@ export default function ProfileScreen() {
 
   const copyToClipboard = async () => {
     await Clipboard.setStringAsync(bookingLink);
-    Alert.alert("Berhasil", "Link booking berhasil disalin ke clipboard.");
+    showAlert("Berhasil Salin", "Link booking Anda telah disalin. Sekarang Anda bisa menempelkannya di bio Instagram atau pesan WhatsApp.");
   };
 
   const shareLink = async () => {

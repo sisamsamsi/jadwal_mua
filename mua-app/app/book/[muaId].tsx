@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Alert } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Alert, Platform } from "react-native";
 import { useLocalSearchParams, Stack } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "@/lib/supabase/client";
@@ -105,18 +105,31 @@ export default function PublicBookingForm() {
 
       if (clientError) throw clientError;
 
-      // 2. Insert ke bookings menggunakan client_id yang valid (snake_case = nama kolom DB)
+      // 2. Hitung end_time berdasarkan durasi layanan
+      const selectedService = services.find(s => s.id === formData.serviceId);
+      const duration = selectedService?.durationMinutes || 60;
+      
+      let endTime = formData.time;
+      try {
+        const [hours, minutes] = formData.time.split(':').map(Number);
+        const date = new Date();
+        date.setHours(hours, minutes + duration);
+        endTime = date.getHours().toString().padStart(2, '0') + ":" + date.getMinutes().toString().padStart(2, '0');
+      } catch (err) {
+        console.error("Time calculation error:", err);
+      }
+
       const { error: bookingError } = await supabase.from("bookings").insert({
         user_id: muaId,
         client_id: clientData.id,
         service_id: formData.serviceId,
         booking_date: formData.date,
         start_time: formData.time,
-        end_time: formData.time, // Default sementara
+        end_time: endTime,
         notes: `[Booking Publik]\n${formData.notes}`,
         status: "pending",
         num_persons: 1,
-        total_price: services.find(s => s.id === formData.serviceId)?.basePrice || 0
+        total_price: selectedService?.basePrice || 0
       });
 
       if (bookingError) throw bookingError;
@@ -212,63 +225,90 @@ export default function PublicBookingForm() {
           />
 
           <View>
-            <Text className="text-text-secondary text-sm font-semibold mb-2 ml-1">Layanan</Text>
-            <View className="bg-white border border-divider rounded-2xl overflow-hidden">
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false} 
-                contentContainerStyle={{ padding: 8 }}
-              >
-                {services.length === 0 ? (
-                  <Text className="text-text-hint p-2">MUA belum menambahkan layanan.</Text>
-                ) : (
-                  services.map((service) => (
-                    <TouchableOpacity
-                      key={service.id}
-                      onPress={() => setFormData({...formData, serviceId: service.id, serviceName: service.name})}
-                      className={cn(
-                        "px-4 py-2 rounded-xl mr-2 border",
-                        formData.serviceId === service.id 
-                          ? "bg-primary/10 border-primary" 
-                          : "bg-neutral-background border-divider"
-                      )}
-                    >
-                      <Text className={cn(
-                        "text-sm font-medium",
-                        formData.serviceId === service.id ? "text-primary" : "text-text-secondary"
-                      )}>
-                        {service.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))
-                )}
-              </ScrollView>
+            <Text className="text-text-secondary text-sm font-semibold mb-3 ml-1">Pilih Layanan</Text>
+            <View className="flex-row flex-wrap gap-2">
+              {services.length === 0 ? (
+                <View className="bg-neutral-background p-4 rounded-2xl border border-divider w-full">
+                  <Text className="text-text-hint text-center italic">MUA belum mengaktifkan daftar layanan.</Text>
+                </View>
+              ) : (
+                services.map((service) => (
+                  <TouchableOpacity
+                    key={service.id}
+                    onPress={() => setFormData({...formData, serviceId: service.id, serviceName: service.name})}
+                    style={{ minWidth: '47%' }}
+                    className={cn(
+                      "flex-1 p-4 rounded-2xl border-2 transition-all duration-200",
+                      formData.serviceId === service.id 
+                        ? "bg-primary/5 border-primary shadow-sm" 
+                        : "bg-white border-divider"
+                    )}
+                  >
+                    <Text className={cn(
+                      "text-sm font-bold mb-1",
+                      formData.serviceId === service.id ? "text-primary" : "text-text-primary"
+                    )}>
+                      {service.name}
+                    </Text>
+                    <Text className="text-xs text-text-hint">
+                      {service.durationMinutes} Menit
+                    </Text>
+                    <Text className="text-sm font-semibold mt-2 text-primary">
+                      Rp {(service.basePrice || 0).toLocaleString('id-ID')}
+                    </Text>
+                  </TouchableOpacity>
+                ))
+              )}
             </View>
           </View>
 
-          <TouchableOpacity activeOpacity={0.7} onPress={() => setDatePickerVisibility(true)}>
-            <View pointerEvents="none">
-              <Input 
-                label="Tanggal Acara" 
-                value={formData.date} 
-                editable={false}
-                placeholder="Pilih Tanggal"
-                leftIcon={<Calendar size={18} color="#757575" />}
-              />
-            </View>
-          </TouchableOpacity>
+          {Platform.OS === 'web' ? (
+            <Input 
+              label="Tanggal Acara" 
+              value={formData.date} 
+              onChangeText={(t) => setFormData({...formData, date: t})}
+              // @ts-ignore
+              type="date"
+              placeholder="YYYY-MM-DD"
+              leftIcon={<Calendar size={18} color="#757575" />}
+            />
+          ) : (
+            <TouchableOpacity activeOpacity={0.7} onPress={() => setDatePickerVisibility(true)}>
+              <View pointerEvents="none">
+                <Input 
+                  label="Tanggal Acara" 
+                  value={formData.date} 
+                  editable={false}
+                  placeholder="Pilih Tanggal"
+                  leftIcon={<Calendar size={18} color="#757575" />}
+                />
+              </View>
+            </TouchableOpacity>
+          )}
 
-          <TouchableOpacity activeOpacity={0.7} onPress={() => setTimePickerVisibility(true)}>
-            <View pointerEvents="none">
-              <Input 
-                label="Jam Mulai" 
-                value={formData.time} 
-                editable={false}
-                placeholder="Pilih Jam"
-                leftIcon={<Clock size={18} color="#757575" />}
-              />
-            </View>
-          </TouchableOpacity>
+          {Platform.OS === 'web' ? (
+            <Input 
+              label="Jam Mulai" 
+              value={formData.time} 
+              onChangeText={(t) => setFormData({...formData, time: t})}
+              // @ts-ignore
+              type="time"
+              placeholder="HH:MM"
+              leftIcon={<Clock size={18} color="#757575" />}
+            />
+          ) : (
+            <TouchableOpacity activeOpacity={0.7} onPress={() => setTimePickerVisibility(true)}>
+              <View pointerEvents="none">
+                <Input 
+                  label="Jam Mulai" 
+                  value={formData.time} 
+                  editable={false}
+                  placeholder="Pilih Jam"
+                  leftIcon={<Clock size={18} color="#757575" />}
+                />
+              </View>
+            </TouchableOpacity>
+          )}
 
           <Input 
             label="Catatan Tambahan (Opsional)" 

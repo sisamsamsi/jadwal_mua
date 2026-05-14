@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Alert, TouchableOpacity, KeyboardAvoidingView, 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useCreateService } from "@/lib/hooks/use-services";
+import { useAlertStore } from "@/lib/stores/alert-store";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { ChevronLeft, Package, Tag, Clock, DollarSign } from "lucide-react-native";
@@ -13,6 +14,7 @@ export default function NewService() {
   const router = useRouter();
   const createServiceMutation = useCreateService();
   const session = useAuthStore(s => s.session);
+  const { showAlert } = useAlertStore();
 
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -44,11 +46,11 @@ export default function NewService() {
       };
 
       await createServiceMutation.mutateAsync(newService);
-      Alert.alert("Sukses", "Layanan berhasil ditambahkan");
+      showAlert("Sukses", "Layanan '" + formData.name + "' berhasil ditambahkan ke daftar Anda.");
       router.back();
     } catch (error) {
       console.error(error);
-      Alert.alert("Error", "Gagal menyimpan layanan");
+      showAlert("Gagal Simpan", "Terjadi kesalahan saat menyimpan layanan. Mohon periksa koneksi internet Anda.");
     } finally {
       setLoading(false);
     }
