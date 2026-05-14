@@ -271,18 +271,19 @@ export default function PublicBookingForm() {
           </View>
 
           {Platform.OS === 'web' ? (
-            <Input 
-              label="Tanggal Acara" 
-              value={formData.date} 
-              onChangeText={(t) => setFormData({...formData, date: t})}
-              // @ts-ignore
-              type="date"
-              // @ts-ignore
-              onClick={(e) => e.target.showPicker?.()}
-              style={{ cursor: 'pointer' }}
-              placeholder="Pilih Tanggal"
-              leftIcon={<Calendar size={18} color="#757575" />}
-            />
+            <View className="mb-5">
+              <Text className="text-text-secondary text-sm font-semibold mb-2 ml-1">Tanggal Acara</Text>
+              <View className="flex-row items-center bg-white border border-divider rounded-2xl px-4 min-h-[56px]">
+                <Calendar size={18} color="#757575" className="mr-3" />
+                <input 
+                  type="date" 
+                  value={formData.date}
+                  onChange={(e) => setFormData({...formData, date: e.target.value})}
+                  className="flex-1 bg-transparent border-none outline-none text-base text-text-primary"
+                  style={{ height: '40px' }}
+                />
+              </View>
+            </View>
           ) : (
             <TouchableOpacity activeOpacity={0.7} onPress={() => setDatePickerVisibility(true)}>
               <View pointerEvents="none">
@@ -298,18 +299,19 @@ export default function PublicBookingForm() {
           )}
 
           {Platform.OS === 'web' ? (
-            <Input 
-              label="Jam Mulai" 
-              value={formData.time} 
-              onChangeText={(t) => setFormData({...formData, time: t})}
-              // @ts-ignore
-              type="time"
-              // @ts-ignore
-              onClick={(e) => e.target.showPicker?.()}
-              style={{ cursor: 'pointer' }}
-              placeholder="Pilih Jam"
-              leftIcon={<Clock size={18} color="#757575" />}
-            />
+            <View className="mb-5">
+              <Text className="text-text-secondary text-sm font-semibold mb-2 ml-1">Jam Mulai</Text>
+              <View className="flex-row items-center bg-white border border-divider rounded-2xl px-4 min-h-[56px]">
+                <Clock size={18} color="#757575" className="mr-3" />
+                <input 
+                  type="time" 
+                  value={formData.time}
+                  onChange={(e) => setFormData({...formData, time: e.target.value})}
+                  className="flex-1 bg-transparent border-none outline-none text-base text-text-primary"
+                  style={{ height: '40px' }}
+                />
+              </View>
+            </View>
           ) : (
             <TouchableOpacity activeOpacity={0.7} onPress={() => setTimePickerVisibility(true)}>
               <View pointerEvents="none">
