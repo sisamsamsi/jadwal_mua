@@ -527,3 +527,29 @@ CREATE POLICY "receipts_storage_insert"
 CREATE POLICY "receipts_storage_delete"
     ON storage.objects FOR DELETE
     USING (bucket_id = 'receipts' AND (storage.foldername(name))[1] = auth.uid()::TEXT);
+
+-- ============================================================================
+-- 17. PUBLIC / ANONYMOUS ACCESS POLICIES
+-- ============================================================================
+-- Kebijakan ini memungkinkan form booking publik (anonim) bekerja.
+
+-- Profil MUA dapat dilihat oleh siapa saja (untuk menampilkan nama bisnis)
+CREATE POLICY "profiles_select_public"
+    ON profiles FOR SELECT
+    USING (true);
+
+-- Layanan MUA dapat dilihat oleh siapa saja (untuk form booking)
+CREATE POLICY "services_select_public"
+    ON services FOR SELECT
+    USING (true);
+
+-- Klien baru dapat dibuat secara anonim saat booking
+CREATE POLICY "clients_insert_anon"
+    ON clients FOR INSERT
+    WITH CHECK (true);
+
+-- Booking baru dapat dibuat secara anonim
+CREATE POLICY "bookings_insert_anon"
+    ON bookings FOR INSERT
+    WITH CHECK (true);
+

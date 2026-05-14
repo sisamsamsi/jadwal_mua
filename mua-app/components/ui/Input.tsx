@@ -1,5 +1,5 @@
 import React from "react";
-import { View, TextInput, Text, TextInputProps } from "react-native";
+import { View, TextInput, Text, TextInputProps, Platform } from "react-native";
 import { cn } from "../../lib/utils/cn";
 
 export interface InputProps extends TextInputProps {
@@ -38,6 +38,8 @@ export function Input({
           textAlignVertical="center"
           {...props}
           style={[{ includeFontPadding: false }, props.style]}
+          // @ts-ignore - Support for web-specific attributes
+          {...(Platform.OS === 'web' ? { type: (props as any).type, onClick: (props as any).onClick } : {})}
         />
         {rightIcon && <View className="ml-2">{rightIcon}</View>}
       </View>

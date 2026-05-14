@@ -41,19 +41,32 @@ export const profileRepository = {
     const syncToSupabase = async () => {
       try {
         // Map camelCase to snake_case for Supabase
-        const supabaseUpdates = { ...updates };
-        if (updates.subscriptionStatus) {
-          supabaseUpdates.subscription_status = updates.subscriptionStatus;
-          delete supabaseUpdates.subscriptionStatus;
-        }
-        if (updates.trialEndsAt) {
-          supabaseUpdates.trial_ends_at = updates.trialEndsAt;
-          delete supabaseUpdates.trialEndsAt;
-        }
-        if (updates.subscriptionEndsAt) {
-          supabaseUpdates.subscription_ends_at = updates.subscriptionEndsAt;
-          delete supabaseUpdates.subscriptionEndsAt;
-        }
+        const supabaseUpdates: any = {};
+        
+        // Basic fields
+        if (updates.fullName) supabaseUpdates.full_name = updates.fullName;
+        if (updates.businessName) supabaseUpdates.business_name = updates.businessName;
+        if (updates.phone) supabaseUpdates.phone = updates.phone;
+        if (updates.bio) supabaseUpdates.bio = updates.bio;
+        if (updates.profilePhotoUrl) supabaseUpdates.profile_photo_url = updates.profilePhotoUrl;
+        if (updates.city) supabaseUpdates.city = updates.city;
+        if (updates.instagramHandle) supabaseUpdates.instagram_handle = updates.instagramHandle;
+        if (updates.whatsappNumber) supabaseUpdates.whatsapp_number = updates.whatsappNumber;
+        if (updates.fcmToken) supabaseUpdates.fcm_token = updates.fcmToken;
+        
+        // Subscription / License fields
+        if (updates.subscriptionStatus) supabaseUpdates.subscription_status = updates.subscriptionStatus;
+        if (updates.trialEndsAt) supabaseUpdates.trial_ends_at = updates.trialEndsAt;
+        if (updates.subscriptionEndsAt) supabaseUpdates.subscription_ends_at = updates.subscriptionEndsAt;
+        
+        // Handle any other fields that might be passed directly in snake_case or already mapped
+        // This is a safety measure
+        Object.keys(updates).forEach(key => {
+          if (!key.includes('_') && !supabaseUpdates[key] && !['fullName', 'businessName', 'profilePhotoUrl', 'instagramHandle', 'whatsappNumber', 'fcmToken', 'subscriptionStatus', 'trialEndsAt', 'subscriptionEndsAt'].includes(key)) {
+            // If it's camelCase and not in our manual map, we could auto-convert, 
+            // but let's stick to the manual map for now to be safe.
+          }
+        });
 
         const { error } = await supabase.from("profiles").update(supabaseUpdates).eq("id", id);
         if (!error) {

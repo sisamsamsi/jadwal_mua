@@ -10,6 +10,8 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { APP_CONFIG } from "@/lib/constants/app";
+import { useAuthStore } from "@/lib/stores/auth-store";
+import { profileRepository } from "@/lib/repositories/profile-repository";
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -27,6 +29,7 @@ export default function SettingsScreen() {
     paymentInstructions: savedPaymentInstructions,
     setPaymentInstructions
   } = useSettingsStore();
+  const { user } = useAuthStore();
 
   const [businessName, setBusinessName] = useState(savedBusinessName);
   const [whatsapp, setWhatsapp] = useState(savedWhatsapp);
@@ -35,8 +38,21 @@ export default function SettingsScreen() {
   // Local state for templates to avoid auto-saving while typing
   const [localTemplates, setLocalTemplates] = useState(waTemplates);
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     updateBusinessProfile(businessName, whatsapp);
+    
+    if (user?.id) {
+      try {
+        await profileRepository.update(user.id, {
+          businessName: businessName,
+          whatsappNumber: whatsapp,
+          fullName: user.user_metadata?.full_name || user.email // Optional: keep name synced if possible
+        });
+      } catch (err) {
+        console.error("Failed to sync profile to repository:", err);
+      }
+    }
+    
     showAlert("Berhasil", "Profil bisnis telah diperbarui.");
   };
 
