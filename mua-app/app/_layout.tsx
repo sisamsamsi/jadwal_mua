@@ -30,11 +30,17 @@ import { profileRepository } from "@/lib/repositories/profile-repository";
 import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
 import migrations from "../drizzle/migrations";
 import { db } from "@/lib/db/client";
+import { Platform } from "react-native";
 
 const queryClient = new QueryClient();
 
 export default function RootLayout() {
-  const { success, error } = useMigrations(db, migrations);
+  // Only run migrations on native platforms. SQLite is not supported on web in this setup.
+  const migrationResult = Platform.OS !== 'web' 
+    ? useMigrations(db, migrations) 
+    : { success: true, error: null };
+  
+  const { success, error } = migrationResult;
   const setSession = useAuthStore((s) => s.setSession);
   const setLoading = useAuthStore((s) => s.setLoading);
 
