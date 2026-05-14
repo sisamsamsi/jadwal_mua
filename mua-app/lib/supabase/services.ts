@@ -4,13 +4,26 @@ import { Tables } from "../constants/supabase";
 const mapToSupabase = (payload: any) => {
   const mapped: any = { ...payload };
   if (payload.userId) { mapped.user_id = payload.userId; delete mapped.userId; }
-  if (payload.durationMinutes) { mapped.duration_minutes = payload.durationMinutes; delete mapped.durationMinutes; }
-  if (payload.basePrice) { mapped.base_price = payload.basePrice; delete mapped.basePrice; } // Wait, payload.basePrice -> base_price
-  if (payload.additionalPersonPrice) { mapped.additional_person_price = payload.additionalPersonPrice; delete mapped.additionalPersonPrice; }
+  if (payload.durationMinutes !== undefined) { mapped.duration_minutes = payload.durationMinutes; delete mapped.durationMinutes; }
+  if (payload.basePrice !== undefined) { mapped.base_price = payload.basePrice; delete mapped.basePrice; }
+  if (payload.additionalPersonPrice !== undefined) { mapped.extra_person_price = payload.additionalPersonPrice; delete mapped.additionalPersonPrice; }
   if (payload.isActive !== undefined) { mapped.is_active = payload.isActive; delete mapped.isActive; }
   if (payload.sortOrder !== undefined) { mapped.sort_order = payload.sortOrder; delete mapped.sortOrder; }
   if (payload.createdAt) { mapped.created_at = payload.createdAt; delete mapped.createdAt; }
   if (payload.updatedAt) { mapped.updated_at = payload.updatedAt; delete mapped.updatedAt; }
+  if (payload.category) {
+    const cat = payload.category.toLowerCase();
+    console.log(`Mapping category: "${payload.category}" -> "${cat}"`);
+    if (['bridal', 'party', 'photoshoot', 'editorial', 'tutorial', 'touch_up', 'special_fx', 'other'].includes(cat)) {
+      mapped.category = cat;
+    } else if (['graduation', 'engagement', 'event', 'makeup'].includes(cat)) {
+      mapped.category = 'party';
+    } else {
+      mapped.category = 'other';
+    }
+  }
+  
+  console.log("Final mapped payload for Supabase:", JSON.stringify(mapped));
   
   // Clean up internal Drizzle fields if any
   delete mapped.isSynced;

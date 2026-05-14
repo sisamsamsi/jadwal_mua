@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils/cn";
 export default function PublicBookingForm() {
   const { muaId } = useLocalSearchParams();
   const [loading, setLoading] = useState(false);
-  const [muaProfile, setMuaProfile] = useState<{ businessName: string; name: string } | null>(null);
+  const [muaProfile, setMuaProfile] = useState<{ businessName: string; name: string; whatsappNumber: string } | null>(null);
   const [isValidMua, setIsValidMua] = useState<boolean | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
   
@@ -41,7 +41,7 @@ export default function PublicBookingForm() {
         // Fetch Profile
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
-          .select("full_name, business_name")
+          .select("full_name, business_name, whatsapp_number")
           .eq("id", muaId)
           .single();
         
@@ -53,7 +53,8 @@ export default function PublicBookingForm() {
         } else {
           setMuaProfile({
             businessName: profileData.business_name || "",
-            name: profileData.full_name || ""
+            name: profileData.full_name || "",
+            whatsappNumber: profileData.whatsapp_number || ""
           });
           setIsValidMua(true);
         }
@@ -71,7 +72,7 @@ export default function PublicBookingForm() {
             ...s,
             durationMinutes: s.duration_minutes || 60,
             basePrice: s.base_price || 0,
-            additionalPersonPrice: s.additional_person_price || 0,
+            additionalPersonPrice: s.extra_person_price || 0,
             sortOrder: s.sort_order || 0
           }));
           setServices(normalized);
@@ -324,21 +325,40 @@ export default function PublicBookingForm() {
           )}
 
           <Input 
-            label="Catatan Tambahan (Opsional)" 
+            label="Catatan Tambahan" 
             value={formData.notes} 
             onChangeText={(t) => setFormData({...formData, notes: t})}
-            placeholder="Misal: Lokasi acara, jumlah orang, dll."
+            placeholder="Contoh: Lokasi di hotel, atau permintaan khusus lainnya"
             multiline
-            numberOfLines={4}
+            numberOfLines={3}
+            textAlignVertical="top"
             leftIcon={<MessageSquare size={18} color="#757575" />}
           />
+        </View>
 
+        <View className="mt-8 gap-y-4">
           <Button 
-            label="Kirim Permintaan Booking" 
+            label={loading ? "Mengirim..." : "Ajukan Booking"} 
             onPress={handleSubmit} 
-            loading={loading}
-            className="mt-6 h-14 rounded-2xl"
+            disabled={loading}
+            className="w-full h-14 rounded-2xl" 
           />
+          
+          <TouchableOpacity 
+            onPress={() => {
+              const message = `Halo, saya ingin booking layanan ${formData.serviceName || "[Layanan]"} pada tanggal ${formData.date || "[Tanggal]"} jam ${formData.time || "[Jam]"}. Apakah tersedia?`;
+              const waUrl = `https://wa.me/${muaProfile?.whatsappNumber || "628884000585"}?text=${encodeURIComponent(message)}`;
+              if (Platform.OS === 'web') {
+                window.open(waUrl, '_blank');
+              } else {
+                // Link handling for native
+              }
+            }}
+            className="w-full h-14 rounded-2xl border border-primary items-center justify-center flex-row"
+          >
+            <MessageSquare size={20} color="#B76E79" className="mr-2" />
+            <Text className="text-primary font-bold text-lg">Chat via WhatsApp</Text>
+          </TouchableOpacity>
         </View>
 
         <DateTimePickerModal 

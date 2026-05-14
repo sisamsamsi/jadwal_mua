@@ -44,6 +44,7 @@ export const profileRepository = {
         const supabaseUpdates: any = {};
         
         // Basic fields
+        if (updates.email) supabaseUpdates.email = updates.email;
         if (updates.fullName) supabaseUpdates.full_name = updates.fullName;
         if (updates.businessName) supabaseUpdates.business_name = updates.businessName;
         if (updates.phone) supabaseUpdates.phone = updates.phone;

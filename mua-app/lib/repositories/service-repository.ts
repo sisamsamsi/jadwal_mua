@@ -14,7 +14,7 @@ export const serviceRepository = {
     NetInfo.fetch().then((s: any) => {
       if (s.isConnected) {
         syncServicesFromRemote().catch(() => {});
-        this.pushUnsyncedServices().catch(() => {});
+        serviceRepository.pushUnsyncedServices().catch(() => {});
       }
     });
     return local as any;
@@ -125,41 +125,47 @@ async function syncServicesFromRemote() {
   try {
     const remote = await servicesService.getAll();
     for (const s of remote) {
+      // Normalize snake_case from Supabase to camelCase for Drizzle
+      const normalized = {
+        ...s,
+        userId: s.user_id,
+        durationMinutes: s.duration_minutes,
+        basePrice: s.base_price,
+        additionalPersonPrice: s.extra_person_price,
+        isActive: s.is_active,
+        sortOrder: s.sort_order,
+        createdAt: s.created_at,
+        updatedAt: s.updated_at,
+      };
+      
+      // Remove snake_case fields to avoid Drizzle errors
+      delete (normalized as any).user_id;
+      delete (normalized as any).duration_minutes;
+      delete (normalized as any).base_price;
+      delete (normalized as any).extra_person_price;
+      delete (normalized as any).is_active;
+      delete (normalized as any).sort_order;
+      delete (normalized as any).created_at;
+      delete (normalized as any).updated_at;
+
       try {
         await db
           .insert(services)
           .values({
-            ...(s as any),
+            ...normalized,
             isSynced: true,
             localUpdatedAt: new Date().toISOString(),
           })
           .onConflictDoUpdate({
             target: services.id,
             set: {
-              ...(s as any),
+              ...normalized,
               isSynced: true,
               localUpdatedAt: new Date().toISOString(),
             },
           });
       } catch (e) {
-        try {
-          await db
-            .insert(services)
-            .values({
-              ...(s as any),
-              isSynced: true,
-              localUpdatedAt: new Date().toISOString(),
-            });
-        } catch (err) {
-          await db
-            .update(services)
-            .set({
-              ...(s as any),
-              isSynced: true,
-              localUpdatedAt: new Date().toISOString(),
-            })
-            .where(eq(services.id, s.id));
-        }
+        console.error("Failed to sync individual service:", e);
       }
     }
   } catch (e) {

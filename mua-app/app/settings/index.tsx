@@ -46,6 +46,7 @@ export default function SettingsScreen() {
         await profileRepository.update(user.id, {
           businessName: businessName,
           whatsappNumber: whatsapp,
+          email: user.email,
           fullName: user.user_metadata?.full_name || user.email // Optional: keep name synced if possible
         });
       } catch (err) {
