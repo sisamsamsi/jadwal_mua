@@ -1,6 +1,23 @@
 import { supabase } from "./client";
 import { Tables } from "../constants/supabase";
 
+const mapToSupabase = (payload: any) => {
+  const mapped: any = { ...payload };
+  if (payload.userId) { mapped.user_id = payload.userId; delete mapped.userId; }
+  if (payload.fullName) { mapped.full_name = payload.fullName; delete mapped.fullName; }
+  if (payload.phoneNumber) { mapped.phone_number = payload.phoneNumber; delete mapped.phoneNumber; }
+  if (payload.skinType) { mapped.skin_type = payload.skinType; delete mapped.skinType; }
+  if (payload.skinConcerns) { mapped.skin_concerns = payload.skinConcerns; delete mapped.skinConcerns; }
+  if (payload.allergies) { mapped.allergies = payload.allergies; delete mapped.allergies; }
+  if (payload.createdAt) { mapped.created_at = payload.createdAt; delete mapped.createdAt; }
+  if (payload.updatedAt) { mapped.updated_at = payload.updatedAt; delete mapped.updatedAt; }
+  
+  delete mapped.isSynced;
+  delete mapped.localUpdatedAt;
+  
+  return mapped;
+};
+
 export const clientsService = {
   async getAll(params?: { limit?: number; offset?: number }) {
     let query: any = supabase.from(Tables.clients).select("*").order("name", { ascending: true });
@@ -18,13 +35,15 @@ export const clientsService = {
   },
 
   async create(payload: any) {
-    const { data, error } = await supabase.from(Tables.clients).insert(payload).select().single();
+    const mapped = mapToSupabase(payload);
+    const { data, error } = await supabase.from(Tables.clients).insert(mapped).select().single();
     if (error) throw error;
     return data;
   },
 
   async update(id: string, updates: any) {
-    const { data, error } = await supabase.from(Tables.clients).update(updates).eq("id", id).select().single();
+    const mapped = mapToSupabase(updates);
+    const { data, error } = await supabase.from(Tables.clients).update(mapped).eq("id", id).select().single();
     if (error) throw error;
     return data;
   },

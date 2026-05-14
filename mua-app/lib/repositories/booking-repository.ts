@@ -8,7 +8,19 @@ import { scheduleBookingReminder } from "../utils/notifications";
 
 export const bookingRepository = {
   async getAll() {
-    return await db.select().from(bookings).orderBy(asc(bookings.bookingDate));
+    // 1. Read from local
+    const local = await db.select().from(bookings).orderBy(asc(bookings.bookingDate));
+
+    // 2. Background sync (non-blocking)
+    NetInfo.fetch().then((state: any) => {
+      if (state.isConnected) {
+        // We sync for a range around today for general dashboard
+        const today = new Date().toISOString().split("T")[0];
+        syncBookingsFromRemote(today).catch(() => {});
+      }
+    });
+
+    return local as any;
   },
 
   async getByDate(date: string) {
@@ -247,23 +259,68 @@ function toTimestamp(
   return new Date(d.getTime() + travelOffsetMinutes * 60 * 1000).getTime();
 }
 
+function normalizeFromSupabase(b: any) {
+  const normalized = {
+    ...b,
+    userId: b.user_id,
+    clientId: b.client_id,
+    serviceId: b.service_id,
+    packageId: b.package_id,
+    bookingDate: b.booking_date,
+    startTime: b.start_time,
+    endTime: b.end_time,
+    locationName: b.location_name,
+    locationAddress: b.location_address,
+    locationLat: b.location_lat,
+    locationLng: b.location_lng,
+    travelTimeMinutes: b.travel_time_minutes,
+    numPersons: b.num_persons,
+    eventType: b.event_type,
+    totalPrice: b.total_price,
+    createdAt: b.created_at,
+    updatedAt: b.updated_at,
+  };
+
+  // Remove snake_case fields
+  delete (normalized as any).user_id;
+  delete (normalized as any).client_id;
+  delete (normalized as any).service_id;
+  delete (normalized as any).package_id;
+  delete (normalized as any).booking_date;
+  delete (normalized as any).start_time;
+  delete (normalized as any).end_time;
+  delete (normalized as any).location_name;
+  delete (normalized as any).location_address;
+  delete (normalized as any).location_lat;
+  delete (normalized as any).location_lng;
+  delete (normalized as any).travel_time_minutes;
+  delete (normalized as any).num_persons;
+  delete (normalized as any).event_type;
+  delete (normalized as any).total_price;
+  delete (normalized as any).created_at;
+  delete (normalized as any).updated_at;
+
+  return normalized;
+}
+
 async function syncBookingsFromRemote(date: string) {
   try {
     const remote = await bookingsService.getByDate(date);
     for (const b of remote) {
+      const normalized = normalizeFromSupabase(b);
       // upsert local
       try {
         await db
           .insert(bookings)
           .values({
-            ...b,
+            ...normalized,
             isSynced: true,
             localUpdatedAt: new Date().toISOString(),
           })
           .onConflictDoUpdate({
             target: bookings.id,
             set: {
-              ...b,
+              ...normalized,
               isSynced: true,
               localUpdatedAt: new Date().toISOString(),
             },
@@ -274,7 +331,7 @@ async function syncBookingsFromRemote(date: string) {
           await db
             .insert(bookings)
             .values({
-              ...b,
+              ...normalized,
               isSynced: true,
               localUpdatedAt: new Date().toISOString(),
             });
@@ -283,11 +340,11 @@ async function syncBookingsFromRemote(date: string) {
           await db
             .update(bookings)
             .set({
-              ...b,
+              ...normalized,
               isSynced: true,
               localUpdatedAt: new Date().toISOString(),
             })
-            .where(eq(bookings.id, b.id));
+            .where(eq(bookings.id, normalized.id));
         }
       }
     }

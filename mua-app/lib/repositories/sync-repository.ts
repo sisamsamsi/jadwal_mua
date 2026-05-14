@@ -18,13 +18,34 @@ export const syncRepository = {
       // Clients
       const remoteClients = await clientsService.getAll();
       for (const c of remoteClients) {
+        const normalized = {
+          ...c,
+          fullName: c.full_name,
+          phoneNumber: c.phone_number,
+          skinType: c.skin_type,
+          skinConcerns: c.skin_concerns,
+          allergies: c.allergies,
+          createdAt: c.created_at,
+          updatedAt: c.updated_at,
+          isSynced: true,
+          localUpdatedAt: new Date().toISOString()
+        };
+        // Remove snake_case
+        delete (normalized as any).full_name;
+        delete (normalized as any).phone_number;
+        delete (normalized as any).skin_type;
+        delete (normalized as any).skin_concerns;
+        delete (normalized as any).allergies;
+        delete (normalized as any).created_at;
+        delete (normalized as any).updated_at;
+
         try {
-          await db.insert(schema.clients).values({ ...(c as any), isSynced: true, localUpdatedAt: new Date().toISOString() }).onConflictDoUpdate({ target: schema.clients.id, set: { ...(c as any), isSynced: true, localUpdatedAt: new Date().toISOString() } });
+          await db.insert(schema.clients).values(normalized).onConflictDoUpdate({ target: schema.clients.id, set: normalized });
         } catch (e) {
           try {
-            await db.insert(schema.clients).values({ ...(c as any), isSynced: true, localUpdatedAt: new Date().toISOString() });
+            await db.insert(schema.clients).values(normalized);
           } catch (err) {
-            await db.update(schema.clients).set({ ...(c as any), isSynced: true, localUpdatedAt: new Date().toISOString() }).where(eq(schema.clients.id, c.id));
+            await db.update(schema.clients).set(normalized).where(eq(schema.clients.id, normalized.id));
           }
         }
       }
@@ -32,13 +53,36 @@ export const syncRepository = {
       // Services
       const remoteServices = await servicesService.getAll();
       for (const s of remoteServices) {
+        const normalized = {
+          ...s,
+          userId: s.user_id,
+          durationMinutes: s.duration_minutes,
+          basePrice: s.base_price,
+          additionalPersonPrice: s.extra_person_price, // Match Supabase column
+          isActive: s.is_active,
+          sortOrder: s.sort_order,
+          createdAt: s.created_at,
+          updatedAt: s.updated_at,
+          isSynced: true,
+          localUpdatedAt: new Date().toISOString()
+        };
+        // Remove snake_case
+        delete (normalized as any).user_id;
+        delete (normalized as any).duration_minutes;
+        delete (normalized as any).base_price;
+        delete (normalized as any).extra_person_price;
+        delete (normalized as any).is_active;
+        delete (normalized as any).sort_order;
+        delete (normalized as any).created_at;
+        delete (normalized as any).updated_at;
+
         try {
-          await db.insert(schema.services).values({ ...(s as any), isSynced: true, localUpdatedAt: new Date().toISOString() }).onConflictDoUpdate({ target: schema.services.id, set: { ...(s as any), isSynced: true, localUpdatedAt: new Date().toISOString() } });
+          await db.insert(schema.services).values(normalized).onConflictDoUpdate({ target: schema.services.id, set: normalized });
         } catch (e) {
           try {
-            await db.insert(schema.services).values({ ...(s as any), isSynced: true, localUpdatedAt: new Date().toISOString() });
+            await db.insert(schema.services).values(normalized);
           } catch (err) {
-            await db.update(schema.services).set({ ...(s as any), isSynced: true, localUpdatedAt: new Date().toISOString() }).where(eq(schema.services.id, s.id));
+            await db.update(schema.services).set(normalized).where(eq(schema.services.id, normalized.id));
           }
         }
       }
@@ -47,13 +91,54 @@ export const syncRepository = {
       const today = new Date().toISOString().split("T")[0];
       const remoteBookings = await bookingsService.getByDate(today);
       for (const b of remoteBookings) {
+        const normalized = {
+          ...b,
+          userId: b.user_id,
+          clientId: b.client_id,
+          serviceId: b.service_id,
+          packageId: b.package_id,
+          bookingDate: b.booking_date,
+          startTime: b.start_time,
+          endTime: b.end_time,
+          locationName: b.location_name,
+          locationAddress: b.location_address,
+          locationLat: b.location_lat,
+          locationLng: b.location_lng,
+          travelTimeMinutes: b.travel_time_minutes,
+          numPersons: b.num_persons,
+          eventType: b.event_type,
+          totalPrice: b.total_price,
+          createdAt: b.created_at,
+          updatedAt: b.updated_at,
+          isSynced: true,
+          localUpdatedAt: new Date().toISOString()
+        };
+        // Remove snake_case
+        delete (normalized as any).user_id;
+        delete (normalized as any).client_id;
+        delete (normalized as any).service_id;
+        delete (normalized as any).package_id;
+        delete (normalized as any).booking_date;
+        delete (normalized as any).start_time;
+        delete (normalized as any).end_time;
+        delete (normalized as any).location_name;
+        delete (normalized as any).location_address;
+        delete (normalized as any).location_lat;
+        delete (normalized as any).location_lng;
+        delete (normalized as any).travel_time_minutes;
+        delete (normalized as any).num_persons;
+        delete (normalized as any).event_type;
+        delete (normalized as any).total_price;
+        delete (normalized as any).created_at;
+        delete (normalized as any).updated_at;
+
         try {
-          await db.insert(schema.bookings).values({ ...(b as any), isSynced: true, localUpdatedAt: new Date().toISOString() }).onConflictDoUpdate({ target: schema.bookings.id, set: { ...(b as any), isSynced: true, localUpdatedAt: new Date().toISOString() } });
+          await db.insert(schema.bookings).values(normalized).onConflictDoUpdate({ target: schema.bookings.id, set: normalized });
         } catch (e) {
           try {
-            await db.insert(schema.bookings).values({ ...(b as any), isSynced: true, localUpdatedAt: new Date().toISOString() });
+            await db.insert(schema.bookings).values(normalized);
           } catch (err) {
-            await db.update(schema.bookings).set({ ...(b as any), isSynced: true, localUpdatedAt: new Date().toISOString() }).where(eq(schema.bookings.id, b.id));
+            await db.update(schema.bookings).set(normalized).where(eq(schema.bookings.id, normalized.id));
           }
         }
       }

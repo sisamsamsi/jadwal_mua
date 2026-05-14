@@ -197,9 +197,19 @@ export default function RootLayout() {
       },
     );
 
+    // FIX: Start sync repository listener
+    const { syncRepository } = require("@/lib/repositories/sync-repository");
+    const unsubscribeSync = syncRepository.startConnectivityListener();
+    // Trigger initial full sync if logged in
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) {
+        syncRepository.fullSync();
+      }
+    });
 
     return () => {
       subscription?.subscription?.unsubscribe?.();
+      unsubscribeSync();
       clearTimeout(safetyTimeout);
     };
   }, []);
