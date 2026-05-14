@@ -111,7 +111,16 @@ export default function PublicBookingForm() {
         .select()
         .single();
 
-      if (clientError) throw clientError;
+      if (clientError) {
+        console.error("Client Insert Error:", clientError);
+        throw clientError;
+      }
+      
+      if (!clientData) {
+        throw new Error("Gagal membuat data klien (Data kosong)");
+      }
+
+      console.log("Client created successfully:", clientData.id);
 
       // 2. Hitung end_time berdasarkan durasi layanan
       const selectedService = services.find(s => s.id === formData.serviceId);
@@ -127,6 +136,8 @@ export default function PublicBookingForm() {
         console.error("Time calculation error:", err);
       }
 
+      console.log("Creating booking for service:", formData.serviceId);
+
       const { error: bookingError } = await supabase.from("bookings").insert({
         user_id: muaId,
         client_id: clientData.id,
@@ -140,7 +151,12 @@ export default function PublicBookingForm() {
         total_price: selectedService?.basePrice || 0
       });
 
-      if (bookingError) throw bookingError;
+      if (bookingError) {
+        console.error("Booking Insert Error:", bookingError);
+        throw bookingError;
+      }
+
+      console.log("Booking submitted successfully!");
 
       setIsSuccess(true);
       setFormData({ 
@@ -154,7 +170,12 @@ export default function PublicBookingForm() {
       });
     } catch (e: any) {
       console.error("Submit Error:", e);
-      Alert.alert("Gagal", "Terjadi kesalahan saat mengirim data. Silakan coba lagi.");
+      const msg = e.message || "Terjadi kesalahan saat mengirim data. Silakan coba lagi.";
+      if (Platform.OS === 'web') {
+        alert("Gagal: " + msg);
+      } else {
+        Alert.alert("Gagal", msg);
+      }
     } finally {
       setLoading(false);
     }

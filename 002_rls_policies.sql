@@ -548,8 +548,18 @@ CREATE POLICY "clients_insert_anon"
     ON clients FOR INSERT
     WITH CHECK (true);
 
+-- Izinkan anonim membaca klien (diperlukan untuk .select() setelah insert)
+CREATE POLICY "clients_select_anon"
+    ON clients FOR SELECT
+    USING (true);
+
 -- Booking baru dapat dibuat secara anonim
 CREATE POLICY "bookings_insert_anon"
     ON bookings FOR INSERT
     WITH CHECK (true);
+
+-- Izinkan anonim membaca booking
+CREATE POLICY "bookings_select_anon"
+    ON bookings FOR SELECT
+    USING (true);
 
