@@ -29,8 +29,7 @@ export default function PublicBookingForm() {
   // 1. Validasi & Fetch Profil MUA
   React.useEffect(() => {
     async function fetchMuaProfile() {
-      if (!muaId) return;
-      
+      console.log("Fetching MUA Profile for ID:", muaId);
       try {
         const { data, error } = await supabase
           .from("profiles")
@@ -38,9 +37,14 @@ export default function PublicBookingForm() {
           .eq("id", muaId)
           .single();
         
-        if (error || !data) {
+        if (error) {
+          console.error("Supabase Fetch Error:", error);
+          setIsValidMua(false);
+        } else if (!data) {
+          console.warn("No data found for MUA ID:", muaId);
           setIsValidMua(false);
         } else {
+          console.log("MUA Profile Found:", data);
           setMuaProfile({
             businessName: data.business_name || "",
             name: data.full_name || ""
@@ -48,6 +52,7 @@ export default function PublicBookingForm() {
           setIsValidMua(true);
         }
       } catch (e) {
+        console.error("Catch Block Error:", e);
         setIsValidMua(false);
       }
     }
