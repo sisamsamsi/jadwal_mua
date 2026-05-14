@@ -181,6 +181,11 @@ export default function RootLayout() {
         setSession(data.session ?? null);
         setLoading(false);
         clearTimeout(safetyTimeout);
+        
+        // Keep-alive ping: Melakukan query ringan agar Supabase tetap aktif
+        supabase.from("profiles").select("id").limit(1).then(() => {
+          console.log("Keep-alive: Heartbeat sent to Supabase");
+        });
       })
       .catch((err) => {
         console.error("RootLayout: Session fetch error", err);

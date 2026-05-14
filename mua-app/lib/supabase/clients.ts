@@ -4,11 +4,7 @@ import { Tables } from "../constants/supabase";
 const mapToSupabase = (payload: any) => {
   const mapped: any = { ...payload };
   if (payload.userId) { mapped.user_id = payload.userId; delete mapped.userId; }
-  if (payload.fullName) { mapped.full_name = payload.fullName; delete mapped.fullName; }
-  if (payload.phoneNumber) { mapped.phone_number = payload.phoneNumber; delete mapped.phoneNumber; }
   if (payload.skinType) { mapped.skin_type = payload.skinType; delete mapped.skinType; }
-  if (payload.skinConcerns) { mapped.skin_concerns = payload.skinConcerns; delete mapped.skinConcerns; }
-  if (payload.allergies) { mapped.allergies = payload.allergies; delete mapped.allergies; }
   if (payload.createdAt) { mapped.created_at = payload.createdAt; delete mapped.createdAt; }
   if (payload.updatedAt) { mapped.updated_at = payload.updatedAt; delete mapped.updatedAt; }
   

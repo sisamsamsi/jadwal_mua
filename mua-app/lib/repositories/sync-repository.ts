@@ -19,25 +19,24 @@ export const syncRepository = {
       const remoteClients = await clientsService.getAll();
       for (const c of remoteClients) {
         const normalized = {
-          ...c,
-          fullName: c.full_name,
-          phoneNumber: c.phone_number,
+          id: c.id,
+          userId: c.user_id,
+          name: c.name,
+          phone: c.phone,
+          email: c.email,
+          address: c.address,
+          city: c.city,
           skinType: c.skin_type,
-          skinConcerns: c.skin_concerns,
           allergies: c.allergies,
+          preferences: c.preferences,
+          notes: c.notes,
+          tags: c.tags ? (Array.isArray(c.tags) ? c.tags.join(",") : c.tags) : "",
+          isActive: c.is_active ?? true,
           createdAt: c.created_at,
           updatedAt: c.updated_at,
           isSynced: true,
           localUpdatedAt: new Date().toISOString()
         };
-        // Remove snake_case
-        delete (normalized as any).full_name;
-        delete (normalized as any).phone_number;
-        delete (normalized as any).skin_type;
-        delete (normalized as any).skin_concerns;
-        delete (normalized as any).allergies;
-        delete (normalized as any).created_at;
-        delete (normalized as any).updated_at;
 
         try {
           await db.insert(schema.clients).values(normalized).onConflictDoUpdate({ target: schema.clients.id, set: normalized });
@@ -88,8 +87,12 @@ export const syncRepository = {
       }
 
       // Bookings
-      const today = new Date().toISOString().split("T")[0];
-      const remoteBookings = await bookingsService.getByDate(today);
+      // Sync from 30 days ago to 1 year ahead to ensure all relevant bookings are captured
+      const fromDate = new Date();
+      fromDate.setDate(fromDate.getDate() - 30);
+      const fromDateStr = fromDate.toISOString().split("T")[0];
+      
+      const remoteBookings = await bookingsService.getAll({ fromDate: fromDateStr });
       for (const b of remoteBookings) {
         const normalized = {
           ...b,

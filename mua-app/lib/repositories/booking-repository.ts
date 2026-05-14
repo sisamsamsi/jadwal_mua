@@ -15,8 +15,7 @@ export const bookingRepository = {
     NetInfo.fetch().then((state: any) => {
       if (state.isConnected) {
         // We sync for a range around today for general dashboard
-        const today = new Date().toISOString().split("T")[0];
-        syncBookingsFromRemote(today).catch(() => {});
+        syncBookingsFromRemote().catch(() => {});
       }
     });
 
@@ -39,7 +38,7 @@ export const bookingRepository = {
     // 2. Background sync (non-blocking)
     NetInfo.fetch().then((state: any) => {
       if (state.isConnected) {
-        syncBookingsFromRemote(date).catch(() => {});
+        syncBookingsFromRemote().catch(() => {});
       }
     });
 
@@ -261,7 +260,7 @@ function toTimestamp(
 
 function normalizeFromSupabase(b: any) {
   const normalized = {
-    ...b,
+    id: b.id,
     userId: b.user_id,
     clientId: b.client_id,
     serviceId: b.service_id,
@@ -273,39 +272,24 @@ function normalizeFromSupabase(b: any) {
     locationAddress: b.location_address,
     locationLat: b.location_lat,
     locationLng: b.location_lng,
-    travelTimeMinutes: b.travel_time_minutes,
-    numPersons: b.num_persons,
+    travelTimeMinutes: b.travel_time_minutes ?? 0,
+    numPersons: b.num_persons ?? 1,
+    status: b.status || "pending",
     eventType: b.event_type,
-    totalPrice: b.total_price,
+    notes: b.notes,
+    totalPrice: b.total_price ?? 0,
+    cancellationReason: b.cancellation_reason,
     createdAt: b.created_at,
     updatedAt: b.updated_at,
   };
 
-  // Remove snake_case fields
-  delete (normalized as any).user_id;
-  delete (normalized as any).client_id;
-  delete (normalized as any).service_id;
-  delete (normalized as any).package_id;
-  delete (normalized as any).booking_date;
-  delete (normalized as any).start_time;
-  delete (normalized as any).end_time;
-  delete (normalized as any).location_name;
-  delete (normalized as any).location_address;
-  delete (normalized as any).location_lat;
-  delete (normalized as any).location_lng;
-  delete (normalized as any).travel_time_minutes;
-  delete (normalized as any).num_persons;
-  delete (normalized as any).event_type;
-  delete (normalized as any).total_price;
-  delete (normalized as any).created_at;
-  delete (normalized as any).updated_at;
-
   return normalized;
 }
 
-async function syncBookingsFromRemote(date: string) {
+async function syncBookingsFromRemote() {
   try {
-    const remote = await bookingsService.getByDate(date);
+    const today = new Date().toISOString().split("T")[0];
+    const remote = await bookingsService.getAll({ fromDate: today });
     for (const b of remote) {
       const normalized = normalizeFromSupabase(b);
       // upsert local
