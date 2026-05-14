@@ -27,7 +27,7 @@ export function useDashboardStats() {
       }, {});
 
       const totalRevenue = payments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
-      const pendingBookings = bookings.filter((b: any) => b.status === "pending" || b.status === "confirmed").length;
+      const pendingBookings = bookings.filter((b: any) => b.status === "pending").length;
       
       const now = new Date();
       const todayStr = now.toISOString().split("T")[0];
@@ -43,7 +43,7 @@ export function useDashboardStats() {
 
       // Jadwal Mendatang (Setelah hari ini)
       const upcomingBookings = bookings
-        .filter((b: any) => b.bookingDate > todayStr)
+        .filter((b: any) => b.bookingDate > todayStr && b.status !== "cancelled" && b.status !== "completed")
         .sort((a: any, b: any) => a.bookingDate.localeCompare(b.bookingDate))
         .slice(0, 5) // Ambil 5 jadwal terdekat
         .map((b: any) => ({
