@@ -59,15 +59,22 @@ export default function PublicBookingForm() {
         }
 
         // Fetch Services
-        const { data: servicesData } = await supabase
+        const { data: rawServices } = await supabase
           .from("services")
           .select("*")
           .eq("user_id", muaId)
-          .eq("is_active", true)
-          .order("sort_order", { ascending: true });
+          .eq("is_active", true);
         
-        if (servicesData) {
-          setServices(servicesData);
+        if (rawServices) {
+          // Normalisasi data dari Supabase (snake_case -> camelCase)
+          const normalized = rawServices.map((s: any) => ({
+            ...s,
+            durationMinutes: s.duration_minutes || 60,
+            basePrice: s.base_price || 0,
+            additionalPersonPrice: s.additional_person_price || 0,
+            sortOrder: s.sort_order || 0
+          }));
+          setServices(normalized);
         }
       } catch (e) {
         console.error("Catch Block Error:", e);

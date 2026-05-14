@@ -68,7 +68,12 @@ export const profileRepository = {
           }
         });
 
-        const { error } = await supabase.from("profiles").update(supabaseUpdates).eq("id", id);
+        const { error } = await supabase.from("profiles").upsert({
+          id,
+          ...supabaseUpdates,
+          updated_at: new Date().toISOString()
+        });
+        
         if (!error) {
           await db.update(profiles).set({ isSynced: true }).where(eq(profiles.id, id));
         }

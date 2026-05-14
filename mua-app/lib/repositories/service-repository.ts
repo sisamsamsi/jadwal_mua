@@ -14,6 +14,7 @@ export const serviceRepository = {
     NetInfo.fetch().then((s: any) => {
       if (s.isConnected) {
         syncServicesFromRemote().catch(() => {});
+        this.pushUnsyncedServices().catch(() => {});
       }
     });
     return local as any;
@@ -92,7 +93,33 @@ export const serviceRepository = {
       }
     }
   },
+
+  async pushUnsyncedServices() {
+    try {
+      const unsynced = await db.select().from(services).where(eq(services.isSynced, false));
+      if (unsynced.length === 0) return;
+
+      console.log(`Pushing ${unsynced.length} unsynced services...`);
+      for (const service of unsynced) {
+        try {
+          await servicesService.update(service.id, service);
+          await db.update(services).set({ isSynced: true }).where(eq(services.id, service.id));
+        } catch (err) {
+          // If update fails, try create (maybe it doesn't exist on remote yet)
+          try {
+            await servicesService.create(service);
+            await db.update(services).set({ isSynced: true }).where(eq(services.id, service.id));
+          } catch (createErr) {
+            console.error(`Failed to push service ${service.id}:`, createErr);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("pushUnsyncedServices failed:", e);
+    }
+  }
 };
+
 
 async function syncServicesFromRemote() {
   try {
