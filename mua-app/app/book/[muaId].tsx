@@ -269,7 +269,10 @@ export default function PublicBookingForm() {
               onChangeText={(t) => setFormData({...formData, date: t})}
               // @ts-ignore
               type="date"
-              placeholder="YYYY-MM-DD"
+              // @ts-ignore
+              onClick={(e) => e.target.showPicker?.()}
+              style={{ cursor: 'pointer' }}
+              placeholder="Pilih Tanggal"
               leftIcon={<Calendar size={18} color="#757575" />}
             />
           ) : (
@@ -293,7 +296,10 @@ export default function PublicBookingForm() {
               onChangeText={(t) => setFormData({...formData, time: t})}
               // @ts-ignore
               type="time"
-              placeholder="HH:MM"
+              // @ts-ignore
+              onClick={(e) => e.target.showPicker?.()}
+              style={{ cursor: 'pointer' }}
+              placeholder="Pilih Jam"
               leftIcon={<Clock size={18} color="#757575" />}
             />
           ) : (
