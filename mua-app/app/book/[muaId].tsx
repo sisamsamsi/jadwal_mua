@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Calendar, Clock, User, Phone, MessageSquare, CheckCircle2 } from "lucide-react-native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
+import { cn } from "@/lib/utils/cn";
 
 export default function PublicBookingForm() {
   const { muaId } = useLocalSearchParams();
@@ -18,52 +19,69 @@ export default function PublicBookingForm() {
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
+    serviceId: "",
+    serviceName: "",
     date: "",
     time: "",
     notes: ""
   });
+
+  const [services, setServices] = useState<any[]>([]);
+  const [isServicePickerVisible, setServicePickerVisible] = useState(false);
 
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
   const [isTimePickerVisible, setTimePickerVisibility] = useState(false);
 
   // 1. Validasi & Fetch Profil MUA
   React.useEffect(() => {
-    async function fetchMuaProfile() {
-      console.log("Fetching MUA Profile for ID:", muaId);
+    async function fetchData() {
+      if (!muaId) return;
+      
       try {
-        const { data, error } = await supabase
+        // Fetch Profile
+        const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("full_name, business_name")
           .eq("id", muaId)
           .single();
         
-        if (error) {
-          console.error("Supabase Fetch Error:", error);
+        if (profileError) {
+          console.error("Supabase Fetch Error:", profileError);
           setIsValidMua(false);
-        } else if (!data) {
-          console.warn("No data found for MUA ID:", muaId);
+        } else if (!profileData) {
           setIsValidMua(false);
         } else {
-          console.log("MUA Profile Found:", data);
           setMuaProfile({
-            businessName: data.business_name || "",
-            name: data.full_name || ""
+            businessName: profileData.business_name || "",
+            name: profileData.full_name || ""
           });
           setIsValidMua(true);
+        }
+
+        // Fetch Services
+        const { data: servicesData } = await supabase
+          .from("services")
+          .select("*")
+          .eq("user_id", muaId)
+          .eq("is_active", true)
+          .order("sort_order", { ascending: true });
+        
+        if (servicesData) {
+          setServices(servicesData);
         }
       } catch (e) {
         console.error("Catch Block Error:", e);
         setIsValidMua(false);
       }
     }
-    fetchMuaProfile();
+    fetchData();
   }, [muaId]);
 
   const phoneRegex = /^(\+62|62|0)[0-9]{8,12}$/;
 
   const handleSubmit = async () => {
-    if (!formData.name || !formData.phone || !formData.date || !formData.time) {
-      Alert.alert("Error", "Mohon isi semua data wajib.");
+    if (!formData.name || !formData.phone || !formData.date || !formData.time || !formData.serviceId) {
+      Alert.alert("Error", "Mohon isi semua data wajib (termasuk layanan).");
       return;
     }
 
@@ -91,18 +109,28 @@ export default function PublicBookingForm() {
       const { error: bookingError } = await supabase.from("bookings").insert({
         user_id: muaId,
         client_id: clientData.id,
+        service_id: formData.serviceId,
         booking_date: formData.date,
         start_time: formData.time,
+        end_time: formData.time, // Default sementara
         notes: `[Booking Publik]\n${formData.notes}`,
         status: "pending",
         num_persons: 1,
-        total_price: 0
+        total_price: services.find(s => s.id === formData.serviceId)?.basePrice || 0
       });
 
       if (bookingError) throw bookingError;
 
       setIsSuccess(true);
-      setFormData({ name: "", phone: "", date: "", time: "", notes: "" });
+      setFormData({ 
+        name: "", 
+        phone: "", 
+        serviceId: "", 
+        serviceName: "", 
+        date: "", 
+        time: "", 
+        notes: "" 
+      });
     } catch (e: any) {
       console.error("Submit Error:", e);
       Alert.alert("Gagal", "Terjadi kesalahan saat mengirim data. Silakan coba lagi.");
@@ -183,24 +211,63 @@ export default function PublicBookingForm() {
             leftIcon={<Phone size={18} color="#757575" />}
           />
 
-          <TouchableOpacity onPress={() => setDatePickerVisibility(true)}>
-            <Input 
-              label="Tanggal Acara" 
-              value={formData.date} 
-              editable={false}
-              placeholder="Pilih Tanggal"
-              leftIcon={<Calendar size={18} color="#757575" />}
-            />
+          <View>
+            <Text className="text-text-secondary text-sm font-semibold mb-2 ml-1">Layanan</Text>
+            <View className="bg-white border border-divider rounded-2xl overflow-hidden">
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false} 
+                contentContainerStyle={{ padding: 8 }}
+              >
+                {services.length === 0 ? (
+                  <Text className="text-text-hint p-2">MUA belum menambahkan layanan.</Text>
+                ) : (
+                  services.map((service) => (
+                    <TouchableOpacity
+                      key={service.id}
+                      onPress={() => setFormData({...formData, serviceId: service.id, serviceName: service.name})}
+                      className={cn(
+                        "px-4 py-2 rounded-xl mr-2 border",
+                        formData.serviceId === service.id 
+                          ? "bg-primary/10 border-primary" 
+                          : "bg-neutral-background border-divider"
+                      )}
+                    >
+                      <Text className={cn(
+                        "text-sm font-medium",
+                        formData.serviceId === service.id ? "text-primary" : "text-text-secondary"
+                      )}>
+                        {service.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </ScrollView>
+            </View>
+          </View>
+
+          <TouchableOpacity activeOpacity={0.7} onPress={() => setDatePickerVisibility(true)}>
+            <View pointerEvents="none">
+              <Input 
+                label="Tanggal Acara" 
+                value={formData.date} 
+                editable={false}
+                placeholder="Pilih Tanggal"
+                leftIcon={<Calendar size={18} color="#757575" />}
+              />
+            </View>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => setTimePickerVisibility(true)}>
-            <Input 
-              label="Jam Mulai" 
-              value={formData.time} 
-              editable={false}
-              placeholder="Pilih Jam"
-              leftIcon={<Clock size={18} color="#757575" />}
-            />
+          <TouchableOpacity activeOpacity={0.7} onPress={() => setTimePickerVisibility(true)}>
+            <View pointerEvents="none">
+              <Input 
+                label="Jam Mulai" 
+                value={formData.time} 
+                editable={false}
+                placeholder="Pilih Jam"
+                leftIcon={<Clock size={18} color="#757575" />}
+              />
+            </View>
           </TouchableOpacity>
 
           <Input 
