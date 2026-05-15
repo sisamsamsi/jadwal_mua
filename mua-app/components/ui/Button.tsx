@@ -57,6 +57,7 @@ export interface ButtonProps
   loading?: boolean;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
+  textClassName?: string;
 }
 
 export function Button({
@@ -67,6 +68,7 @@ export function Button({
   loading,
   leftIcon,
   rightIcon,
+  textClassName,
   children,
   ...props
 }: ButtonProps) {
@@ -82,7 +84,7 @@ export function Button({
         <View className="flex-row items-center">
           {leftIcon && <View className="mr-2">{leftIcon}</View>}
           {label ? (
-            <Text className={cn(textVariants({ variant, size }))}>{label}</Text>
+            <Text className={cn(textVariants({ variant, size }), textClassName)}>{label}</Text>
           ) : (
             children
           )}

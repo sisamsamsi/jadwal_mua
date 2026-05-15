@@ -40,5 +40,10 @@ export const expenseRepository = {
     await db.delete(expenses).where(eq(expenses.id, id));
     // Background sync
     expenseService.delete(id).catch(() => {});
+  },
+  
+  async deleteAll() {
+    await db.delete(expenses);
+    // Note: Ini hanya menghapus data lokal saat ini
   }
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Alert, Linking, Share, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Alert, Linking, Share, ActivityIndicator, Modal, KeyboardAvoidingView, Platform } from "react-native";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useBooking, useUpdateBooking, useDeleteBooking, useBookings } from "@/lib/hooks/use-bookings";
@@ -18,8 +18,9 @@ import { showAlert } from "@/lib/utils/alert";
 import { formatCurrency } from "@/lib/utils/currency";
 
 import DateTimePickerModal from "react-native-modal-datetime-picker";
-import { Modal } from "react-native";
+
 import { sendWhatsApp, formatWhatsAppTemplate } from "@/lib/utils/whatsapp";
+import { PremiumGate } from "@/components/ui/PremiumGate";
 
 export default function BookingDetail() {
   const { id } = useLocalSearchParams();
@@ -119,7 +120,7 @@ export default function BookingDetail() {
     const newStart = toMinutes(start);
     const newEnd = toMinutes(end);
 
-    return allBookings.find(b => 
+    return allBookings.find((b: any) => 
       b.id !== id &&
       b.bookingDate === date && 
       b.status !== 'cancelled' &&
@@ -378,13 +379,17 @@ export default function BookingDetail() {
                    <MessageSquare size={18} color="white" />
                    <Text className="text-white font-bold ml-2">WhatsApp</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
-                  onPress={() => router.push(`/booking/invoice/${booking.id}` as any)}
-                  className="flex-1 flex-row items-center justify-center bg-primary py-3 rounded-xl"
-                >
-                   <FileText size={18} color="white" />
-                   <Text className="text-white font-bold ml-2">Invoice</Text>
-                </TouchableOpacity>
+                <View className="flex-1">
+                  <PremiumGate featureName="Invoice PDF & WA">
+                    <TouchableOpacity 
+                      onPress={() => router.push(`/booking/invoice/${booking.id}` as any)}
+                      className="w-full flex-row items-center justify-center bg-primary py-3 rounded-xl"
+                    >
+                      <FileText size={18} color="white" />
+                      <Text className="text-white font-bold ml-2">Invoice</Text>
+                    </TouchableOpacity>
+                  </PremiumGate>
+                </View>
              </View>
            )}
         </Card>
@@ -620,27 +625,42 @@ export default function BookingDetail() {
       {/* MODAL DETAIL ORANG */}
       <Modal visible={memberModalVisible} animationType="slide" transparent>
         <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-surface p-6 rounded-t-3xl h-[80%]">
-             <View className="flex-row justify-between items-center mb-6">
-                <Text className="text-lg font-bold">{selectedMember ? "Edit Detail Rias" : "Tambah Detail Rias"}</Text>
-                <TouchableOpacity onPress={() => setMemberModalVisible(false)}><Text className="text-primary font-bold">Tutup</Text></TouchableOpacity>
-             </View>
-             
-             <ScrollView showsVerticalScrollIndicator={false}>
-                <Input label="Nama Lengkap" value={memberForm.name} onChangeText={(t) => setMemberForm({...memberForm, name: t})} placeholder="Contoh: Ibu Siti" className="mb-4" />
-                <Input label="Peran / Role" value={memberForm.role} onChangeText={(t) => setMemberForm({...memberForm, role: t})} placeholder="Contoh: Ibu Pengantin / Pagar Ayu" className="mb-4" />
-                <Input label="Request Makeup" value={memberForm.makeupRequest} onChangeText={(t) => setMemberForm({...memberForm, makeupRequest: t})} placeholder="Contoh: Natural / Bold / Smokey" className="mb-4" />
-                <View className="flex-row gap-4 mb-4">
-                  <View className="flex-1">
-                    <Input label="Ukuran Baju" value={memberForm.clothingSize} onChangeText={(t) => setMemberForm({...memberForm, clothingSize: t})} placeholder="XL / 42" />
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            className="w-full"
+          >
+            <View className="bg-surface p-6 rounded-t-3xl h-[85%]">
+               <View className="flex-row justify-between items-center mb-6">
+                  <Text className="text-lg font-bold">{selectedMember ? "Edit Detail Rias" : "Tambah Detail Rias"}</Text>
+                  <TouchableOpacity onPress={() => setMemberModalVisible(false)} className="p-2">
+                    <Text className="text-primary font-bold">Tutup</Text>
+                  </TouchableOpacity>
+               </View>
+               
+               <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                  <Input label="Nama Lengkap" value={memberForm.name} onChangeText={(t) => setMemberForm({...memberForm, name: t})} placeholder="Contoh: Ibu Siti" className="mb-4" />
+                  <Input label="Peran / Role" value={memberForm.role} onChangeText={(t) => setMemberForm({...memberForm, role: t})} placeholder="Contoh: Ibu Pengantin / Pagar Ayu" className="mb-4" />
+                  <Input label="Request Makeup" value={memberForm.makeupRequest} onChangeText={(t) => setMemberForm({...memberForm, makeupRequest: t})} placeholder="Contoh: Natural / Bold / Smokey" className="mb-4" />
+                  
+                  <View className="flex-row gap-4 mb-4">
+                    <View className="flex-1">
+                      <Input label="Ukuran Baju" value={memberForm.clothingSize} onChangeText={(t) => setMemberForm({...memberForm, clothingSize: t})} placeholder="XL / 42" />
+                    </View>
                   </View>
-                </View>
-                <Input label="Deskripsi Baju" value={memberForm.clothingDesc} onChangeText={(t) => setMemberForm({...memberForm, clothingDesc: t})} placeholder="Contoh: Kebaya Biru Payet" multiline className="mb-4" />
-                <Input label="Catatan Tambahan" value={memberForm.notes} onChangeText={(t) => setMemberForm({...memberForm, notes: t})} placeholder="Misal: Alergi kosmetik tertentu" multiline className="mb-6" />
-                
-                <Button variant="primary" label="Simpan Detail" onPress={handleSaveMember} loading={createMemberMutation.isPending || updateMemberMutation.isPending} className="h-14 rounded-2xl mb-10" />
-             </ScrollView>
-          </View>
+
+                  <Input label="Deskripsi Baju" value={memberForm.clothingDesc} onChangeText={(t) => setMemberForm({...memberForm, clothingDesc: t})} placeholder="Contoh: Kebaya Biru Payet" multiline className="mb-4" />
+                  <Input label="Catatan Tambahan" value={memberForm.notes} onChangeText={(t) => setMemberForm({...memberForm, notes: t})} placeholder="Misal: Alergi kosmetik tertentu" multiline className="mb-6" />
+                  
+                  <Button 
+                    variant="primary" 
+                    label="Simpan Detail" 
+                    onPress={handleSaveMember} 
+                    loading={createMemberMutation.isPending || updateMemberMutation.isPending} 
+                    className="h-14 rounded-2xl mb-20" 
+                  />
+               </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
     </View>

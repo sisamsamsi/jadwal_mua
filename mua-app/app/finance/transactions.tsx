@@ -2,17 +2,20 @@ import React from "react";
 import { View, Text, FlatList, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { usePayments } from "@/lib/hooks/use-payments";
-import { useExpenses } from "@/lib/hooks/use-expenses";
+import { usePayments, useDeletePayment } from "@/lib/hooks/use-payments";
+import { useExpenses, useDeleteExpense } from "@/lib/hooks/use-expenses";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { ChevronLeft, TrendingUp, TrendingDown, Filter } from "lucide-react-native";
+import { ChevronLeft, TrendingUp, TrendingDown, Filter, Trash2 } from "lucide-react-native";
 import { formatCurrency, formatCurrencyCompact } from "@/lib/utils/currency";
+import { showAlert } from "@/lib/utils/alert";
 
 export default function TransactionHistory() {
   const router = useRouter();
   const { data: payments = [], isLoading: loadingPayments } = usePayments();
   const { data: expenses = [], isLoading: loadingExpenses } = useExpenses();
+  const deletePayment = useDeletePayment();
+  const deleteExpense = useDeleteExpense();
 
   // Gabungkan dan urutkan berdasarkan tanggal terbaru
   const allTransactions = [
@@ -29,6 +32,32 @@ export default function TransactionHistory() {
   ].sort((a, b) => new Date(b.createdAt || b.expenseDate).getTime() - new Date(a.createdAt || a.expenseDate).getTime());
 
   const isLoading = loadingPayments || loadingExpenses;
+
+  const handleDelete = (item: any) => {
+    showAlert(
+      "Hapus Transaksi",
+      `Apakah Anda yakin ingin menghapus transaksi "${item.displayDescription}"?`,
+      [
+        { text: "Batal", style: "cancel" },
+        { 
+          text: "Hapus", 
+          style: "destructive", 
+          onPress: async () => {
+            try {
+              if (item.paymentType || item.bookingId) { // Ini dari tabel payments
+                await deletePayment.mutateAsync(item.id);
+              } else { // Ini dari tabel expenses
+                await deleteExpense.mutateAsync(item.id);
+              }
+              showAlert("Berhasil", "Transaksi telah dihapus.");
+            } catch (e) {
+              showAlert("Error", "Gagal menghapus transaksi.");
+            }
+          }
+        }
+      ]
+    );
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -68,9 +97,14 @@ export default function TransactionHistory() {
                      </Text>
                    </View>
                 </View>
-                <Text className={`font-bold text-base ${item.type === 'income' ? 'text-status-success' : 'text-status-error'}`}>
-                  {item.type === 'income' ? '+' : '-'} {formatCurrencyCompact(Math.abs(item.amount))}
-                </Text>
+                 <View className="flex-row items-center">
+                    <Text className={`font-bold text-base mr-3 ${item.type === 'income' ? 'text-status-success' : 'text-status-error'}`}>
+                      {item.type === 'income' ? '+' : '-'} {formatCurrencyCompact(Math.abs(item.amount))}
+                    </Text>
+                    <TouchableOpacity onPress={() => handleDelete(item)} className="p-2">
+                       <Trash2 size={16} color="#F44336" />
+                    </TouchableOpacity>
+                 </View>
              </View>
           </Card>
         )}

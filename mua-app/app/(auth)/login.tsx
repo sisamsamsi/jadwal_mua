@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, Image } from "react-native";
 import { useForm, Controller } from "react-hook-form";
 import { authService } from "@/lib/supabase/auth";
 import { useAuthStore } from "@/lib/stores/auth-store";
@@ -24,20 +24,13 @@ export default function Login() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [oauthLoading, setOauthLoading] = React.useState<string | null>(null);
 
-  const handleOAuth = async (provider: 'google' | 'facebook') => {
-    if (provider !== 'google') {
-      showAlert(
-        "Fitur Segera Hadir",
-        `Login via Facebook sedang dalam tahap konfigurasi. Silakan gunakan Google atau Email.`
-      );
-      return;
-    }
-
+  const handleOAuth = async (provider: 'google') => {
     setOauthLoading(provider);
     try {
-      const redirectUrl = __DEV__
-        ? Linking.createURL('/login')
-        : 'mua-app://login';
+      // Selalu gunakan skema aplikasi agar kembali ke app, bukan ke browser localhost
+      // Pastikan 'mua-app://login' sudah didaftarkan di Supabase Dashboard -> Auth -> URL Configuration
+      const redirectUrl = 'mua-app://login';
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -171,27 +164,14 @@ export default function Login() {
               <TouchableOpacity 
                 onPress={() => handleOAuth('google')}
                 disabled={oauthLoading !== null}
-                className={`flex-row items-center justify-center bg-surface border border-divider h-14 rounded-2xl shadow-sm ${oauthLoading === 'google' ? 'opacity-100' : 'opacity-100'}`}
+                className={`flex-row items-center justify-center bg-surface border border-divider h-14 rounded-2xl shadow-sm ${oauthLoading === 'google' ? 'opacity-70' : 'opacity-100'}`}
               >
-                <View className="w-7 h-7 rounded-full items-center justify-center mr-3" style={{ backgroundColor: '#EA4335' }}>
-                  <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 13 }}>G</Text>
-                </View>
+                <Image 
+                  source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1024px-Google_%22G%22_logo.svg.png' }}
+                  style={{ width: 24, height: 24, marginRight: 12 }}
+                />
                 <Text className="text-text-primary font-semibold text-base">
                   {oauthLoading === 'google' ? 'Menghubungkan...' : 'Masuk dengan Google'}
-                </Text>
-              </TouchableOpacity>
-
-              {/* Facebook */}
-              <TouchableOpacity 
-                onPress={() => handleOAuth('facebook')}
-                className="flex-row items-center justify-center h-14 rounded-2xl opacity-60"
-                style={{ backgroundColor: '#1877F2' }}
-              >
-                <View className="w-7 h-7 bg-white rounded-full items-center justify-center mr-3">
-                  <Text style={{ color: '#1877F2', fontWeight: 'bold', fontSize: 14 }}>f</Text>
-                </View>
-                <Text style={{ color: 'white', fontWeight: '600', fontSize: 16 }}>
-                  Facebook (Coming Soon)
                 </Text>
               </TouchableOpacity>
             </View>

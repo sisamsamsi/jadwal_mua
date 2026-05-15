@@ -12,9 +12,14 @@ import { Button } from "@/components/ui/Button";
 import { APP_CONFIG } from "@/lib/constants/app";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { profileRepository } from "@/lib/repositories/profile-repository";
+import { paymentRepository } from "@/lib/repositories/payment-repository";
+import { expenseRepository } from "@/lib/repositories/expense-repository";
+import { useQueryClient } from "@tanstack/react-query";
+import { Trash2 } from "lucide-react-native";
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { 
     showBridalParty, 
     showInventory, 
@@ -67,6 +72,32 @@ export default function SettingsScreen() {
   const handleSavePaymentInstructions = () => {
     setPaymentInstructions(localPaymentInstructions);
     showAlert("Berhasil", "Instruksi pembayaran telah disimpan.");
+  };
+
+  const handleResetFinance = () => {
+    showAlert(
+      "Konfirmasi Reset",
+      "Apakah Anda yakin ingin menghapus SEMUA data pemasukan dan pengeluaran? Tindakan ini tidak dapat dibatalkan.",
+      [
+        { text: "Batal", style: "cancel" },
+        { 
+          text: "Ya, Hapus Semua", 
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await paymentRepository.deleteAll();
+              await expenseRepository.deleteAll();
+              queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+              queryClient.invalidateQueries({ queryKey: ["payments"] });
+              queryClient.invalidateQueries({ queryKey: ["expenses"] });
+              showAlert("Berhasil", "Data keuangan telah dikosongkan.");
+            } catch (e) {
+              showAlert("Error", "Gagal meriset data keuangan.");
+            }
+          }
+        }
+      ]
+    );
   };
 
 
@@ -252,6 +283,24 @@ export default function SettingsScreen() {
             </View>
             <ChevronLeft size={20} color="#BDBDBD" style={{ transform: [{ rotate: '180deg' }] }} />
           </TouchableOpacity>
+        </Card>
+
+        <Text className="text-text-hint font-bold uppercase text-xs mb-4">Bahaya / Manajemen Data</Text>
+        <Card className="p-4 mb-10 border-red-100 bg-red-50/30">
+           <View className="flex-row items-center mb-4">
+              <Trash2 size={20} color="#F44336" className="mr-3" />
+              <View>
+                 <Text className="font-bold text-text-primary">Reset Keuangan</Text>
+                 <Text className="text-text-hint text-[10px]">Hapus semua riwayat pemasukan & pengeluaran</Text>
+              </View>
+           </View>
+           <Button 
+              label="Reset Semua Data Keuangan" 
+              variant="outline"
+              className="border-status-error"
+              textClassName="text-status-error"
+              onPress={handleResetFinance}
+           />
         </Card>
 
         <Text className="text-center text-text-hint mt-10 text-xs">MUA App v{APP_CONFIG.VERSION}</Text>

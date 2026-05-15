@@ -242,6 +242,17 @@ export default function NewBooking() {
       return;
     }
 
+    // GATING: Batas 10 Booking untuk Trial
+    if (!isPremium && allBookings.length >= 10) {
+      showAlert(
+        "Limit Trial Tercapai", 
+        "Anda telah mencapai batas maksimal 10 booking untuk versi Trial. Silakan upgrade ke Premium untuk menambah jadwal tanpa batas!",
+        [{ text: "Nanti Saja" }, { text: "Upgrade Sekarang", onPress: () => router.push("/settings") }]
+      );
+
+      return;
+    }
+
     // Issue 8: Validasi layanan — booking tidak boleh disimpan tanpa layanan/paket
     if (!formData.serviceId && !formData.packageId) {
       showAlert("Pilih Layanan", "Mohon pilih layanan atau paket sebelum menyimpan jadwal. Booking tanpa layanan tidak bisa dihitung harganya.");
@@ -364,19 +375,14 @@ export default function NewBooking() {
           contentContainerStyle={{ padding: 24 }}
           keyboardShouldPersistTaps="handled"
         >
-        {/* Tipe Acara */}
-        <Text className="text-text-hint font-bold uppercase text-xs mb-3">Tipe Acara</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
-          {["Akad", "Resepsi", "Fitting", "Rapat", "Siraman", "Lamaran", "Lainnya"].map((type) => (
-            <TouchableOpacity 
-              key={type} 
-              onPress={() => setFormData({ ...formData, eventType: type })}
-              className={`mr-3 px-4 py-2 rounded-full border ${formData.eventType === type ? 'bg-primary border-primary' : 'bg-surface border-divider'}`}
-            >
-              <Text className={formData.eventType === type ? 'text-white font-bold' : 'text-text-secondary'}>{type}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        {/* Tipe Acara - Disederhanakan menjadi Input Teks agar tidak perlu CRUD membingungkan */}
+        <Text className="text-text-hint font-bold uppercase text-xs mb-3">Jenis / Tipe Acara (Opsional)</Text>
+        <Input
+          value={formData.eventType}
+          onChangeText={(t) => setFormData({ ...formData, eventType: t })}
+          placeholder="Contoh: Akad, Resepsi, Wisuda, dll."
+          className="mb-6"
+        />
 
         {/* Pilih Klien */}
         <View className="flex-row items-center justify-between mb-3">
@@ -462,7 +468,7 @@ export default function NewBooking() {
           </View>
         )}
 
-        {/* Layanan/Paket */}
+        {/* Layanan/Paket - Tampilan Grid 3 Kolom */}
         <View className="flex-row items-center justify-between mb-3">
           <Text className="text-text-hint font-bold uppercase text-xs">Layanan / Paket (Per Orang)</Text>
           <TouchableOpacity onPress={() => setServiceModalVisible(true)} className="flex-row items-center">
@@ -470,27 +476,24 @@ export default function NewBooking() {
             <Text className="text-primary text-xs font-bold">Tambah Layanan</Text>
           </TouchableOpacity>
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
+        
+        <View className="flex-row flex-wrap justify-between mb-6">
           {(services || []).map((s: any) => (
             <TouchableOpacity 
               key={s.id} 
               onPress={() => {
                 setBasePricePerPerson(s.basePrice || 0);
-                const name = s.name.toLowerCase();
-                let newEventType = formData.eventType;
-                if (name.includes("akad")) newEventType = "Akad";
-                else if (name.includes("resepsi")) newEventType = "Resepsi";
-                else if (name.includes("fitting")) newEventType = "Fitting";
-                else if (name.includes("lamaran")) newEventType = "Lamaran";
-                else if (name.includes("siraman")) newEventType = "Siraman";
-                else if (name.includes("rapat")) newEventType = "Rapat";
-                
-                setFormData({ ...formData, serviceId: s.id, packageId: "", eventType: newEventType });
+                setFormData({ ...formData, serviceId: s.id, packageId: "" });
               }}
-              className={`mr-3 px-4 py-3 rounded-2xl border ${formData.serviceId === s.id ? 'bg-primary-light/20 border-primary' : 'bg-surface border-divider'}`}
+              style={{ width: '31.5%', marginBottom: 10 }}
+              className={`p-3 rounded-2xl border ${formData.serviceId === s.id ? 'bg-primary-light/20 border-primary' : 'bg-surface border-divider'}`}
             >
-              <Text className="font-bold text-text-primary">{s.name}</Text>
-              <Text className="text-xs text-text-hint">Rp {(s.basePrice || 0).toLocaleString()}</Text>
+              <Text className={`font-bold text-[11px] mb-1 ${formData.serviceId === s.id ? 'text-primary' : 'text-text-primary'}`} numberOfLines={1}>
+                {s.name}
+              </Text>
+              <Text className={`text-[9px] ${formData.serviceId === s.id ? 'text-primary/70' : 'text-text-hint'}`}>
+                Rp {(s.basePrice || 0).toLocaleString()}
+              </Text>
             </TouchableOpacity>
           ))}
           {(packages || []).map((p: any) => (
@@ -498,24 +501,20 @@ export default function NewBooking() {
               key={p.id} 
               onPress={() => {
                 setBasePricePerPerson(p.totalPrice || 0);
-                const name = p.name.toLowerCase();
-                let newEventType = formData.eventType;
-                if (name.includes("akad")) newEventType = "Akad";
-                else if (name.includes("resepsi")) newEventType = "Resepsi";
-                else if (name.includes("fitting")) newEventType = "Fitting";
-                else if (name.includes("lamaran")) newEventType = "Lamaran";
-                else if (name.includes("siraman")) newEventType = "Siraman";
-                else if (name.includes("rapat")) newEventType = "Rapat";
-
-                setFormData({ ...formData, packageId: p.id, serviceId: "", eventType: newEventType });
+                setFormData({ ...formData, packageId: p.id, serviceId: "" });
               }}
-              className={`mr-3 px-4 py-3 rounded-2xl border ${formData.packageId === p.id ? 'bg-primary-light/20 border-primary' : 'bg-surface border-divider'}`}
+              style={{ width: '31.5%', marginBottom: 10 }}
+              className={`p-3 rounded-2xl border ${formData.packageId === p.id ? 'bg-primary-light/20 border-primary' : 'bg-surface border-divider'}`}
             >
-              <Text className="font-bold text-text-primary">{p.name}</Text>
-              <Text className="text-xs text-text-hint">Rp {(p.totalPrice || 0).toLocaleString()}</Text>
+              <Text className={`font-bold text-[11px] mb-1 ${formData.packageId === p.id ? 'text-primary' : 'text-text-primary'}`} numberOfLines={1}>
+                {p.name}
+              </Text>
+              <Text className={`text-[9px] ${formData.packageId === p.id ? 'text-primary/70' : 'text-text-hint'}`}>
+                Rp {(p.totalPrice || 0).toLocaleString()}
+              </Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </View>
 
         {/* Lokasi */}
         <Text className="text-text-hint font-bold uppercase text-xs mb-3">Lokasi Acara</Text>

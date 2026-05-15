@@ -13,6 +13,7 @@ import { ChevronLeft, Share2, Download, Printer, Scissors } from "lucide-react-n
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { formatCurrency } from "@/lib/utils/currency";
+import { PremiumGate } from "@/components/ui/PremiumGate";
 
 export default function InvoiceScreen() {
   const { id } = useLocalSearchParams();
@@ -256,23 +257,25 @@ Terima kasih!
           </View>
         </Card>
 
-        <View className="flex-row gap-4 mt-8 mb-10">
-           <Button 
-             variant="outline" 
-             label="Unduh PDF" 
-             leftIcon={<Download size={18} color="#B76E79" />}
-             className="flex-1 h-14 rounded-2xl border-primary"
-             onPress={handleDownloadPDF}
-             loading={isGenerating}
-           />
-           <Button 
-             variant="primary" 
-             label="Kirim WA" 
-             leftIcon={<Share2 size={18} color="white" />}
-             className="flex-1 h-14 rounded-2xl"
-             onPress={handleShare}
-           />
-        </View>
+        <PremiumGate featureName="Cetak & Kirim PDF">
+          <View className="flex-row gap-4 mt-8 mb-10">
+             <Button 
+               variant="outline" 
+               label="Unduh PDF" 
+               leftIcon={<Download size={18} color="#B76E79" />}
+               className="flex-1 h-14 rounded-2xl border-primary"
+               onPress={handleDownloadPDF}
+               loading={isGenerating}
+             />
+             <Button 
+               variant="primary" 
+               label="Kirim WA" 
+               leftIcon={<Share2 size={18} color="white" />}
+               className="flex-1 h-14 rounded-2xl"
+               onPress={handleShare}
+             />
+          </View>
+        </PremiumGate>
       </ScrollView>
     </View>
   );
