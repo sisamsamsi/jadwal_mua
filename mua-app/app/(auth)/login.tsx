@@ -27,8 +27,6 @@ export default function Login() {
   const handleOAuth = async (provider: 'google') => {
     setOauthLoading(provider);
     try {
-      // Selalu gunakan skema aplikasi agar kembali ke app, bukan ke browser localhost
-      // Pastikan 'mua-app://login' sudah didaftarkan di Supabase Dashboard -> Auth -> URL Configuration
       const redirectUrl = 'mua-app://login';
       
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -43,9 +41,20 @@ export default function Login() {
 
       if (data?.url) {
         const res = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+        
         if (res.type === 'success' && res.url) {
-          // The session will be automatically picked up by Supabase onAuthStateChange
-          // if the redirect URL is correctly configured.
+          // Ekstrak access_token dan refresh_token dari URL
+          const parsedUrl = new URL(res.url.replace('#', '?'));
+          const accessToken = parsedUrl.searchParams.get('access_token');
+          const refreshToken = parsedUrl.searchParams.get('refresh_token');
+
+          if (accessToken && refreshToken) {
+            const { error: sessionError } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+            if (sessionError) throw sessionError;
+          }
         }
       }
     } catch (e: any) {
@@ -167,7 +176,7 @@ export default function Login() {
                 className={`flex-row items-center justify-center bg-surface border border-divider h-14 rounded-2xl shadow-sm ${oauthLoading === 'google' ? 'opacity-70' : 'opacity-100'}`}
               >
                 <Image 
-                  source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1024px-Google_%22G%22_logo.svg.png' }}
+                  source={require("@/assets/images/google-logo.png")}
                   style={{ width: 24, height: 24, marginRight: 12 }}
                 />
                 <Text className="text-text-primary font-semibold text-base">
