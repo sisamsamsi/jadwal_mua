@@ -32,6 +32,8 @@ import migrations from "../drizzle/migrations";
 import { db } from "@/lib/db/client";
 import { Platform } from "react-native";
 
+import { registerForPushNotificationsAsync } from "@/lib/utils/notifications";
+
 const queryClient = new QueryClient();
 
 export default function RootLayout() {
@@ -118,6 +120,19 @@ export default function RootLayout() {
               await profileRepository.update(session.user.id, {
                 subscriptionStatus: "trial",
                 trialEndsAt: trialEnd.toISOString(),
+              });
+            }
+
+            // PUSH NOTIFICATION REGISTRATION
+            // Daftarkan push token jika belum ada atau berbeda
+            if (Platform.OS !== 'web') {
+              registerForPushNotificationsAsync().then((token) => {
+                if (token && token !== profile.fcmToken) {
+                  console.log("Updating push token:", token);
+                  profileRepository.update(session.user.id, {
+                    fcmToken: token
+                  });
+                }
               });
             }
           }

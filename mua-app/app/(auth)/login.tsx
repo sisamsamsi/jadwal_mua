@@ -9,6 +9,11 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react-native";
 import { showAlert } from "@/lib/utils/alert";
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
+import { supabase } from '@/lib/supabase/client';
+
+WebBrowser.maybeCompleteAuthSession();
 
 
 export default function Login() {
@@ -20,10 +25,39 @@ export default function Login() {
   const [oauthLoading, setOauthLoading] = React.useState<string | null>(null);
 
   const handleOAuth = async (provider: 'google' | 'facebook') => {
-    showAlert(
-      "Fitur Segera Hadir",
-      `Login via ${provider === 'google' ? 'Google' : 'Facebook'} sedang dalam tahap konfigurasi keamanan. Untuk saat ini, silakan gunakan Email & Password.`
-    );
+    if (provider !== 'google') {
+      showAlert(
+        "Fitur Segera Hadir",
+        `Login via Facebook sedang dalam tahap konfigurasi. Silakan gunakan Google atau Email.`
+      );
+      return;
+    }
+
+    setOauthLoading(provider);
+    try {
+      const redirectUrl = Linking.createURL('/login');
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: true,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        const res = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+        if (res.type === 'success' && res.url) {
+          // The session will be automatically picked up by Supabase onAuthStateChange
+          // if the redirect URL is correctly configured.
+        }
+      }
+    } catch (e: any) {
+      showAlert("Login Gagal", e.message ?? String(e));
+    } finally {
+      setOauthLoading(null);
+    }
   };
 
 
@@ -134,13 +168,14 @@ export default function Login() {
               {/* Google */}
               <TouchableOpacity 
                 onPress={() => handleOAuth('google')}
-                className="flex-row items-center justify-center bg-surface border border-divider h-14 rounded-2xl shadow-sm opacity-60"
+                disabled={oauthLoading !== null}
+                className={`flex-row items-center justify-center bg-surface border border-divider h-14 rounded-2xl shadow-sm ${oauthLoading === 'google' ? 'opacity-100' : 'opacity-100'}`}
               >
                 <View className="w-7 h-7 rounded-full items-center justify-center mr-3" style={{ backgroundColor: '#EA4335' }}>
                   <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 13 }}>G</Text>
                 </View>
                 <Text className="text-text-primary font-semibold text-base">
-                  Google (Coming Soon)
+                  {oauthLoading === 'google' ? 'Menghubungkan...' : 'Masuk dengan Google'}
                 </Text>
               </TouchableOpacity>
 
