@@ -4,7 +4,7 @@ import { db } from "../db/client";
 import { bookings, clients, services } from "../db/schema";
 import { bookingsService } from "../supabase/bookings";
 import { eq, and, not, asc } from "drizzle-orm";
-import { scheduleBookingReminder } from "../utils/notifications";
+import { scheduleBookingReminder, cancelNotificationByBookingId } from "../utils/notifications";
 
 export const bookingRepository = {
   async getAll() {
@@ -161,6 +161,13 @@ export const bookingRepository = {
   },
 
   async delete(id: string) {
+    // Cancel notifikasi lokal jika ada
+    try {
+      await cancelNotificationByBookingId(id);
+    } catch (e) {
+      console.warn("Gagal membatalkan notifikasi:", e);
+    }
+
     // 1. Hapus dari SQLite Lokal
     await db.delete(bookings).where(eq(bookings.id, id));
 

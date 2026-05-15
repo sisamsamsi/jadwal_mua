@@ -24,6 +24,7 @@ import { useRouter, useSegments, useRootNavigationState } from "expo-router";
 import { CustomAlert } from "@/components/ui/CustomAlert";
 import * as Updates from "expo-updates";
 import { Alert } from "react-native";
+import * as Linking from "expo-linking";
 import { profileRepository } from "@/lib/repositories/profile-repository";
 
 
@@ -60,6 +61,24 @@ export default function RootLayout() {
 
   const [isHydrated, setIsHydrated] = useState(false);
 
+  // Deep Link Handling for Password Reset
+  useEffect(() => {
+    const handleDeepLink = (url: string | null) => {
+      if (url?.includes('reset-password') || url?.includes('type=recovery')) {
+        router.replace('/(auth)/reset-password');
+      }
+    };
+    
+    Linking.getInitialURL().then(handleDeepLink);
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      handleDeepLink(url);
+    });
+    
+    return () => {
+      subscription.remove();
+    };
+  }, [router]);
+
   useEffect(() => {
     // Check hydration status to avoid reading false defaults
     const unsubHydrate = useSettingsStore.persist.onFinishHydration(() => setIsHydrated(true));
@@ -74,7 +93,7 @@ export default function RootLayout() {
     const isNavigationReady = !!navigationState?.key;
     
     if (!isNavigationReady || isLoading || !isHydrated) {
-      console.log("RootLayout: Waiting for...", { 
+      if (__DEV__) console.log("RootLayout: Waiting for...", { 
         nav: isNavigationReady, 
         auth: !isLoading, 
         settings: isHydrated 
@@ -128,7 +147,7 @@ export default function RootLayout() {
             if (Platform.OS !== 'web') {
               registerForPushNotificationsAsync().then((token) => {
                 if (token && token !== profile.fcmToken) {
-                  console.log("Updating push token:", token);
+                  if (__DEV__) console.log("Updating push token:", token);
                   profileRepository.update(session.user.id, {
                     fcmToken: token
                   });
@@ -189,17 +208,26 @@ export default function RootLayout() {
       setLoading(false);
     }, 3000);
 
-    console.log("RootLayout: Fetching session...");
+    if (__DEV__) console.log("RootLayout: Fetching session...");
+    
+    // FIX: Start sync repository listener
+    const { syncRepository } = require("@/lib/repositories/sync-repository");
+    const unsubscribeSync = syncRepository.startConnectivityListener();
+
     supabase.auth.getSession()
       .then(({ data }) => {
-        console.log("RootLayout: Session fetched", !!data.session);
+        if (__DEV__) console.log("RootLayout: Session fetched", !!data.session);
         setSession(data.session ?? null);
         setLoading(false);
         clearTimeout(safetyTimeout);
         
+        if (data.session) {
+          syncRepository.fullSync();
+        }
+
         // Keep-alive ping: Melakukan query ringan agar Supabase tetap aktif
         supabase.from("profiles").select("id").limit(1).then(() => {
-          console.log("Keep-alive: Heartbeat sent to Supabase");
+          if (__DEV__) console.log("Keep-alive: Heartbeat sent to Supabase");
         });
       })
       .catch((err) => {
@@ -210,22 +238,12 @@ export default function RootLayout() {
 
     const { data: subscription } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        console.log("RootLayout: Auth state changed", !!session);
+        if (__DEV__) console.log("RootLayout: Auth state changed", !!session);
         setSession(session ?? null);
         setLoading(false);
         clearTimeout(safetyTimeout);
       },
     );
-
-    // FIX: Start sync repository listener
-    const { syncRepository } = require("@/lib/repositories/sync-repository");
-    const unsubscribeSync = syncRepository.startConnectivityListener();
-    // Trigger initial full sync if logged in
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        syncRepository.fullSync();
-      }
-    });
 
     return () => {
       subscription?.subscription?.unsubscribe?.();

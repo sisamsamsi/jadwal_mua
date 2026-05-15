@@ -16,7 +16,7 @@ export default function SubscriptionScreen() {
 
   const handleContactAdmin = () => {
     // GANTI NOMOR WA ADMIN DI SINI
-    const adminWA = "628123456789"; 
+    const adminWA = "628884000585"; 
     const message = `Halo Admin Fixatif, saya ingin memperpanjang langganan MUA saya. Akun: ${user?.email || profile?.fullName}`;
     Linking.openURL(`https://wa.me/${adminWA}?text=${encodeURIComponent(message)}`);
   };

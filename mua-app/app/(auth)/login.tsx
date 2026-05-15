@@ -35,7 +35,9 @@ export default function Login() {
 
     setOauthLoading(provider);
     try {
-      const redirectUrl = Linking.createURL('/login');
+      const redirectUrl = __DEV__
+        ? Linking.createURL('/login')
+        : 'mua-app://login';
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {

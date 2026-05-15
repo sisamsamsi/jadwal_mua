@@ -6,15 +6,15 @@ import { ChevronLeft, CheckCircle2, Crown, MessageCircle, Calendar, Phone } from
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { useProfile } from "@/lib/hooks/use-profile";
 
 export default function SubscriptionScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const { data: profile } = useProfile();
   
-  // Mock data for now as per BLUEPRINT point 3.A
-  // In real implementation, these would come from profiles table in Supabase
-  const subscriptionStatus = user?.user_metadata?.subscription_status || "trial";
-  const trialEndsAt = user?.user_metadata?.trial_ends_at || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const subscriptionStatus = profile?.subscriptionStatus ?? "trial";
+  const trialEndsAt = profile?.trialEndsAt || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
   
   const daysLeft = Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 

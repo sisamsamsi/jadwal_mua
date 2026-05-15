@@ -10,16 +10,6 @@ export const authService = {
     return data;
   },
 
-  async signInWithOAuth(provider: 'google' | 'facebook') {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: 'mua-app://login', // Adjust deep link as needed
-      },
-    });
-    if (error) throw error;
-    return data;
-  },
 
   async signUp(email: string, password: string, fullName?: string) {
     const { data, error } = await supabase.auth.signUp({

@@ -70,6 +70,15 @@ export async function scheduleBookingReminder(
   return identifier;
 }
 
+export async function cancelNotificationByBookingId(bookingId: string) {
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  for (const notif of scheduled) {
+    if (notif.content.data?.bookingId === bookingId) {
+      await Notifications.cancelScheduledNotificationAsync(notif.identifier);
+    }
+  }
+}
+
 export async function cancelNotification(id: string) {
   await Notifications.cancelScheduledNotificationAsync(id);
 }
