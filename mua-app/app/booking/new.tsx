@@ -14,6 +14,7 @@ import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { Modal } from "react-native";
 import { showAlert } from "@/lib/utils/alert";
 import { aiService } from "@/lib/services/ai-service";
+import { useSubscription } from "@/lib/hooks/use-subscription";
 
 
 export default function NewBooking() {
@@ -22,6 +23,7 @@ export default function NewBooking() {
   const userId = session?.user?.id ?? "";
 
   const createBooking = useCreateBooking();
+  const { isPremium } = useSubscription();
   const createClientMutation = useCreateClient();
   const createServiceMutation = useCreateService();
   
@@ -207,7 +209,7 @@ export default function NewBooking() {
     const newStart = toMinutes(start);
     const newEnd = toMinutes(end);
 
-    return allBookings.find(b => {
+    return allBookings.find((b: any) => {
       if (b.bookingDate !== date || b.status === 'cancelled') return false;
       const bStart = toMinutes(b.startTime);
       const bEnd = toMinutes(b.endTime);
@@ -302,8 +304,21 @@ export default function NewBooking() {
         );
       }
 
-    } catch (error) {
-      showAlert("Error", "Gagal menyimpan jadwal");
+    } catch (error: any) {
+      // Cek apakah error adalah trial limit
+      if (error?.message?.startsWith('TRIAL_LIMIT_REACHED:')) {
+        const msg = error.message.replace('TRIAL_LIMIT_REACHED:', '');
+        showAlert(
+          '🔒 Batas Trial Tercapai',
+          msg,
+          [
+            { text: 'Nanti', style: 'cancel' },
+            { text: 'Upgrade Premium', onPress: () => router.push('/settings/subscription' as any) }
+          ]
+        );
+      } else {
+        showAlert('Error', 'Gagal menyimpan jadwal');
+      }
     }
 
   };
@@ -318,11 +333,25 @@ export default function NewBooking() {
           {formData.numPersons > 1 ? "Booking Rombongan" : "Booking Jadwal"}
         </Text>
         <TouchableOpacity 
-          onPress={() => setAiModalVisible(true)}
+          onPress={() => {
+            if (!isPremium) {
+              showAlert(
+                '🔒 Fitur Premium',
+                'AI Asisten hanya tersedia untuk pengguna Premium. Upgrade sekarang untuk menggunakannya!',
+                [
+                  { text: 'Nanti', style: 'cancel' },
+                  { text: 'Upgrade Premium', onPress: () => router.push('/settings/subscription' as any) }
+                ]
+              );
+              return;
+            }
+            setAiModalVisible(true);
+          }}
           className="ml-auto bg-primary/10 px-3 py-2 rounded-full flex-row items-center"
         >
           <Sparkles size={16} color="#B76E79" className="mr-1" />
           <Text className="text-primary text-xs font-bold">Asisten AI</Text>
+          {!isPremium && <Text className="text-primary text-xs ml-1">🔒</Text>}
         </TouchableOpacity>
       </View>
 

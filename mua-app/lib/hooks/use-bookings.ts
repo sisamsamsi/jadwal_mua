@@ -51,13 +51,36 @@ export function useCreateBooking() {
   const user = useAuthStore((s: any) => s.session?.user);
 
   return useMutation({
-    mutationFn: (payload: any) => bookingRepository.create(user?.id ?? "", payload),
+    mutationFn: async (payload: any) => {
+      if (!user?.id) throw new Error("User tidak ditemukan");
+
+      // CEK TRIAL LIMIT: Ambil profil dan hitung total booking lokal
+      const { profileRepository } = require("../repositories/profile-repository");
+      const profile = await profileRepository.getById(user.id);
+
+      const isTrial = profile?.subscriptionStatus === "trial";
+      const trialEndsAt = profile?.trialEndsAt ? new Date(profile.trialEndsAt) : null;
+      const isActiveTrial = isTrial && trialEndsAt && trialEndsAt > new Date();
+
+      if (isActiveTrial) {
+        const allBookings = await bookingRepository.getAll();
+        const TRIAL_BOOKING_LIMIT = 10;
+        if (allBookings.length >= TRIAL_BOOKING_LIMIT) {
+          throw new Error(
+            `TRIAL_LIMIT_REACHED:Batas trial tercapai. Akun trial hanya dapat membuat maksimal ${TRIAL_BOOKING_LIMIT} booking. Upgrade ke Premium untuk booking tanpa batas!`
+          );
+        }
+      }
+
+      return bookingRepository.create(user.id, payload);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: bookingKeys.all });
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
     },
   });
 }
+
 
 export function useUpdateBooking() {
   const qc = useQueryClient();
