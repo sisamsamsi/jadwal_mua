@@ -1,6 +1,6 @@
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
-import { Platform } from "react-native";
+import { Platform, Alert } from "react-native";
 import Constants from "expo-constants";
 
 export async function registerForPushNotificationsAsync() {
@@ -18,7 +18,10 @@ export async function registerForPushNotificationsAsync() {
   }
 
   if (finalStatus !== "granted") {
-    console.log("Failed to get push token for push notification!");
+    Alert.alert(
+      "Izin Notifikasi Ditolak",
+      "Anda tidak akan menerima pengingat jadwal via notifikasi. Anda bisa mengaktifkannya di pengaturan perangkat."
+    );
     return null;
   }
 

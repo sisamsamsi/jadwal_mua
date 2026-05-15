@@ -14,7 +14,9 @@ export default function SubscriptionScreen() {
   const { data: profile } = useProfile();
   
   const subscriptionStatus = profile?.subscriptionStatus ?? "trial";
-  const trialEndsAt = profile?.trialEndsAt || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const isTrial = subscriptionStatus === "trial";
+  const expiryDate = isTrial ? profile?.trialEndsAt : profile?.subscriptionEndsAt;
+  const trialEndsAt = expiryDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
   
   const daysLeft = Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 
@@ -61,9 +63,9 @@ export default function SubscriptionScreen() {
           <View className="flex-row items-center bg-white/60 p-3 rounded-xl border border-divider">
             <Calendar size={16} color="#757575" className="mr-2" />
             <Text className="text-text-secondary text-xs">
-              {subscriptionStatus === 'trial' 
+              {isTrial 
                 ? `Masa trial berakhir dalam ${daysLeft > 0 ? daysLeft : 0} hari lagi.` 
-                : "Langganan Anda aktif hingga bulan depan."}
+                : `Langganan Premium aktif hingga ${new Date(trialEndsAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`}
             </Text>
           </View>
         </Card>
@@ -113,7 +115,7 @@ export default function SubscriptionScreen() {
           </View>
           <TouchableOpacity 
             className="bg-white p-3 rounded-full shadow-sm border border-divider"
-            onPress={() => Linking.openURL('https://wa.me/628XXXXXXXXXX')}
+            onPress={() => Linking.openURL('https://wa.me/628884000585')}
           >
             <Phone size={20} color="#B76E79" />
           </TouchableOpacity>

@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, Image } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, Image, ActivityIndicator } from "react-native";
 import { useForm, Controller } from "react-hook-form";
 import { authService } from "@/lib/supabase/auth";
 import { useAuthStore } from "@/lib/stores/auth-store";
@@ -27,7 +27,8 @@ export default function Login() {
   const handleOAuth = async (provider: 'google') => {
     setOauthLoading(provider);
     try {
-      const redirectUrl = 'mua-app://login';
+      const redirectUrl = Linking.createURL('login');
+      if (__DEV__) console.log("OAuth Redirect URL:", redirectUrl);
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -43,10 +44,15 @@ export default function Login() {
         const res = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
         
         if (res.type === 'success' && res.url) {
-          // Ekstrak access_token dan refresh_token dari URL
-          const parsedUrl = new URL(res.url.replace('#', '?'));
-          const accessToken = parsedUrl.searchParams.get('access_token');
-          const refreshToken = parsedUrl.searchParams.get('refresh_token');
+          // Parse access_token from hash fragment (#) or query string (?)
+          const hashIndex = res.url.indexOf('#');
+          const tokenString = hashIndex >= 0 
+            ? res.url.slice(hashIndex + 1) 
+            : res.url.split('?')[1] ?? '';
+            
+          const params = new URLSearchParams(tokenString);
+          const accessToken = params.get('access_token');
+          const refreshToken = params.get('refresh_token');
 
           if (accessToken && refreshToken) {
             const { error: sessionError } = await supabase.auth.setSession({
@@ -179,6 +185,9 @@ export default function Login() {
                   source={require("@/assets/images/google-logo.png")}
                   style={{ width: 24, height: 24, marginRight: 12 }}
                 />
+                {oauthLoading === 'google' ? (
+                  <ActivityIndicator color="#4B5563" className="mr-2" />
+                ) : null}
                 <Text className="text-text-primary font-semibold text-base">
                   {oauthLoading === 'google' ? 'Menghubungkan...' : 'Masuk dengan Google'}
                 </Text>

@@ -11,7 +11,7 @@ if (typeof global.crypto.randomUUID !== 'function') {
     });
   } as any;
 }
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { View, Text, ActivityIndicator } from "react-native";
 import { Stack } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -62,12 +62,42 @@ export default function RootLayout() {
   const navigationState = useRootNavigationState();
 
   const [isHydrated, setIsHydrated] = useState(false);
+  const realtimeChannelRef = useRef<any>(null);
 
-  // Deep Link Handling for Password Reset
+  // Deep Link Handling for Password Reset & OAuth
   useEffect(() => {
     const handleDeepLink = (url: string | null) => {
-      if (url?.includes('reset-password') || url?.includes('type=recovery')) {
+      if (!url) return;
+
+      // Handle password reset
+      if (url.includes('reset-password') || url.includes('type=recovery')) {
         router.replace('/(auth)/reset-password');
+        return;
+      }
+
+      // Handle OAuth callback (Google SSO)
+      if (url.includes('access_token')) {
+        try {
+          // Parse access_token from hash fragment (#) or query string (?)
+          const hashIndex = url.indexOf('#');
+          const tokenString = hashIndex >= 0 
+            ? url.slice(hashIndex + 1) 
+            : url.split('?')[1] ?? '';
+            
+          const params = new URLSearchParams(tokenString);
+          const accessToken = params.get('access_token');
+          const refreshToken = params.get('refresh_token');
+
+          if (accessToken && refreshToken) {
+            supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+            // onAuthStateChange will fire and trigger navigation to home
+          }
+        } catch (e) {
+          console.error('OAuth deep link parse error:', e);
+        }
       }
     };
     
@@ -246,7 +276,6 @@ export default function RootLayout() {
         clearTimeout(safetyTimeout);
       });
 
-    let realtimeChannel: any = null;
 
     const { data: subscription } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -258,7 +287,9 @@ export default function RootLayout() {
         // REALTIME BOOKING LISTENER: dengarkan booking baru dari web link
         if (session?.user?.id) {
           // Hapus channel lama jika ada untuk mencegah duplikasi
-          if (realtimeChannel) supabase.removeChannel(realtimeChannel);
+          if (realtimeChannelRef.current) {
+            supabase.removeChannel(realtimeChannelRef.current);
+          }
 
           const userId = session.user.id;
           const channel = supabase.channel('public-bookings-listener');
@@ -296,11 +327,11 @@ export default function RootLayout() {
           );
           
           channel.subscribe();
-          realtimeChannel = channel;
+          realtimeChannelRef.current = channel;
         } else {
-          if (realtimeChannel) {
-            supabase.removeChannel(realtimeChannel);
-            realtimeChannel = null;
+          if (realtimeChannelRef.current) {
+            supabase.removeChannel(realtimeChannelRef.current);
+            realtimeChannelRef.current = null;
           }
         }
       },
@@ -308,7 +339,9 @@ export default function RootLayout() {
 
     return () => {
       subscription?.subscription?.unsubscribe?.();
-      if (realtimeChannel) supabase.removeChannel(realtimeChannel);
+      if (realtimeChannelRef.current) {
+        supabase.removeChannel(realtimeChannelRef.current);
+      }
       unsubscribeSync();
       clearTimeout(safetyTimeout);
     };

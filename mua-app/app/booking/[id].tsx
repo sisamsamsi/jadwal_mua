@@ -13,9 +13,12 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
-import { ChevronLeft, Calendar as CalendarIcon, Clock, MapPin, User, FileText, MessageSquare, Trash2, RotateCcw, Share2, Users, Plus, Edit2, CheckCircle2, Tag, AlertCircle } from "lucide-react-native";
+import { Sparkles, ChevronLeft, Calendar as CalendarIcon, Clock, MapPin, User, FileText, MessageSquare, Trash2, RotateCcw, Share2, Users, Plus, Edit2, CheckCircle2, Tag, AlertCircle, Copy } from "lucide-react-native";
 import { showAlert } from "@/lib/utils/alert";
 import { formatCurrency } from "@/lib/utils/currency";
+import { aiService } from "@/lib/services/ai-service";
+import { useSubscription } from "@/lib/hooks/use-subscription";
+import * as Clipboard from "expo-clipboard";
 
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 
@@ -33,6 +36,7 @@ export default function BookingDetail() {
   const createMemberMutation = useCreateBridalPartyMember();
   const updateMemberMutation = useUpdateBridalPartyMember();
   const deleteMemberMutation = useDeleteBridalPartyMember();
+  const { isPremium } = useSubscription();
 
   const { data: allBookings = [] } = useBookings();
   const { data: booking, isLoading: loadingBooking } = useBooking(id as string);
@@ -66,6 +70,12 @@ export default function BookingDetail() {
     makeupRequest: "",
     notes: ""
   });
+  
+  // AI States
+  const [aiModalVisible, setAiModalVisible] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState("");
+  const [aiTask, setAiTask] = useState<'caption' | 'whatsapp' | 'summary'>('whatsapp');
 
   const handleSaveMember = async () => {
     if (!memberForm.name) return;
@@ -210,6 +220,38 @@ export default function BookingDetail() {
 
   };
 
+  const handleAiGenerate = async (task: 'caption' | 'whatsapp' | 'summary') => {
+    if (!isPremium) {
+      showAlert("Fitur Premium", "Asisten AI hanya tersedia untuk member Premium.");
+      return;
+    }
+    setAiTask(task);
+    setAiLoading(true);
+    setAiResult("");
+    try {
+      const context = {
+        clientName: booking.clientName || client?.name,
+        serviceName: booking.serviceName || booking.eventType,
+        date: booking.bookingDate,
+        time: booking.startTime,
+        location: booking.locationName,
+        notes: booking.notes,
+        totalPrice: booking.totalPrice
+      };
+      const content = await aiService.generateContent(task, context);
+      setAiResult(content);
+    } catch (error) {
+      showAlert("Gagal", "Asisten AI sedang sibuk. Coba lagi nanti.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const copyToClipboard = async (text: string) => {
+    await Clipboard.setStringAsync(text);
+    showAlert("Sukses", "Teks berhasil disalin!");
+  };
+
   const handleDelete = () => {
     showAlert("Hapus Jadwal", "Yakin ingin menghapus jadwal ini?", [
       { text: "Batal", style: "cancel" },
@@ -313,6 +355,12 @@ export default function BookingDetail() {
             <Text className="text-xl font-bold text-text-primary">Detail Booking</Text>
           </View>
           <View className="flex-row items-center">
+            <TouchableOpacity 
+              onPress={() => setAiModalVisible(true)} 
+              className="mr-3 bg-primary/10 p-2 rounded-full"
+            >
+              <Sparkles size={20} color="#B76E79" />
+            </TouchableOpacity>
             <TouchableOpacity onPress={handleDelete} className="mr-4 p-2">
               <Trash2 size={22} color="#F44336" />
             </TouchableOpacity>
@@ -661,6 +709,76 @@ export default function BookingDetail() {
                </ScrollView>
             </View>
           </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      {/* AI ASSISTANT MODAL */}
+      <Modal visible={aiModalVisible} animationType="slide" transparent>
+        <View className="flex-1 justify-end bg-black/50">
+          <View className="bg-surface p-6 rounded-t-3xl h-[70%]">
+            <View className="flex-row justify-between items-center mb-6">
+              <View className="flex-row items-center">
+                <Sparkles size={24} color="#B76E79" className="mr-2" />
+                <Text className="text-xl font-bold">Fixatif AI Assistant</Text>
+              </View>
+              <TouchableOpacity onPress={() => setAiModalVisible(false)} className="p-2">
+                <Text className="text-primary font-bold">Tutup</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text className="text-text-hint font-bold uppercase text-[10px] mb-4">Pilih Tugas AI</Text>
+            <View className="flex-row gap-3 mb-6">
+              <TouchableOpacity 
+                onPress={() => handleAiGenerate('whatsapp')}
+                className={`flex-1 p-4 rounded-2xl border items-center ${aiTask === 'whatsapp' ? 'bg-primary/5 border-primary' : 'bg-surface border-divider'}`}
+              >
+                <MessageSquare size={20} color={aiTask === 'whatsapp' ? "#B76E79" : "#757575"} />
+                <Text className={`text-[10px] mt-2 font-bold ${aiTask === 'whatsapp' ? 'text-primary' : 'text-text-secondary'}`}>Draf WA</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                onPress={() => handleAiGenerate('caption')}
+                className={`flex-1 p-4 rounded-2xl border items-center ${aiTask === 'caption' ? 'bg-primary/5 border-primary' : 'bg-surface border-divider'}`}
+              >
+                <Tag size={20} color={aiTask === 'caption' ? "#B76E79" : "#757575"} />
+                <Text className={`text-[10px] mt-2 font-bold ${aiTask === 'caption' ? 'text-primary' : 'text-text-secondary'}`}>IG Caption</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                onPress={() => handleAiGenerate('summary')}
+                className={`flex-1 p-4 rounded-2xl border items-center ${aiTask === 'summary' ? 'bg-primary/5 border-primary' : 'bg-surface border-divider'}`}
+              >
+                <FileText size={20} color={aiTask === 'summary' ? "#B76E79" : "#757575"} />
+                <Text className={`text-[10px] mt-2 font-bold ${aiTask === 'summary' ? 'text-primary' : 'text-text-secondary'}`}>Ringkasan</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView className="bg-gray-50 rounded-2xl p-4 border border-divider mb-6">
+              {aiLoading ? (
+                <View className="py-10 items-center">
+                  <ActivityIndicator color="#B76E79" />
+                  <Text className="text-text-hint text-xs mt-2 italic">Sedang berpikir...</Text>
+                </View>
+              ) : aiResult ? (
+                <Text className="text-text-primary text-sm leading-relaxed">{aiResult}</Text>
+              ) : (
+                <View className="py-10 items-center">
+                  <Sparkles size={32} color="#E0E0E0" />
+                  <Text className="text-text-hint text-xs mt-2 text-center">Pilih salah satu tugas di atas untuk mulai.</Text>
+                </View>
+              )}
+            </ScrollView>
+
+            {aiResult && (
+              <Button 
+                variant="primary" 
+                label="Salin Teks" 
+                onPress={() => copyToClipboard(aiResult)} 
+                leftIcon={<Copy size={18} color="white" />}
+                className="h-14 rounded-2xl"
+              />
+            )}
+          </View>
         </View>
       </Modal>
     </View>
