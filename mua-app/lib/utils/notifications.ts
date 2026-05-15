@@ -58,7 +58,6 @@ export async function scheduleBookingReminder(
   body: string,
   triggerDate: Date
 ) {
-  // Notifikasi lokal sebagai backup (Opsional)
   const identifier = await Notifications.scheduleNotificationAsync({
     content: {
       title,
@@ -68,6 +67,52 @@ export async function scheduleBookingReminder(
     trigger: triggerDate as any,
   });
   return identifier;
+}
+
+// Jadwalkan notifikasi 3 hari sebelum langganan habis
+export async function scheduleSubscriptionReminder(expiryDate: Date) {
+  try {
+    // Batalkan pengingat langganan yang sudah ada agar tidak duplikat
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    for (const notif of scheduled) {
+      if (notif.content.data?.type === 'subscription_reminder') {
+        await Notifications.cancelScheduledNotificationAsync(notif.identifier);
+      }
+    }
+
+    const reminderDate = new Date(expiryDate.getTime() - 3 * 24 * 60 * 60 * 1000);
+
+    // Hanya jadwalkan jika tanggal pengingat masih di masa depan
+    if (reminderDate > new Date()) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '⚠️ Langganan Fixatif Hampir Habis',
+          body: 'Masa akses Anda akan berakhir dalam 3 hari. Segera hubungi admin untuk perpanjangan!',
+          data: { type: 'subscription_reminder' },
+        },
+        trigger: reminderDate as any,
+      });
+      if (__DEV__) console.log('Subscription reminder scheduled for:', reminderDate.toISOString());
+    }
+  } catch (e) {
+    console.warn('Failed to schedule subscription reminder:', e);
+  }
+}
+
+// Tampilkan notifikasi langsung (real-time) — hanya berfungsi saat app aktif / di background
+export async function showImmediateNotification(title: string, body: string, data?: Record<string, any>) {
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        data: data ?? {},
+      },
+      trigger: null, // null = tampilkan sekarang juga
+    });
+  } catch (e) {
+    console.warn('Failed to show immediate notification:', e);
+  }
 }
 
 export async function cancelNotificationByBookingId(bookingId: string) {

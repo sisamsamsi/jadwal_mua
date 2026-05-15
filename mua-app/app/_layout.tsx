@@ -31,9 +31,11 @@ import { profileRepository } from "@/lib/repositories/profile-repository";
 import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
 import migrations from "../drizzle/migrations";
 import { db } from "@/lib/db/client";
+import { bookings } from "@/lib/db/schema";
 import { Platform } from "react-native";
+import { eq } from "drizzle-orm";
 
-import { registerForPushNotificationsAsync } from "@/lib/utils/notifications";
+import { registerForPushNotificationsAsync, scheduleSubscriptionReminder, showImmediateNotification } from "@/lib/utils/notifications";
 
 const queryClient = new QueryClient();
 
@@ -153,6 +155,14 @@ export default function RootLayout() {
                   });
                 }
               });
+
+              // SUBSCRIPTION REMINDER: jadwalkan notif 3 hari sebelum habis
+              const expiryDate = profile.subscriptionStatus === 'trial'
+                ? profile.trialEndsAt
+                : profile.subscriptionEndsAt;
+              if (expiryDate) {
+                scheduleSubscriptionReminder(new Date(expiryDate));
+              }
             }
           }
 
@@ -245,8 +255,55 @@ export default function RootLayout() {
       },
     );
 
+    // REALTIME BOOKING LISTENER: dengarkan booking baru dari web link
+    let realtimeChannel: any = null;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) return;
+      const userId = data.session.user.id;
+
+      realtimeChannel = supabase
+        .channel('public-bookings-listener')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'bookings',
+            filter: `user_id=eq.${userId}`,
+          },
+          async (payload: any) => {
+            try {
+              // Cek apakah booking ini sudah ada di SQLite lokal
+              // Jika belum ada → booking dari Web Link publik
+              const localBooking = await db
+                .select()
+                .from(bookings)
+                .where(eq(bookings.id, payload.new.id));
+
+              if (localBooking.length === 0) {
+                // Booking baru dari Web! Tampilkan notifikasi
+                const clientName = payload.new.client_name || 'Klien Baru';
+                const bookingDate = payload.new.booking_date || '';
+                const startTime = payload.new.start_time || '';
+                await showImmediateNotification(
+                  '📅 Booking Baru Masuk!',
+                  `${clientName} baru saja booking untuk tanggal ${bookingDate} jam ${startTime}`,
+                  { type: 'new_booking', bookingId: payload.new.id }
+                );
+                // Sync agar booking muncul di dashboard
+                syncRepository.fullSync();
+              }
+            } catch (e) {
+              console.warn('Realtime booking handler error:', e);
+            }
+          }
+        )
+        .subscribe();
+    });
+
     return () => {
       subscription?.subscription?.unsubscribe?.();
+      if (realtimeChannel) supabase.removeChannel(realtimeChannel);
       unsubscribeSync();
       clearTimeout(safetyTimeout);
     };
