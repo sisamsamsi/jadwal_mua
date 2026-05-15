@@ -69,3 +69,18 @@ Berikut adalah detail teknis yang bisa dijadikan poin-poin dalam poster:
 - **Untuk MUA yang Ingin Naik Kelas:** "Tampil Lebih Profesional di Mata Klien dengan Invoice Otomatis & Link Booking."
 - **Untuk MUA Anti-Bentrok:** "Jadwal Bentrok? Itu Masa Lalu! Atur Ribuan Booking dengan Satu Aplikasi."
 - **Penawaran Harga:** "Harga Asisten Digital Seharga 2 Cup Kopi. Bisnis Rapi, Hati Tenang!"
+
+## 7. Perbandingan Fitur (Trial vs Premium)
+
+Gunakan tabel ini untuk menjelaskan manfaat upgrade bagi user:
+
+| Fitur | Mode Trial (7 Hari) | Mode Premium |
+|---|:---:|:---:|
+| **Batas Booking** | Maksimal 10 Booking | **Tanpa Batas** |
+| **Manajemen Klien** | Tersedia | Tersedia |
+| **Layanan & Paket** | Tersedia | Tersedia |
+| **Web Booking Link** | 🔒 Terkunci | **Aktif (Siap Taruh di Bio)** |
+| **AI Asisten (Auto-Fill)** | 🔒 Terkunci | **Aktif (Baca Chat WA Otomatis)** |
+| **Invoice PDF & Laporan** | 🔒 Terkunci | **Aktif (Kirim via WA)** |
+| **Backup Data Cloud** | ✅ Ya | ✅ Ya |
+| **Support Prioritas** | - | ✅ WhatsApp Prioritas |
