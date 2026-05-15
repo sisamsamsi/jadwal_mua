@@ -28,7 +28,10 @@
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.RECORD_AUDIO"
-      ]
+      ],
+      "config": {
+        "abiFilters": ["armeabi-v7a", "arm64-v8a"]
+      }
     },
     "runtimeVersion": {
       "policy": "appVersion"
