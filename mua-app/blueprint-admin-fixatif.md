@@ -68,44 +68,22 @@ ADMIN_EMAILS=emailkamu@gmail.com
 
 ---
 
-## 2. Supabase Table — `subscriptions`
+## 2. Supabase Table — `profiles` (Subscription Fields)
 
-Jalankan SQL ini di **Supabase Dashboard → SQL Editor** sebelum memulai:
+Pastikan tabel `profiles` memiliki kolom berikut (sudah ada di skema mobile app):
 
 ```sql
--- Buat tabel subscriptions
-CREATE TABLE subscriptions (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
-  status TEXT DEFAULT 'trial'
-    CHECK (status IN ('trial', 'active', 'expired', 'cancelled')),
-  trial_ends_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '14 days'),
-  subscription_ends_at TIMESTAMPTZ,
-  plan TEXT DEFAULT 'monthly',
-  notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+-- Tambahkan kolom langganan jika belum ada (biasanya sudah ada dari skema awal)
+ALTER TABLE profiles 
+ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'trial',
+ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS subscription_ends_at TIMESTAMPTZ;
 
--- Otomatis buat baris subscription saat user baru daftar
-CREATE OR REPLACE FUNCTION create_subscription_on_signup()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO subscriptions (user_id, status, trial_ends_at)
-  VALUES (NEW.id, 'trial', NOW() + INTERVAL '14 days');
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- RLS — Pastikan admin (service role) bisa akses
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION create_subscription_on_signup();
-
--- RLS — hanya service role yang bisa akses (admin web)
-ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Service role full access"
-  ON subscriptions FOR ALL
+CREATE POLICY "Admin full access"
+  ON profiles FOR ALL
   USING (true)
   WITH CHECK (true);
 ```
@@ -227,19 +205,13 @@ export async function GET() {
   const { data: users, error: userError } = await supabaseAdmin.auth.admin.listUsers();
   if (userError) return NextResponse.json({ error: userError.message }, { status: 500 });
 
-  // Ambil semua subscriptions
-  const { data: subs } = await supabaseAdmin
-    .from("subscriptions")
-    .select("*");
-
-  // Ambil semua profiles (nama bisnis)
+  // Ambil semua profiles (termasuk status langganan)
   const { data: profiles } = await supabaseAdmin
     .from("profiles")
-    .select("id, business_name, full_name");
+    .select("id, full_name, business_name, subscription_status, trial_ends_at, subscription_ends_at");
 
   // Gabungkan data
   const merged = users.users.map((u) => {
-    const sub = subs?.find((s) => s.user_id === u.id);
     const profile = profiles?.find((p) => p.id === u.id);
     return {
       id: u.id,
@@ -248,11 +220,11 @@ export async function GET() {
       businessName: profile?.business_name || "-",
       createdAt: u.created_at,
       lastSignIn: u.last_sign_in_at,
-      status: sub?.status ?? "trial",
-      trialEndsAt: sub?.trial_ends_at,
-      subscriptionEndsAt: sub?.subscription_ends_at,
-      plan: sub?.plan ?? "monthly",
-      notes: sub?.notes ?? "",
+      status: profile?.subscription_status ?? "trial",
+      trialEndsAt: profile?.trial_ends_at,
+      subscriptionEndsAt: profile?.subscription_ends_at,
+      plan: "monthly", // default
+      notes: "",
     };
   });
 
@@ -282,13 +254,14 @@ export async function PATCH(
   const { status, subscriptionEndsAt, notes } = body;
 
   const updatePayload: any = { updated_at: new Date().toISOString() };
-  if (status) updatePayload.status = status;
+  if (status) updatePayload.subscription_status = status;
   if (subscriptionEndsAt) updatePayload.subscription_ends_at = subscriptionEndsAt;
-  if (notes !== undefined) updatePayload.notes = notes;
+  // if (notes !== undefined) updatePayload.notes = notes; // profiles table might not have notes
 
   const { error } = await supabaseAdmin
-    .from("subscriptions")
-    .upsert({ user_id: params.id, ...updatePayload }, { onConflict: "user_id" });
+    .from("profiles")
+    .update(updatePayload)
+    .eq("id", params.id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -433,22 +406,20 @@ import { supabaseAdmin } from "@/lib/supabase";
 import UserTable from "@/components/UserTable";
 
 async function getStats() {
-  const { data: subs } = await supabaseAdmin.from("subscriptions").select("status");
-  const total = subs?.length ?? 0;
-  const active = subs?.filter((s) => s.status === "active").length ?? 0;
-  const trial = subs?.filter((s) => s.status === "trial").length ?? 0;
-  const expired = subs?.filter((s) => s.status === "expired").length ?? 0;
+  const { data: profiles } = await supabaseAdmin.from("profiles").select("subscription_status");
+  const total = profiles?.length ?? 0;
+  const active = profiles?.filter((s) => s.subscription_status === "active").length ?? 0;
+  const trial = profiles?.filter((s) => s.subscription_status === "trial").length ?? 0;
+  const expired = profiles?.filter((s) => s.subscription_status === "expired").length ?? 0;
   return { total, active, trial, expired };
 }
 
 async function getUsers() {
   const { data: users } = await supabaseAdmin.auth.admin.listUsers();
-  const { data: subs } = await supabaseAdmin.from("subscriptions").select("*");
   const { data: profiles } = await supabaseAdmin
-    .from("profiles").select("id, business_name, full_name");
+    .from("profiles").select("*");
 
   return users?.users.map((u) => {
-    const sub = subs?.find((s) => s.user_id === u.id);
     const profile = profiles?.find((p) => p.id === u.id);
     return {
       id: u.id,
@@ -457,10 +428,10 @@ async function getUsers() {
       businessName: profile?.business_name ?? "-",
       createdAt: u.created_at,
       lastSignIn: u.last_sign_in_at ?? null,
-      status: (sub?.status ?? "trial") as string,
-      trialEndsAt: sub?.trial_ends_at ?? null,
-      subscriptionEndsAt: sub?.subscription_ends_at ?? null,
-      notes: sub?.notes ?? "",
+      status: (profile?.subscription_status ?? "trial") as string,
+      trialEndsAt: profile?.trial_ends_at ?? null,
+      subscriptionEndsAt: profile?.subscription_ends_at ?? null,
+      notes: "",
     };
   }) ?? [];
 }
@@ -740,18 +711,21 @@ openssl rand -base64 32
 Agar app Fixatif (Expo) bisa mengecek status langganan user saat login, tambahkan ini di `_layout.tsx` atau `auth-store.ts`:
 
 ```ts
-// Setelah session didapat, cek status langganan
-const { data: sub } = await supabase
-  .from("subscriptions")
-  .select("status, trial_ends_at, subscription_ends_at")
-  .eq("user_id", session.user.id)
+// Di RootLayout.tsx atau melalui syncRepository.fullSync()
+// Data akan otomatis tersinkronisasi ke SQLite lokal.
+
+// Contoh pengecekan manual (jika diperlukan):
+const { data: profile } = await supabase
+  .from("profiles")
+  .select("subscription_status, trial_ends_at, subscription_ends_at")
+  .eq("id", session.user.id)
   .single();
 
-// Simpan ke store
-useSubscriptionStore.setState({
-  status: sub?.status ?? "trial",
-  trialEndsAt: sub?.trial_ends_at,
-  subscriptionEndsAt: sub?.subscription_ends_at,
+// Simpan ke local DB / store
+await profileRepository.update(session.user.id, {
+  subscriptionStatus: profile.subscription_status,
+  trialEndsAt: profile.trial_ends_at,
+  subscriptionEndsAt: profile.subscription_ends_at,
 });
 ```
 
