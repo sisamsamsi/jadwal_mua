@@ -12,12 +12,13 @@ if (typeof global.crypto.randomUUID !== 'function') {
   } as any;
 }
 import React, { useEffect, useState, useRef } from "react";
-import { View, Text, ActivityIndicator } from "react-native";
+import { View, Text, ActivityIndicator, AppState } from "react-native";
 import { Stack } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
 import { supabase } from "@/lib/supabase/client";
+import { profilesService } from "@/lib/supabase/profiles";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useSettingsStore } from "@/lib/stores/settings-store";
 import { useRouter, useSegments, useRootNavigationState } from "expo-router";
@@ -63,7 +64,9 @@ export default function RootLayout() {
 
   const [isHydrated, setIsHydrated] = useState(false);
   const [isSynced, setIsSynced] = useState(false);
+  const [isSyncTimedOut, setIsSyncTimedOut] = useState(false);
   const realtimeChannelRef = useRef<any>(null);
+  const appStateRef = useRef(AppState.currentState);
 
   // Deep Link Handling for Password Reset & OAuth
   useEffect(() => {
@@ -122,17 +125,9 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    // Tunggu sampai navigasi, auth, dan settings (hydration) siap
     const isNavigationReady = !!navigationState?.key;
-    
-    if (!isNavigationReady || isLoading || !isHydrated) {
-      if (__DEV__) console.log("RootLayout: Waiting for...", { 
-        nav: isNavigationReady, 
-        auth: !isLoading, 
-        settings: isHydrated 
-      });
-      return;
-    }
+
+    if (!isNavigationReady || isLoading || !isHydrated) return;
 
     const inAuthGroup = segments[0] === "(auth)";
     const inOnboarding = segments[0] === "onboarding";
@@ -141,58 +136,59 @@ export default function RootLayout() {
 
     if (isPublicBooking) return;
 
-    // Gunakan rAF atau setTimeout kecil untuk memastikan router siap
     const timeout = setTimeout(async () => {
       try {
         if (!hasSeenOnboarding) {
-          if (!inOnboarding) {
-            router.replace("/onboarding");
-          }
+          if (!inOnboarding) router.replace("/onboarding");
         } else if (!session) {
-          if (!inAuthGroup) {
-            router.replace("/login");
-          }
+          if (!inAuthGroup) router.replace("/login");
         } else {
-          // USER LOGGED IN - Check Subscription
-          const profile = await profileRepository.getById(session.user.id);
-          
-          // Logika Penentuan Status
+          // Fetch langsung dari Supabase — tidak bergantung SQLite / isSynced
           let isExpired = false;
-          if (profile) {
-            const expiryDate = profile.subscriptionStatus === "trial" 
-              ? profile.trialEndsAt 
-              : profile.subscriptionEndsAt;
-            
-            if (expiryDate) {
-              isExpired = new Date(expiryDate) < new Date();
+          try {
+            const remoteProfile = await profilesService.getById(session.user.id);
+            const status = remoteProfile?.subscription_status ?? 'trial';
+
+            if (status === 'active') {
+              isExpired = false;
+            } else if (status === 'expired' || status === 'cancelled') {
+              isExpired = true;
+            } else {
+              // trial — cek tanggal kadaluarsa
+              const trialEnd = remoteProfile?.trial_ends_at;
+              if (trialEnd) isExpired = new Date(trialEnd) < new Date();
             }
+          } catch {
+            // Offline: fallback ke SQLite
+            const localProfile = await profileRepository.getById(session.user.id);
+            const status = localProfile?.subscriptionStatus ?? 'trial';
+            if (status === 'active') {
+              isExpired = false;
+            } else if (status === 'expired' || status === 'cancelled') {
+              isExpired = true;
+            } else {
+              const trialEnd = localProfile?.trialEndsAt;
+              if (trialEnd) isExpired = new Date(trialEnd) < new Date();
+            }
+          }
 
-            // PUSH NOTIFICATION REGISTRATION
-            // Daftarkan push token jika belum ada atau berbeda
-            if (Platform.OS !== 'web') {
-              registerForPushNotificationsAsync().then((token) => {
-                if (token && token !== profile.fcmToken) {
-                  if (__DEV__) console.log("Updating push token:", token);
-                  profileRepository.update(session.user.id, {
-                    fcmToken: token
-                  });
-                }
-              });
-
-              // SUBSCRIPTION REMINDER: jadwalkan notif 3 hari sebelum habis
-              const expiryDate = profile.subscriptionStatus === 'trial'
-                ? profile.trialEndsAt
-                : profile.subscriptionEndsAt;
-              if (expiryDate) {
-                scheduleSubscriptionReminder(new Date(expiryDate));
+          // Push notification registration
+          if (Platform.OS !== 'web') {
+            const localProfile = await profileRepository.getById(session.user.id).catch(() => null);
+            registerForPushNotificationsAsync().then((token) => {
+              if (token && token !== localProfile?.fcmToken) {
+                profileRepository.update(session.user.id, { fcmToken: token });
               }
-            }
+            });
+
+            const reminderDate = localProfile?.subscriptionStatus === 'trial'
+              ? localProfile?.trialEndsAt
+              : localProfile?.subscriptionEndsAt;
+            if (reminderDate) scheduleSubscriptionReminder(new Date(reminderDate));
           }
 
           if (isExpired) {
-            if (!isSubscriptionPage) {
-              router.replace("/subscription" as any);
-            }
+            if (!isSubscriptionPage) router.replace("/subscription" as any);
           } else if (inAuthGroup || inOnboarding || isSubscriptionPage) {
             router.replace("/(tabs)/home" as any);
           }
@@ -203,7 +199,20 @@ export default function RootLayout() {
     }, 10);
 
     return () => clearTimeout(timeout);
-  }, [session, isLoading, segments, hasSeenOnboarding, navigationState?.key, isHydrated, isSynced]);
+  }, [session, isLoading, segments, hasSeenOnboarding, navigationState?.key, isHydrated]);
+
+  // AppState Listener: refresh profil setiap kali app kembali ke foreground
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextState => {
+      if (appStateRef.current.match(/inactive|background/) && nextState === 'active') {
+        if (__DEV__) console.log('AppState: App active — refreshing profile...');
+        // Invalidate semua query profil agar useProfile() re-fetch dari Supabase
+        queryClient.invalidateQueries({ queryKey: ['profile'] });
+      }
+      appStateRef.current = nextState;
+    });
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
     async function onFetchUpdateAsync() {
@@ -255,10 +264,21 @@ export default function RootLayout() {
         clearTimeout(safetyTimeout);
         
         if (data.session) {
+          // BUG FIX: Set timeout 5 detik sebagai fallback jika network lambat / offline.
+          // Ini mencegah infinite loading setelah OTA restart.
+          const syncTimeout = setTimeout(() => {
+            if (__DEV__) console.log("RootLayout: Sync timed out, proceeding with local data.");
+            setIsSyncTimedOut(true);
+          }, 5000);
+
           syncRepository.fullSync().finally(() => {
+            clearTimeout(syncTimeout);
             setIsSynced(true);
             queryClient.invalidateQueries({ queryKey: ["profile", data.session?.user.id] });
           });
+        } else {
+          // Tidak ada session, tidak perlu sync
+          setIsSynced(true);
         }
 
         // Keep-alive ping: Melakukan query ringan agar Supabase tetap aktif

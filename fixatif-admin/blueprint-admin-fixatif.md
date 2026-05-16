@@ -70,16 +70,37 @@ ADMIN_EMAILS=emailkamu@gmail.com
 
 ## 2. Supabase Table — `profiles` (Subscription Fields)
 
-Pastikan tabel `profiles` memiliki kolom berikut (sudah ada di skema mobile app):
+Pastikan tabel `profiles` memiliki kolom berikut. Jalankan SQL ini di **Supabase Dashboard → SQL Editor**:
 
 ```sql
--- Tambahkan kolom langganan jika belum ada (biasanya sudah ada dari skema awal)
+-- 1. Buat tipe ENUM untuk subscription_status
+DO $$ BEGIN
+    CREATE TYPE subscription_status_enum AS ENUM ('trial', 'active', 'expired', 'cancelled');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+-- 2. Tambahkan kolom jika belum ada
 ALTER TABLE profiles 
 ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'trial',
 ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ,
 ADD COLUMN IF NOT EXISTS subscription_ends_at TIMESTAMPTZ;
 
--- RLS — Pastikan admin (service role) bisa akses
+-- 3. Migrasi tipe kolom ke ENUM (jalankan jika kolom masih bertipe TEXT)
+ALTER TABLE profiles ALTER COLUMN subscription_status DROP DEFAULT;
+ALTER TABLE profiles 
+    ALTER COLUMN subscription_status TYPE subscription_status_enum 
+    USING subscription_status::subscription_status_enum;
+ALTER TABLE profiles ALTER COLUMN subscription_status SET DEFAULT 'trial'::subscription_status_enum;
+
+-- 4. Hapus kolom redundan (license_type, license_key, license_expires_at)
+--    jika masih ada dari skema lama
+ALTER TABLE profiles 
+    DROP COLUMN IF EXISTS license_type,
+    DROP COLUMN IF EXISTS license_expires_at,
+    DROP COLUMN IF EXISTS license_key;
+
+-- 5. RLS — Pastikan admin (service role) bisa akses
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Admin full access"
@@ -87,6 +108,15 @@ CREATE POLICY "Admin full access"
   USING (true)
   WITH CHECK (true);
 ```
+
+> **Cara update status user:** Cukup ubah langsung kolom `subscription_status` di tabel `profiles` melalui Supabase Table Editor atau SQL:
+> ```sql
+> UPDATE profiles
+> SET subscription_status = 'active',
+>     subscription_ends_at = '2027-06-01 00:00:00+00'
+> WHERE id = 'user-uuid-disini';
+> ```
+> App mobile akan otomatis membaca perubahan ini dalam **hitungan detik** berkat mekanisme fetch langsung ke Supabase.
 
 ---
 
@@ -706,60 +736,107 @@ openssl rand -base64 32
 
 ---
 
-## 5. Cek Langganan dari App Mobile
+## 5. Mekanisme Sinkronisasi Subscription di App Mobile
 
-Agar app Fixatif (Expo) bisa mengecek status langganan user saat login, tambahkan ini di `_layout.tsx` atau `auth-store.ts`:
+### Arsitektur (Saat Ini)
 
-```ts
-// Di RootLayout.tsx atau melalui syncRepository.fullSync()
-// Data akan otomatis tersinkronisasi ke SQLite lokal.
+App Fixatif (Expo) menggunakan pendekatan **fetch langsung ke Supabase** untuk data subscription — bukan membaca dari SQLite lokal. Ini memastikan perubahan yang dilakukan admin di dashboard selalu langsung terlihat di app tanpa perlu logout/login ulang.
 
-// Contoh pengecekan manual (jika diperlukan):
-const { data: profile } = await supabase
-  .from("profiles")
-  .select("subscription_status, trial_ends_at, subscription_ends_at")
-  .eq("id", session.user.id)
-  .single();
-
-// Simpan ke local DB / store
-await profileRepository.update(session.user.id, {
-  subscriptionStatus: profile.subscription_status,
-  trialEndsAt: profile.trial_ends_at,
-  subscriptionEndsAt: profile.subscription_ends_at,
-});
+```
+Admin ubah status di Supabase
+       ↓
+[profiles table di Supabase]
+       ↓ (fetch langsung)
+app/_layout.tsx → profilesService.getById()
+       ↓
+Navigation Guard: izinkan atau redirect ke /subscription
+       ↓ (juga trigger by)
+AppState listener → app masuk foreground → invalidate query
+       ↓
+useProfile() hook → fetch ulang dari Supabase → UI update
 ```
 
-Buat `lib/stores/subscription-store.ts`:
+### File-file yang Terlibat
+
+#### `lib/supabase/profiles.ts`
+Service layer untuk fetch profil dari Supabase:
 ```ts
-import { create } from "zustand";
+import { supabase } from "./client";
 
-interface SubscriptionState {
-  status: "trial" | "active" | "expired" | "cancelled";
-  trialEndsAt: string | null;
-  subscriptionEndsAt: string | null;
-  isActive: () => boolean;
-}
-
-export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
-  status: "trial",
-  trialEndsAt: null,
-  subscriptionEndsAt: null,
-  isActive: () => {
-    const { status, trialEndsAt, subscriptionEndsAt } = get();
-    if (status === "active") {
-      return subscriptionEndsAt
-        ? new Date(subscriptionEndsAt) > new Date()
-        : true;
-    }
-    if (status === "trial") {
-      return trialEndsAt
-        ? new Date(trialEndsAt) > new Date()
-        : false;
-    }
-    return false;
+export const profilesService = {
+  async getById(id: string) {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", id)
+      .single();
+    if (error) throw error;
+    return data;
   },
-}));
+};
 ```
+
+#### `lib/hooks/use-profile.ts`
+Hook yang fetch **langsung dari Supabase** (bukan SQLite):
+```ts
+export function useProfile() {
+  return useQuery({
+    queryKey: ["profile", userId],
+    queryFn: async () => {
+      try {
+        // Primary: fetch dari Supabase
+        const remoteProfile = await profilesService.getById(userId);
+        // Cache ke SQLite untuk offline
+        profileRepository.update(userId, { ...remoteProfile });
+        return remoteProfile;
+      } catch {
+        // Fallback: SQLite jika offline
+        return profileRepository.getById(userId);
+      }
+    },
+    staleTime: 1000 * 60 * 2, // re-fetch otomatis setelah 2 menit
+  });
+}
+```
+
+#### `app/_layout.tsx` — Navigation Guard
+Navigation guard fetch langsung ke Supabase:
+```ts
+// Fetch langsung — tidak bergantung SQLite
+const remoteProfile = await profilesService.getById(session.user.id);
+const status = remoteProfile?.subscription_status ?? 'trial';
+
+// Logika status:
+// 'active'    → tidak pernah expired (admin yang tentukan)
+// 'expired' / 'cancelled' → selalu redirect ke /subscription
+// 'trial'     → cek trial_ends_at
+if (status === 'active') {
+  isExpired = false;
+} else if (status === 'expired' || status === 'cancelled') {
+  isExpired = true;
+} else {
+  isExpired = new Date(remoteProfile.trial_ends_at) < new Date();
+}
+```
+
+#### `app/_layout.tsx` — AppState Listener
+Refresh otomatis saat app kembali ke foreground:
+```ts
+const appStateRef = useRef(AppState.currentState);
+
+useEffect(() => {
+  const subscription = AppState.addEventListener('change', nextState => {
+    if (appStateRef.current.match(/inactive|background/) && nextState === 'active') {
+      // App kembali ke foreground → invalidate → useProfile() re-fetch
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+    }
+    appStateRef.current = nextState;
+  });
+  return () => subscription.remove();
+}, []);
+```
+
+> **Tidak diperlukan lagi:** `subscription-store.ts` (Zustand store terpisah untuk subscription). Cukup gunakan `useProfile()` yang sudah fetch langsung dari Supabase.
 
 ---
 
@@ -825,9 +902,10 @@ Setelah login → /admin/dashboard
 
 ## Checklist Implementasi
 
+### Setup Awal Admin Panel
 - [ ] Buat project Next.js baru: `npx create-next-app@latest fixatif-admin`
 - [ ] Copy semua kode dari blueprint ini ke file yang sesuai
-- [ ] Jalankan SQL di Supabase untuk buat tabel `subscriptions`
+- [ ] Jalankan SQL di Supabase untuk setup kolom subscription di tabel `profiles` (lihat bagian 2)
 - [ ] Setup Google OAuth di Google Cloud Console
 - [ ] Isi `.env.local` dengan semua variabel yang dibutuhkan
 - [ ] Test lokal: `npm run dev` → buka `localhost:3000`
@@ -835,9 +913,63 @@ Setelah login → /admin/dashboard
 - [ ] Tambah URL redirect Google di Google Cloud Console
 - [ ] Update `NEXTAUTH_URL` di Vercel env ke URL production
 - [ ] Test login Google di production
-- [ ] Integrasikan subscription check ke app Expo (opsional)
+
+### Setup App Mobile (Sudah Terimplementasi ✅)
+- [x] `lib/supabase/profiles.ts` — service fetch profil dari Supabase
+- [x] `lib/hooks/use-profile.ts` — hook fetch langsung ke Supabase (bukan SQLite)
+- [x] `app/_layout.tsx` — navigation guard fetch langsung ke Supabase
+- [x] `app/_layout.tsx` — AppState listener untuk refresh saat app aktif kembali
+- [x] `eas.json` — channel `preview` ditambahkan untuk OTA update
+
+### Cara Update Status Langganan User (Workflow Admin)
+1. Login ke `fixatif-admin.vercel.app`
+2. Cari user di daftar user
+3. Klik tombol **Aktifkan** / **+1 Bulan** / **Nonaktifkan**
+4. Admin panel akan update kolom `subscription_status` dan `subscription_ends_at` di tabel `profiles` Supabase
+5. User cukup **minimize lalu buka kembali aplikasi** → status langsung berubah (berkat AppState listener)
 
 ---
 
 *Blueprint ini dibuat untuk Fixatif Admin Panel.*
 *Kunci jadwalmu, pastikan sempurna — Fixatif.*
+
+---
+
+## 6. Tutorial Deploy ke Vercel
+
+Ikuti langkah-langkah ini untuk mempublikasikan Panel Admin Fixatif ke internet secara aman.
+
+### Langkah 1: Persiapan GitHub
+1. Pastikan file `.gitignore` di folder `fixatif-admin` sudah berisi `.env.local` (agar kunci rahasia tidak bocor ke publik).
+2. Buat repositori baru di GitHub (disarankan **Private**).
+3. Push kode `fixatif-admin` Anda ke repositori tersebut.
+
+### Langkah 2: Deploy di Vercel
+1. Buka [Vercel Dashboard](https://vercel.com/dashboard) dan klik **Add New > Project**.
+2. Hubungkan akun GitHub Anda dan pilih repositori `fixatif-admin`.
+3. Pada bagian **Environment Variables**, masukkan semua kunci dari file `.env.local` Anda:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY` (Sangat penting!)
+   - `NEXTAUTH_SECRET`
+   - `NEXTAUTH_URL` (Ganti dengan URL Vercel Anda, misal: `https://fixatif-admin.vercel.app`)
+   - `GOOGLE_CLIENT_ID`
+   - `GOOGLE_CLIENT_SECRET`
+   - `ADMIN_EMAILS` (Pisahkan dengan koma jika lebih dari satu)
+4. Klik **Deploy**.
+
+### Langkah 3: Update Google Cloud Console (WAJIB)
+Setelah Anda mendapatkan URL resmi dari Vercel (misal: `fixatif-admin.vercel.app`), Anda harus mendaftarkannya di Google agar fitur login tidak error:
+1. Masuk ke [Google Cloud Console Credentials](https://console.cloud.google.com/apis/credentials).
+2. Edit **OAuth 2.0 Client ID** (Web application) yang Anda gunakan.
+3. Di bagian **Authorized redirect URIs**, tambahkan dua URL ini:
+   - `https://fixatif-admin.vercel.app/api/auth/callback/google`
+   - `https://fixatif-admin.vercel.app` (Opsional, untuk keamanan tambahan)
+4. Klik **Save**.
+
+### Langkah 4: Tes di Produksi
+1. Buka URL Vercel Anda.
+2. Coba login menggunakan akun Google yang terdaftar di `ADMIN_EMAILS`.
+3. Pastikan daftar user muncul (ini menandakan `service_role_key` sudah berfungsi dengan benar).
+
+---
+*Drafted: Mei 2026*
