@@ -62,6 +62,7 @@ export default function RootLayout() {
   const navigationState = useRootNavigationState();
 
   const [isHydrated, setIsHydrated] = useState(false);
+  const [isSynced, setIsSynced] = useState(false);
   const realtimeChannelRef = useRef<any>(null);
 
   // Deep Link Handling for Password Reset & OAuth
@@ -164,14 +165,6 @@ export default function RootLayout() {
             
             if (expiryDate) {
               isExpired = new Date(expiryDate) < new Date();
-            } else {
-              // Jika data langganan belum ada sama sekali (user baru), buatkan trial 7 hari
-              const trialEnd = new Date();
-              trialEnd.setDate(trialEnd.getDate() + 7);
-              await profileRepository.update(session.user.id, {
-                subscriptionStatus: "trial",
-                trialEndsAt: trialEnd.toISOString(),
-              });
             }
 
             // PUSH NOTIFICATION REGISTRATION
@@ -210,7 +203,7 @@ export default function RootLayout() {
     }, 10);
 
     return () => clearTimeout(timeout);
-  }, [session, isLoading, segments, hasSeenOnboarding, navigationState?.key, isHydrated]);
+  }, [session, isLoading, segments, hasSeenOnboarding, navigationState?.key, isHydrated, isSynced]);
 
   useEffect(() => {
     async function onFetchUpdateAsync() {
@@ -262,7 +255,10 @@ export default function RootLayout() {
         clearTimeout(safetyTimeout);
         
         if (data.session) {
-          syncRepository.fullSync();
+          syncRepository.fullSync().finally(() => {
+            setIsSynced(true);
+            queryClient.invalidateQueries({ queryKey: ["profile", data.session?.user.id] });
+          });
         }
 
         // Keep-alive ping: Melakukan query ringan agar Supabase tetap aktif
