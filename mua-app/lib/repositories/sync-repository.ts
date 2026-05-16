@@ -4,6 +4,8 @@ import * as schema from "../db/schema";
 import { bookingsService } from "../supabase/bookings";
 import { clientsService } from "../supabase/clients";
 import { servicesService } from "../supabase/services";
+import { profilesService } from "../supabase/profiles";
+import { supabase } from "../supabase/client";
 import { useSyncStore } from "../stores/sync-store";
 import { eq } from "drizzle-orm";
 
@@ -143,6 +145,43 @@ export const syncRepository = {
           } catch (err) {
             await db.update(schema.bookings).set(normalized).where(eq(schema.bookings.id, normalized.id));
           }
+        }
+      }
+
+      // Profile Sync
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        try {
+          const remoteProfile = await profilesService.getById(session.user.id);
+          if (remoteProfile) {
+            const normalized = {
+              id: remoteProfile.id,
+              email: remoteProfile.email,
+              fullName: remoteProfile.full_name,
+              phone: remoteProfile.phone,
+              businessName: remoteProfile.business_name,
+              bio: remoteProfile.bio,
+              profilePhotoUrl: remoteProfile.profile_photo_url,
+              city: remoteProfile.city,
+              instagramHandle: remoteProfile.instagram_handle,
+              whatsappNumber: remoteProfile.whatsapp_number,
+              fcmToken: remoteProfile.fcm_token,
+              createdAt: remoteProfile.created_at,
+              updatedAt: remoteProfile.updated_at,
+              subscriptionStatus: remoteProfile.subscription_status,
+              trialEndsAt: remoteProfile.trial_ends_at,
+              subscriptionEndsAt: remoteProfile.subscription_ends_at,
+              isSynced: true,
+              localUpdatedAt: new Date().toISOString()
+            };
+            
+            await db.insert(schema.profiles).values(normalized).onConflictDoUpdate({ 
+              target: schema.profiles.id, 
+              set: normalized 
+            });
+          }
+        } catch (profileErr) {
+          console.warn("Profile sync failed:", profileErr);
         }
       }
 
