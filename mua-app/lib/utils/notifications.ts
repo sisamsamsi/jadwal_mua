@@ -67,7 +67,7 @@ export async function scheduleBookingReminder(
       body,
       data: { bookingId },
     },
-    trigger: triggerDate as any,
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: triggerDate },
   });
   return identifier;
 }
@@ -93,7 +93,7 @@ export async function scheduleSubscriptionReminder(expiryDate: Date) {
           body: 'Masa akses Anda akan berakhir dalam 3 hari. Segera hubungi admin untuk perpanjangan!',
           data: { type: 'subscription_reminder' },
         },
-        trigger: reminderDate as any,
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: reminderDate },
       });
       if (__DEV__) console.log('Subscription reminder scheduled for:', reminderDate.toISOString());
     }

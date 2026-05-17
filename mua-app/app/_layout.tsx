@@ -37,6 +37,17 @@ import { Platform } from "react-native";
 import { eq } from "drizzle-orm";
 
 import { registerForPushNotificationsAsync, scheduleSubscriptionReminder, showImmediateNotification } from "@/lib/utils/notifications";
+import * as Notifications from "expo-notifications";
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 const queryClient = new QueryClient();
 
@@ -330,13 +341,17 @@ export default function RootLayout() {
             async (payload: any) => {
               if (__DEV__) console.log('Realtime: Received INSERT event payload:', payload);
               try {
-                // Periksa apakah data lokal sudah ada
-                const localBooking = await db
-                  .select()
-                  .from(bookings)
-                  .where(eq(bookings.id, payload.new.id));
+                // Ganti cek SQLite dengan cek timestamp created_at untuk menghindari race condition
+                const createdAtStr = payload.new.created_at;
+                let isBrandNew = false;
+                if (createdAtStr) {
+                  const createdAt = new Date(createdAtStr);
+                  const now = new Date();
+                  const diffSeconds = Math.abs((now.getTime() - createdAt.getTime()) / 1000);
+                  isBrandNew = diffSeconds < 60;
+                }
 
-                if (localBooking.length === 0) {
+                if (isBrandNew) {
                   // Ambil nama klien secara dinamis dari Supabase
                   let clientName = 'Klien Baru';
                   if (payload.new.client_id) {
@@ -371,7 +386,7 @@ export default function RootLayout() {
                   if (__DEV__) console.log('Realtime: Starting full sync...');
                   syncRepository.fullSync();
                 } else {
-                  if (__DEV__) console.log(`Realtime: Booking ${payload.new.id} already exists locally. Skipping notification.`);
+                  if (__DEV__) console.log(`Realtime: Booking ${payload.new.id} is not new (created_at: ${payload.new.created_at}). Skipping notification.`);
                 }
               } catch (e) {
                 console.warn('Realtime booking handler error:', e);

@@ -451,17 +451,13 @@ export default function BookingDetail() {
            <Card className="p-4">
               {editMode ? (
                 <>
-                  <View className="flex-row gap-2 mb-4">
-                    {["Akad", "Resepsi", "Fitting", "Rapat", "Lainnya"].map((t) => (
-                      <TouchableOpacity 
-                        key={t}
-                        onPress={() => setEditData({...editData, eventType: t})}
-                        className={`px-3 py-1 rounded-full border ${editData.eventType === t ? 'bg-primary border-primary' : 'bg-surface border-divider'}`}
-                      >
-                        <Text className={editData.eventType === t ? 'text-white text-[10px] font-bold' : 'text-text-secondary text-[10px]'}>{t}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+                  <Text className="text-text-hint font-bold uppercase text-[10px] mb-2">Jenis / Tipe Acara (Opsional)</Text>
+                  <Input 
+                    value={editData.eventType} 
+                    onChangeText={(t) => setEditData({...editData, eventType: t})} 
+                    placeholder="Contoh: Akad, Resepsi, Wisuda, dll." 
+                    className="mb-4"
+                  />
                   <TouchableOpacity onPress={() => setDatePickerVisibility(true)} className="mb-4 border-b border-divider pb-2 flex-row items-center">
                     <CalendarIcon size={18} color="#B76E79" className="mr-3" />
                     <Text className="text-text-primary text-base">{editData.bookingDate}</Text>
@@ -671,12 +667,12 @@ export default function BookingDetail() {
       </ScrollView>
 
       {/* MODAL DETAIL ORANG */}
-      <Modal visible={memberModalVisible} animationType="slide" transparent>
-        <View className="flex-1 justify-end bg-black/50">
-          <KeyboardAvoidingView 
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            className="w-full"
-          >
+       <Modal visible={memberModalVisible} animationType="slide" transparent>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ flex: 1 }}
+        >
+          <View className="flex-1 justify-end bg-black/50">
             <View className="bg-surface p-6 rounded-t-3xl h-[85%]">
                <View className="flex-row justify-between items-center mb-6">
                   <Text className="text-lg font-bold">{selectedMember ? "Edit Detail Rias" : "Tambah Detail Rias"}</Text>
@@ -685,7 +681,11 @@ export default function BookingDetail() {
                   </TouchableOpacity>
                </View>
                
-               <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+               <ScrollView 
+                 showsVerticalScrollIndicator={false} 
+                 keyboardShouldPersistTaps="handled"
+                 contentContainerStyle={{ paddingBottom: 40 }}
+               >
                   <Input label="Nama Lengkap" value={memberForm.name} onChangeText={(t) => setMemberForm({...memberForm, name: t})} placeholder="Contoh: Ibu Siti" className="mb-4" />
                   <Input label="Peran / Role" value={memberForm.role} onChangeText={(t) => setMemberForm({...memberForm, role: t})} placeholder="Contoh: Ibu Pengantin / Pagar Ayu" className="mb-4" />
                   <Input label="Request Makeup" value={memberForm.makeupRequest} onChangeText={(t) => setMemberForm({...memberForm, makeupRequest: t})} placeholder="Contoh: Natural / Bold / Smokey" className="mb-4" />
@@ -708,8 +708,8 @@ export default function BookingDetail() {
                   />
                </ScrollView>
             </View>
-          </KeyboardAvoidingView>
-        </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* AI ASSISTANT MODAL */}
