@@ -310,10 +310,13 @@ export default function RootLayout() {
         if (session?.user?.id) {
           // Hapus channel lama jika ada untuk mencegah duplikasi
           if (realtimeChannelRef.current) {
+            if (__DEV__) console.log("RootLayout: Removing previous realtime channel");
             supabase.removeChannel(realtimeChannelRef.current);
           }
 
           const userId = session.user.id;
+          if (__DEV__) console.log(`RootLayout: Setting up Realtime bookings listener for user_id: ${userId}`);
+
           const channel = supabase.channel('public-bookings-listener');
           
           channel.on(
@@ -325,22 +328,50 @@ export default function RootLayout() {
               filter: `user_id=eq.${userId}`,
             },
             async (payload: any) => {
+              if (__DEV__) console.log('Realtime: Received INSERT event payload:', payload);
               try {
+                // Periksa apakah data lokal sudah ada
                 const localBooking = await db
                   .select()
                   .from(bookings)
                   .where(eq(bookings.id, payload.new.id));
 
                 if (localBooking.length === 0) {
-                  const clientName = payload.new.client_name || 'Klien Baru';
+                  // Ambil nama klien secara dinamis dari Supabase
+                  let clientName = 'Klien Baru';
+                  if (payload.new.client_id) {
+                    try {
+                      const { data: clientData, error: clientErr } = await supabase
+                        .from('clients')
+                        .select('name')
+                        .eq('id', payload.new.client_id)
+                        .single();
+                      
+                      if (clientErr) {
+                        console.warn('Realtime: Failed to fetch client name:', clientErr);
+                      } else if (clientData?.name) {
+                        clientName = clientData.name;
+                      }
+                    } catch (fetchErr) {
+                      console.warn('Realtime: Client name fetch exception:', fetchErr);
+                    }
+                  }
+
                   const bookingDate = payload.new.booking_date || '';
                   const startTime = payload.new.start_time || '';
+                  
+                  if (__DEV__) console.log(`Realtime: Showing notification for booking from ${clientName}`);
+                  
                   await showImmediateNotification(
                     '📅 Booking Baru Masuk!',
                     `${clientName} baru saja booking untuk tanggal ${bookingDate} jam ${startTime}`,
                     { type: 'new_booking', bookingId: payload.new.id }
                   );
+                  
+                  if (__DEV__) console.log('Realtime: Starting full sync...');
                   syncRepository.fullSync();
+                } else {
+                  if (__DEV__) console.log(`Realtime: Booking ${payload.new.id} already exists locally. Skipping notification.`);
                 }
               } catch (e) {
                 console.warn('Realtime booking handler error:', e);
@@ -348,10 +379,19 @@ export default function RootLayout() {
             }
           );
           
-          channel.subscribe();
+          channel.subscribe((status, err) => {
+            if (__DEV__) {
+              console.log(`Realtime: Subscription status: ${status}`);
+              if (err) {
+                console.error("Realtime: Subscription error detail:", err);
+              }
+            }
+          });
+          
           realtimeChannelRef.current = channel;
         } else {
           if (realtimeChannelRef.current) {
+            if (__DEV__) console.log("RootLayout: User logged out, removing realtime channel");
             supabase.removeChannel(realtimeChannelRef.current);
             realtimeChannelRef.current = null;
           }

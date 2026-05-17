@@ -29,7 +29,7 @@ const slides = [
   {
     id: "1",
     image: require("@/assets/images/slide1.png"),
-    headline: "Hai, Selamat Datang di Fixatif! 👋",
+    headline: "Hai, Selamat Datang di Fixatif!",
     subheadline:
       "Asisten bisnis kamu sebagai MUA — dari jadwal, klien, hingga keuangan. Semua dalam satu genggaman.",
     caption: "Dibuat khusus untuk MUA Indonesia yang ingin kerja lebih rapi.",
@@ -37,19 +37,19 @@ const slides = [
   {
     id: "2",
     image: require("@/assets/images/slide2.png"),
-    headline: "Fixatif bisa bantu banyak hal 💄",
+    headline: "Fixatif bisa bantu banyak hal",
     subheadline:
       "Catat booking, buat invoice, kirim pengingat WA ke klien — bahkan baca pesan WA klien langsung jadi jadwal otomatis.",
     features: [
-      { icon: "📅", label: "Jadwal & Kalender" },
-      { icon: "💰", label: "Keuangan & Invoice" },
-      { icon: "🤖", label: "AI dari Pesan WA" },
+      { label: "Jadwal & Kalender" },
+      { label: "Keuangan & Invoice" },
+      { label: "AI dari Pesan WA" },
     ],
   },
   {
     id: "3",
     image: require("@/assets/images/slide3.png"),
-    headline: "Mulai sekarang, gratis dulu boleh! 🎉",
+    headline: "Mulai sekarang, gratis dulu boleh!",
     subheadline:
       "Coba semua fitur selama 7 hari tanpa bayar. Kalau sudah cocok, lanjut bareng kami.",
     caption: "Tidak perlu kartu kredit. Bisa batal kapan saja.",
@@ -103,7 +103,7 @@ const SlideItem = ({
         style={{ width, height }}
         resizeMode="cover"
       >
-        {/* Area Teks dikosongkan karena teks sudah ada di dalam gambar/asset */}
+        {/* Teks di-render dinamis di area bawah gambar dengan gradien warna yang menyatu */}
         <View
           style={{
             flex: 1,
@@ -112,8 +112,86 @@ const SlideItem = ({
             paddingTop: insets.top + 20,
             paddingBottom: 220 + insets.bottom, 
           }}
-        />
+        >
+          {/* Judul Slide */}
+          <Text
+            style={{
+              fontSize: 24,
+              fontWeight: "800",
+              color: "#4A2D33",
+              lineHeight: 32,
+              marginBottom: 10,
+            }}
+          >
+            {item.headline}
+          </Text>
 
+          {/* Deskripsi/Subjudul */}
+          <Text
+            style={{
+              fontSize: 15,
+              color: "#6E5B5E",
+              lineHeight: 22,
+              marginBottom: item.features ? 14 : 16,
+            }}
+          >
+            {item.subheadline}
+          </Text>
+
+          {/* List Fitur (Untuk Slide 2) */}
+          {item.features && (
+            <View style={{ gap: 10, marginTop: 4 }}>
+              {item.features.map((feature, idx) => (
+                <View key={idx} style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                  <View
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: 11,
+                      backgroundColor: "#E8D5D8",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: "#B76E79",
+                        fontWeight: "700",
+                      }}
+                    >
+                      {idx + 1}
+                    </Text>
+                  </View>
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontWeight: "600",
+                      color: "#4A2D33",
+                    }}
+                  >
+                    {feature.label}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Keterangan Tambahan / Caption */}
+          {item.caption && (
+            <Text
+              style={{
+                fontSize: 13,
+                color: "#8C7B7D",
+                fontStyle: "italic",
+                lineHeight: 18,
+                marginTop: 4,
+              }}
+            >
+              {item.caption}
+            </Text>
+          )}
+        </View>
       </ImageBackground>
     </View>
   );

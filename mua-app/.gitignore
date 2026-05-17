@@ -18,3 +18,6 @@ lib/db/migrations/
 
 expo-env.d.ts
 # @end expo-cli
+
+# Scratch folders
+scratch/

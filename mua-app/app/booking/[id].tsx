@@ -753,7 +753,7 @@ export default function BookingDetail() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView className="bg-gray-50 rounded-2xl p-4 border border-divider mb-6">
+            <ScrollView className="flex-1 bg-gray-50 rounded-2xl p-4 border border-divider mb-6" showsVerticalScrollIndicator={true}>
               {aiLoading ? (
                 <View className="py-10 items-center">
                   <ActivityIndicator color="#B76E79" />
