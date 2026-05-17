@@ -9,12 +9,15 @@ import {
   StatusBar,
   Platform,
   Image,
+  Linking,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useSettingsStore } from "@/lib/stores/settings-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { ArrowRight, Sparkles } from "lucide-react-native";
+import { APP_CONFIG } from "@/lib/constants/app";
 
 const { width, height } = Dimensions.get("window");
 
@@ -218,6 +221,33 @@ export default function OnboardingScreen() {
     }
   }, [completeOnboarding, router, session]);
 
+  const handleSubscribe = useCallback(async () => {
+    completeOnboarding();
+    const whatsappUrl = `whatsapp://send?phone=${APP_CONFIG.SUPPORT_WHATSAPP}&text=${encodeURIComponent(
+      "Halo, saya ingin berlangganan MUA App (Fixatif) Premium."
+    )}`;
+    try {
+      await Linking.openURL(whatsappUrl);
+    } catch (e) {
+      const webUrl = `https://wa.me/${APP_CONFIG.SUPPORT_WHATSAPP}?text=${encodeURIComponent(
+        "Halo, saya ingin berlangganan MUA App (Fixatif) Premium."
+      )}`;
+      try {
+        await Linking.openURL(webUrl);
+      } catch (err) {
+        Alert.alert(
+          "WhatsApp Tidak Tersedia",
+          `Silakan hubungi WhatsApp kami di ${APP_CONFIG.SUPPORT_WHATSAPP} untuk berlangganan.`
+        );
+      }
+    }
+    if (session) {
+      router.replace("/(tabs)/home" as any);
+    } else {
+      router.replace("/login");
+    }
+  }, [completeOnboarding, router, session]);
+
   const handleNext = useCallback(() => {
     if (!isLastSlide) {
       scrollRef.current?.scrollToIndex({ index: activeSlide + 1, animated: true });
@@ -291,7 +321,7 @@ export default function OnboardingScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={handleFinish}
+              onPress={handleSubscribe}
               activeOpacity={0.75}
               style={{
                 borderWidth: 1.5,

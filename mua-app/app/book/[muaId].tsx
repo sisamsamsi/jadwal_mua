@@ -244,14 +244,23 @@ export default function PublicBookingForm() {
             leftIcon={<User size={18} color="#757575" />}
           />
           
-          <Input 
+           <Input 
             label="Nomor WhatsApp" 
             value={formData.phone} 
-            onChangeText={(t) => setFormData({...formData, phone: t})}
-            placeholder="0812xxxxxx"
+            onChangeText={(t) => {
+              let cleaned = t.replace(/\D/g, "");
+              if (cleaned.startsWith("0")) {
+                cleaned = "62" + cleaned.slice(1);
+              }
+              setFormData({...formData, phone: cleaned});
+            }}
+            placeholder="Contoh: 628123456789 (Tanpa angka 0)"
             keyboardType="phone-pad"
             leftIcon={<Phone size={18} color="#757575" />}
           />
+          <Text className="text-text-hint text-[10px] mt-[-12] mb-4 ml-1">
+            Format wajib: 628... (Diawali 62, jangan dimulai dengan angka 0).
+          </Text>
 
           <View>
             <Text className="text-text-secondary text-sm font-semibold mb-3 ml-1">Pilih Layanan</Text>

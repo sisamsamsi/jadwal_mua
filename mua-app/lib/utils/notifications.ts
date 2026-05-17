@@ -59,18 +59,79 @@ export async function scheduleBookingReminder(
   bookingId: string,
   title: string,
   body: string,
-  triggerDate: Date
+  triggerDate: Date,
+  reminderType: 'h1' | '1h'
 ) {
+  try {
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    for (const notif of scheduled) {
+      if (notif.content.data?.bookingId === bookingId && notif.content.data?.reminderType === reminderType) {
+        await Notifications.cancelScheduledNotificationAsync(notif.identifier);
+      }
+    }
+  } catch (e) {
+    console.warn("Failed to cancel existing booking reminder", e);
+  }
+
   const identifier = await Notifications.scheduleNotificationAsync({
     content: {
       title,
       body,
-      data: { bookingId },
+      data: { bookingId, reminderType },
     },
     trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: triggerDate },
   });
   return identifier;
 }
+
+export async function scheduleAllBookingReminders(booking: {
+  id: string;
+  bookingDate: string;
+  startTime: string;
+  status: string;
+}) {
+  if (booking.status === 'cancelled') {
+    try {
+      await cancelNotificationByBookingId(booking.id);
+    } catch (e) {
+      console.warn("Failed to cancel notifications on cancelled status", e);
+    }
+    return;
+  }
+
+  try {
+    const [year, month, day] = booking.bookingDate.split("-").map(Number);
+    const [hour, minute] = booking.startTime.split(":").map(Number);
+    const bookingDateObj = new Date(year, month - 1, day, hour, minute);
+
+    // H-1 (24 hours before)
+    const reminderDateH1 = new Date(bookingDateObj.getTime() - 24 * 60 * 60 * 1000);
+    if (reminderDateH1 > new Date()) {
+      await scheduleBookingReminder(
+        booking.id,
+        "Pengingat Jadwal Makeup (H-1)",
+        `Kamu ada jadwal makeup besok jam ${booking.startTime}`,
+        reminderDateH1,
+        'h1'
+      );
+    }
+
+    // 1 hour before
+    const reminderDate1H = new Date(bookingDateObj.getTime() - 60 * 60 * 1000);
+    if (reminderDate1H > new Date()) {
+      await scheduleBookingReminder(
+        booking.id,
+        "Pengingat Jadwal Makeup (1 Jam Lagi)",
+        `Kamu ada jadwal makeup 1 jam lagi (jam ${booking.startTime})`,
+        reminderDate1H,
+        '1h'
+      );
+    }
+  } catch (e) {
+    console.warn(`Failed to schedule reminders for booking ${booking.id}:`, e);
+  }
+}
+
 
 // Jadwalkan notifikasi 3 hari sebelum langganan habis
 export async function scheduleSubscriptionReminder(expiryDate: Date) {

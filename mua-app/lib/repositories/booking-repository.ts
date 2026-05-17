@@ -4,7 +4,7 @@ import { db } from "../db/client";
 import { bookings, clients, services } from "../db/schema";
 import { bookingsService } from "../supabase/bookings";
 import { eq, and, not, asc } from "drizzle-orm";
-import { scheduleBookingReminder, cancelNotificationByBookingId } from "../utils/notifications";
+import { scheduleAllBookingReminders, cancelNotificationByBookingId } from "../utils/notifications";
 
 export const bookingRepository = {
   async getAll() {
@@ -113,21 +113,11 @@ export const bookingRepository = {
         console.warn("Sync create booking failed:", e);
       }
     }
-    // 4. Schedule local reminder (1 hour before)
+    // 4. Schedule local reminders (H-1 & 1 hour before)
     try {
-      const [year, month, day] = formData.bookingDate.split("-").map(Number);
-      const [hour, minute] = formData.startTime.split(":").map(Number);
-      const bookingDateObj = new Date(year, month - 1, day, hour, minute);
-      const reminderDate = new Date(bookingDateObj.getTime() - 60 * 60 * 1000); // 1 hour before
-      
-      await scheduleBookingReminder(
-        id,
-        "Pengingat Jadwal Makeup",
-        `Kamu ada jadwal makeup jam ${formData.startTime}`,
-        reminderDate
-      );
+      await scheduleAllBookingReminders(newBooking as any);
     } catch (e) {
-      console.warn("Failed to schedule notification:", e);
+      console.warn("Failed to schedule notifications:", e);
     }
  
     return newBooking as any;
@@ -157,6 +147,20 @@ export const bookingRepository = {
       } catch (e) {
         console.warn("Sync update booking failed:", e);
       }
+    }
+
+    // Schedule updated reminders (H-1 & 1 hour before)
+    try {
+      const [updatedBooking] = await db
+        .select()
+        .from(bookings)
+        .where(eq(bookings.id, id))
+        .limit(1);
+      if (updatedBooking) {
+        await scheduleAllBookingReminders(updatedBooking as any);
+      }
+    } catch (e) {
+      console.warn("Failed to reschedule notifications on update:", e);
     }
   },
 

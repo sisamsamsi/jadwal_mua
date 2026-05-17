@@ -102,9 +102,22 @@ export default function ClientDetail() {
           {editMode ? (
             <View>
               <Input label="Nama Lengkap" value={formData.name} onChangeText={(v) => setFormData(p => ({ ...p, name: v }))} leftIcon={<User size={18} color="#BDBDBD" />} />
-              <Input label="Nomor WhatsApp" value={formData.phone} onChangeText={(v) => setFormData(p => ({ ...p, phone: v }))} keyboardType="phone-pad" leftIcon={<Phone size={18} color="#BDBDBD" />} />
+              <Input 
+                label="Nomor WhatsApp" 
+                placeholder="Contoh: 628123456789 (Tanpa angka 0)"
+                value={formData.phone} 
+                onChangeText={(v) => {
+                  let cleaned = v.replace(/\D/g, "");
+                  if (cleaned.startsWith("0")) {
+                    cleaned = "62" + cleaned.slice(1);
+                  }
+                  setFormData(p => ({ ...p, phone: cleaned }));
+                }} 
+                keyboardType="phone-pad" 
+                leftIcon={<Phone size={18} color="#BDBDBD" />} 
+              />
               <Text className="text-text-hint text-[10px] mt-[-12] mb-4 ml-1">
-                Gunakan format: 628... agar tombol WhatsApp berfungsi lancar
+                Format wajib: 628... (Diawali 62, jangan dimulai dengan angka 0).
               </Text>
               <Input label="Email" value={formData.email} onChangeText={(v) => setFormData(p => ({ ...p, email: v }))} keyboardType="email-address" leftIcon={<Mail size={18} color="#BDBDBD" />} />
               <Input label="Kota" value={formData.city} onChangeText={(v) => setFormData(p => ({ ...p, city: v }))} leftIcon={<Tag size={18} color="#BDBDBD" />} />

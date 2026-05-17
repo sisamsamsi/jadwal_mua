@@ -1,4 +1,5 @@
 import { supabase } from "./client";
+import { clearLocalDatabase } from "../db/client";
 
 export const authService = {
   async signIn(email: string, password: string) {
@@ -26,6 +27,11 @@ export const authService = {
   async signOut() {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+    try {
+      await clearLocalDatabase();
+    } catch (e) {
+      console.warn("Failed to clear local database on sign-out:", e);
+    }
   },
 
   async getSession() {

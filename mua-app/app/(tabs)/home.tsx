@@ -45,6 +45,7 @@ export default function DashboardScreen() {
     session?.user?.user_metadata?.full_name ??
     session?.user?.user_metadata?.name ??
     userEmail.split("@")[0];
+  const greetingName = displayName.split(" ")[0] || displayName;
 
   const onRefresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
@@ -72,11 +73,11 @@ export default function DashboardScreen() {
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={onRefresh} />}
       >
         <View className="flex-row items-center justify-between mb-8">
-          <View>
+          <View className="flex-1 mr-4">
             <Text className="text-text-secondary text-lg">Halo, {getGreeting()}</Text>
-            <Text className="text-text-primary text-3xl font-bold capitalize">{displayName} ✨</Text>
+            <Text numberOfLines={1} className="text-text-primary text-3xl font-bold capitalize">{greetingName} ✨</Text>
           </View>
-          <View className="flex-row items-center">
+          <View className="flex-row items-center flex-shrink-0">
             <TouchableOpacity 
               onPress={() => router.push("/settings")}
               className="w-12 h-12 rounded-full bg-white items-center justify-center shadow-sm border border-divider mr-3"

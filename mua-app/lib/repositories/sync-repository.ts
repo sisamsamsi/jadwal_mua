@@ -7,7 +7,9 @@ import { servicesService } from "../supabase/services";
 import { profilesService } from "../supabase/profiles";
 import { supabase } from "../supabase/client";
 import { useSyncStore } from "../stores/sync-store";
-import { eq } from "drizzle-orm";
+import { eq, and, gte, not } from "drizzle-orm";
+import { Platform } from "react-native";
+import { scheduleAllBookingReminders } from "../utils/notifications";
 
 export const syncRepository = {
   async fullSync() {
@@ -182,6 +184,28 @@ export const syncRepository = {
           }
         } catch (profileErr) {
           console.warn("Profile sync failed:", profileErr);
+        }
+      }
+
+      // Schedule reminders for all future synced bookings on mobile
+      if (Platform.OS !== 'web') {
+        try {
+          const todayStr = new Date().toISOString().split("T")[0];
+          const futureBookings = await db
+            .select()
+            .from(schema.bookings)
+            .where(
+              and(
+                gte(schema.bookings.bookingDate, todayStr),
+                not(eq(schema.bookings.status, 'cancelled'))
+              )
+            );
+          
+          for (const b of futureBookings) {
+            await scheduleAllBookingReminders(b as any);
+          }
+        } catch (notifErr) {
+          console.warn("Failed to schedule reminders after full sync:", notifErr);
         }
       }
 
