@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { profileRepository } from "../repositories/profile-repository";
 import { profilesService } from "../supabase/profiles";
 import { useAuthStore } from "../stores/auth-store";
+import { useSettingsStore } from "../stores/settings-store";
 
 /**
  * Hook utama untuk data profil.
@@ -21,24 +22,57 @@ export function useProfile() {
         const remoteProfile = await profilesService.getById(userId);
         // Simpan ke SQLite sebagai cache offline (fire and forget)
         if (remoteProfile) {
-          profileRepository.update(userId, {
-            subscriptionStatus: remoteProfile.subscription_status,
-            trialEndsAt: remoteProfile.trial_ends_at,
-            subscriptionEndsAt: remoteProfile.subscription_ends_at,
+          const mappedProfile = {
+            id: remoteProfile.id,
+            email: remoteProfile.email,
             fullName: remoteProfile.full_name,
-            businessName: remoteProfile.business_name,
             phone: remoteProfile.phone,
+            businessName: remoteProfile.business_name,
             bio: remoteProfile.bio,
             profilePhotoUrl: remoteProfile.profile_photo_url,
             city: remoteProfile.city,
             instagramHandle: remoteProfile.instagram_handle,
             whatsappNumber: remoteProfile.whatsapp_number,
-          }).catch(() => {/* Abaikan error SQLite saat update cache */});
+            fcmToken: remoteProfile.fcm_token,
+            createdAt: remoteProfile.created_at,
+            updatedAt: remoteProfile.updated_at,
+            subscriptionStatus: remoteProfile.subscription_status,
+            trialEndsAt: remoteProfile.trial_ends_at,
+            subscriptionEndsAt: remoteProfile.subscription_ends_at,
+          };
+
+          profileRepository.update(userId, mappedProfile).catch(() => {/* Abaikan error SQLite saat update cache */});
+          
+          // Backward compatibility check untuk Zustand store
+          const status = mappedProfile.subscriptionStatus ?? "trial";
+          const trialEndsAt = mappedProfile.trialEndsAt ? new Date(mappedProfile.trialEndsAt) : null;
+          const subscriptionEndsAt = mappedProfile.subscriptionEndsAt ? new Date(mappedProfile.subscriptionEndsAt) : null;
+          const now = new Date();
+          const isPremium = status === "active" 
+            ? (subscriptionEndsAt ? subscriptionEndsAt > now : true) 
+            : (status === "trial" ? (trialEndsAt ? trialEndsAt > now : false) : false);
+
+          useSettingsStore.getState().setLicenseStatus(isPremium);
+
+          return mappedProfile;
         }
-        return remoteProfile;
-      } catch {
+        return null;
+      } catch (err) {
+        console.warn("useProfile: Failed to fetch remote profile, falling back to local SQLite", err);
         // Fallback ke SQLite jika offline / Supabase tidak terjangkau
-        return profileRepository.getById(userId);
+        const localProfile = await profileRepository.getById(userId);
+        if (localProfile) {
+          const status = localProfile.subscriptionStatus ?? "trial";
+          const trialEndsAt = localProfile.trialEndsAt ? new Date(localProfile.trialEndsAt) : null;
+          const subscriptionEndsAt = localProfile.subscriptionEndsAt ? new Date(localProfile.subscriptionEndsAt) : null;
+          const now = new Date();
+          const isPremium = status === "active" 
+            ? (subscriptionEndsAt ? subscriptionEndsAt > now : true) 
+            : (status === "trial" ? (trialEndsAt ? trialEndsAt > now : false) : false);
+
+          useSettingsStore.getState().setLicenseStatus(isPremium);
+        }
+        return localProfile;
       }
     },
     enabled: !!userId,

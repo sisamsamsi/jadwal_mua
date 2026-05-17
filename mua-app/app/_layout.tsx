@@ -143,11 +143,16 @@ export default function RootLayout() {
         } else if (!session) {
           if (!inAuthGroup) router.replace("/login");
         } else {
-          // Fetch langsung dari Supabase — tidak bergantung SQLite / isSynced
+          // Fetch langsung dari Supabase dengan proteksi timeout 2 detik untuk menghindari hang saat OTA reload
           let isExpired = false;
           try {
-            const remoteProfile = await profilesService.getById(session.user.id);
-            const status = remoteProfile?.subscription_status ?? 'trial';
+            const remoteProfile = await Promise.race([
+              profilesService.getById(session.user.id),
+              new Promise<any>((_, reject) => setTimeout(() => reject(new Error("Timeout")), 2000))
+            ]);
+            
+            // Cek kedua skema penamaan (snake_case dari DB atau camelCase jika sudah di-map) untuk ketahanan ekstra
+            const status = remoteProfile?.subscription_status ?? remoteProfile?.subscriptionStatus ?? 'trial';
 
             if (status === 'active') {
               isExpired = false;
@@ -155,11 +160,12 @@ export default function RootLayout() {
               isExpired = true;
             } else {
               // trial — cek tanggal kadaluarsa
-              const trialEnd = remoteProfile?.trial_ends_at;
+              const trialEnd = remoteProfile?.trial_ends_at ?? remoteProfile?.trialEndsAt;
               if (trialEnd) isExpired = new Date(trialEnd) < new Date();
             }
-          } catch {
-            // Offline: fallback ke SQLite
+          } catch (err) {
+            if (__DEV__) console.log("RootLayout: Remote profile fetch failed or timed out, using local SQLite cache", err);
+            // Offline/Timeout: fallback ke SQLite (cepat dan handal)
             const localProfile = await profileRepository.getById(session.user.id);
             const status = localProfile?.subscriptionStatus ?? 'trial';
             if (status === 'active') {

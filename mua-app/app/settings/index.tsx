@@ -16,14 +16,17 @@ import { paymentRepository } from "@/lib/repositories/payment-repository";
 import { expenseRepository } from "@/lib/repositories/expense-repository";
 import { useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react-native";
+import { useSubscription } from "@/lib/hooks/use-subscription";
+import * as Updates from "expo-updates";
 
 export default function SettingsScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { isPremium } = useSubscription();
+  const [showOtaDetails, setShowOtaDetails] = useState(false);
   const { 
     showBridalParty, 
     showInventory, 
-    isLicenseActive,
     businessName: savedBusinessName,
     whatsappNumber: savedWhatsapp,
     waTemplates,
@@ -237,9 +240,9 @@ export default function SettingsScreen() {
               <View className="flex-1">
                   <Text className="font-bold text-text-primary">Status Lisensi</Text>
                   <Text className="text-text-secondary text-sm mb-2">
-                    {isLicenseActive ? "Lisensi Aktif (Versi Full)" : "Mode Development / Trial"}
+                    {isPremium ? "Lisensi Aktif (Versi Full)" : "Mode Development / Trial"}
                   </Text>
-                  {!isLicenseActive && (
+                  {!isPremium && (
                     <Text className="text-[10px] text-primary italic">
                       Ketuk untuk perpanjang atau aktivasi fitur premium.
                     </Text>
@@ -301,11 +304,63 @@ export default function SettingsScreen() {
               textClassName="text-status-error"
               onPress={handleResetFinance}
            />
-        </Card>
+         </Card>
+ 
+         <View className="mt-10 mb-8 items-center">
+           <Text className="text-center text-text-hint text-xs font-semibold">MUA App v{APP_CONFIG.VERSION}</Text>
+           
+           <TouchableOpacity 
+             onPress={() => setShowOtaDetails(!showOtaDetails)}
+             activeOpacity={0.7}
+             className="mt-3 bg-neutral-background px-4 py-1.5 rounded-full border border-divider flex-row items-center shadow-sm"
+           >
+             <View className={`w-2.5 h-2.5 rounded-full mr-2.5 ${Updates.updateId ? "bg-emerald-500" : "bg-amber-400"}`} />
+             <Text className="text-[11px] text-text-secondary font-bold uppercase tracking-wider">
+               {Updates.updateId ? "OTA Update Aktif" : "Versi Default Aplikasi"}
+             </Text>
+           </TouchableOpacity>
 
-        <Text className="text-center text-text-hint mt-10 text-xs">MUA App v{APP_CONFIG.VERSION}</Text>
-      </ScrollView>
+           {showOtaDetails && (
+             <Card className="mt-4 p-5 w-full bg-surface border border-divider rounded-2xl shadow-md gap-y-3">
+               <Text className="text-xs font-bold text-text-secondary uppercase tracking-widest border-b border-divider pb-2 mb-1">
+                 Informasi Update Aplikasi
+               </Text>
+               <View className="gap-y-2.5">
+                 <View className="flex-row justify-between items-center">
+                   <Text className="text-xs text-text-hint">Update ID</Text>
+                   <Text className="text-xs text-text-primary font-mono bg-neutral-background px-2 py-0.5 rounded select-all border border-divider">
+                     {Updates.updateId ? Updates.updateId.substring(0, 8) + "..." : "N/A (Lokal/Dev)"}
+                   </Text>
+                 </View>
+                 <View className="flex-row justify-between items-center">
+                   <Text className="text-xs text-text-hint">Tanggal Rilis</Text>
+                   <Text className="text-xs text-text-primary font-semibold">
+                     {Updates.createdAt ? new Date(Updates.createdAt).toLocaleString('id-ID', {
+                       day: 'numeric',
+                       month: 'short',
+                       year: 'numeric',
+                       hour: '2-digit',
+                       minute: '2-digit'
+                     }) : '-'}
+                   </Text>
+                 </View>
+                 <View className="flex-row justify-between items-center">
+                   <Text className="text-xs text-text-hint">Channel Rilis</Text>
+                   <Text className="text-xs text-text-primary font-bold text-primary capitalize bg-primary/5 px-2 py-0.5 rounded border border-primary/10">
+                     {Updates.channel || "development"}
+                   </Text>
+                 </View>
+                 <View className="flex-row justify-between items-center">
+                   <Text className="text-xs text-text-hint">Sumber Bundle</Text>
+                   <Text className="text-xs text-text-primary font-semibold">
+                     {Updates.isEmbeddedLaunch ? "Built-in (Asli)" : "OTA Downloaded (Terbaru)"}
+                   </Text>
+                 </View>
+               </View>
+             </Card>
+           )}
+         </View>
+       </ScrollView>
     </SafeAreaView>
   );
 }
-

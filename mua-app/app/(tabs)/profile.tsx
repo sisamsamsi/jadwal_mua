@@ -31,12 +31,14 @@ import { Buckets } from "@/lib/constants/supabase";
 import { Image } from "react-native";
 import { useAlertStore } from "@/lib/stores/alert-store";
 import { PremiumGate } from "@/components/ui/PremiumGate";
+import { useSubscription } from "@/lib/hooks/use-subscription";
 
 export default function ProfileScreen() {
   const { session } = useAuthStore();
   const router = useRouter();
-  const { showInventory, isLicenseActive, businessName } = useSettingsStore();
+  const { showInventory, businessName } = useSettingsStore();
   const { data: profile } = useProfile();
+  const { isPremium } = useSubscription();
   const updateProfileMutation = useUpdateProfile();
   const [uploading, setUploading] = React.useState(false);
   const { showAlert } = useAlertStore();
@@ -143,8 +145,8 @@ export default function ProfileScreen() {
           
           <View className="flex-row mt-4 gap-x-2">
             <Badge 
-              icon={<Star {...({ size: 12, color: isLicenseActive ? "#D4A574" : "#9CA3AF" } as any)} />} 
-              label={isLicenseActive ? "Lisensi Aktif" : "Mode Trial"} 
+              icon={<Star {...({ size: 12, color: isPremium ? "#D4A574" : "#9CA3AF" } as any)} />} 
+              label={isPremium ? "Lisensi Aktif" : "Mode Trial"} 
             />
           </View>
         </View>
