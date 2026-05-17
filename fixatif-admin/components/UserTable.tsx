@@ -246,11 +246,31 @@ export default function UserTable({ initialUsers }: Props) {
                         <Calendar size={10} className="text-brand-rose/50" />
                         {u.status === "trial" ? fmt(u.trialEndsAt) : fmt(u.subscriptionEndsAt)}
                       </div>
-                      {u.status === 'trial' && trialDays !== null && (
+                      {u.status === 'trial' && trialDays !== null && trialDays > 0 && (
                         <div className={`flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider ${isUrgent ? 'text-red-500 animate-pulse' : 'text-amber-500'}`}>
                           <Clock size={8} />
                           {trialDays} Hari Tersisa
                         </div>
+                      )}
+                      {u.status === 'trial' && trialDays !== null && trialDays <= 0 && (
+                        <div className="flex items-center gap-1 text-[9px] font-bold text-red-500 uppercase tracking-wider">
+                          <Clock size={8} />
+                          Trial Habis
+                        </div>
+                      )}
+                      {u.status === "trial" && (u.trialEndsAt === null || (trialDays !== null && trialDays <= 0)) && (
+                        <button 
+                          onClick={() => {
+                            const ends = new Date();
+                            ends.setDate(ends.getDate() + 7);
+                            updateUser(u.id, {
+                              trialEndsAt: ends.toISOString()
+                            });
+                          }}
+                          className="mt-1 px-2 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-600 text-[8px] font-bold rounded uppercase tracking-wider border border-amber-200 w-fit transition-all"
+                        >
+                          {u.trialEndsAt === null ? "+ Aktifkan 7 Hari" : "+ Reset 7 Hari"}
+                        </button>
                       )}
                     </div>
                   </td>
@@ -268,12 +288,22 @@ export default function UserTable({ initialUsers }: Props) {
                               >
                                 Aktifkan
                               </button>
-                              {isUrgent && (
+                              {(u.status === "trial" || u.status === "expired") && (
                                 <button 
-                                  onClick={() => sendReminder(u)}
+                                  onClick={() => {
+                                    if (!u.fcmToken) {
+                                      alert("User ini belum login di aplikasi atau notifikasi perangkatnya belum aktif (fcmToken tidak ditemukan).");
+                                      return;
+                                    }
+                                    sendReminder(u);
+                                  }}
                                   disabled={notifyingId === u.id}
-                                  className="p-1.5 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-all"
-                                  title="Kirim Reminder"
+                                  className={`p-1.5 rounded-lg transition-all ${
+                                    u.fcmToken 
+                                      ? "bg-amber-50 text-amber-600 hover:bg-amber-100" 
+                                      : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                  }`}
+                                  title={u.fcmToken ? "Kirim Notifikasi Pengingat" : "Notifikasi perangkat tidak aktif / FCM token kosong"}
                                 >
                                   {notifyingId === u.id ? <Loader2 size={12} className="animate-spin" /> : <Bell size={12} />}
                                 </button>

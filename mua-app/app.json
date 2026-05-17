@@ -49,7 +49,9 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/46c5b27f-195d-406e-8558-0043cfa211b8"
+      "url": "https://u.expo.dev/46c5b27f-195d-406e-8558-0043cfa211b8",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
     },
     "plugins": [
       "expo-router",

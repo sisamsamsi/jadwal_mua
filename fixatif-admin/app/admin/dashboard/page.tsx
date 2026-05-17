@@ -32,6 +32,7 @@ async function getUsers() {
       trialEndsAt: profile?.trial_ends_at ?? null,
       subscriptionEndsAt: profile?.subscription_ends_at ?? null,
       notes: profile?.notes || "",
+      fcmToken: profile?.fcm_token ?? null,
     };
   }) ?? [];
 }

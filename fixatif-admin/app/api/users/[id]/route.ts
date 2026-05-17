@@ -12,11 +12,12 @@ export async function PATCH(
 
   try {
     const body = await req.json();
-    const { status, subscriptionEndsAt, notes } = body;
+    const { status, subscriptionEndsAt, trialEndsAt, notes } = body;
 
     const updatePayload: any = { updated_at: new Date().toISOString() };
     if (status) updatePayload.subscription_status = status;
     if (subscriptionEndsAt) updatePayload.subscription_ends_at = subscriptionEndsAt;
+    if (trialEndsAt !== undefined) updatePayload.trial_ends_at = trialEndsAt;
     if (notes !== undefined) updatePayload.notes = notes;
 
     const { error } = await supabaseAdmin
