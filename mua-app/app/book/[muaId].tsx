@@ -138,7 +138,7 @@ export default function PublicBookingForm() {
 
       console.log("Creating booking for service:", formData.serviceId);
 
-      const { error: bookingError } = await supabase.from("bookings").insert({
+      const { data: bookingData, error: bookingError } = await supabase.from("bookings").insert({
         user_id: muaId,
         client_id: clientData.id,
         service_id: formData.serviceId,
@@ -149,7 +149,7 @@ export default function PublicBookingForm() {
         status: "pending",
         num_persons: 1,
         total_price: selectedService?.basePrice || 0
-      });
+      }).select().single();
 
       if (bookingError) {
         console.error("Booking Insert Error:", bookingError);
@@ -157,6 +157,37 @@ export default function PublicBookingForm() {
       }
 
       console.log("Booking submitted successfully!");
+
+      // 3. Kirim Push Notification ke perangkat MUA
+      try {
+        const { data: muaProfileData } = await supabase
+          .from("profiles")
+          .select("fcm_token")
+          .eq("id", muaId)
+          .single();
+
+        if (muaProfileData?.fcm_token) {
+          const clientName = formData.name || "Klien Baru";
+          await fetch('https://exp.host/--/api/v2/push/send', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: JSON.stringify({
+              to: muaProfileData.fcm_token,
+              title: '📅 Booking Baru Masuk!',
+              body: `${clientName} baru saja booking untuk tanggal ${formData.date} jam ${formData.time}`,
+              data: { type: 'new_booking', bookingId: bookingData?.id },
+              sound: 'default',
+              priority: 'high',
+            }),
+          });
+          console.log("Push notification sent to MUA");
+        }
+      } catch (pushErr) {
+        console.error("Gagal mengirim push notification:", pushErr);
+      }
 
       setIsSuccess(true);
       setFormData({ 

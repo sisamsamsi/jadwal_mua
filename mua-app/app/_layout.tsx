@@ -126,6 +126,19 @@ export default function RootLayout() {
     };
   }, [router]);
 
+  // Handle Notification Taps
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener(response => {
+      const { data } = response.notification.request.content;
+      if (data?.bookingId) {
+        router.push(`/booking/${data.bookingId}` as any);
+      } else if (data?.type === 'subscription_reminder') {
+        router.push(`/subscription` as any);
+      }
+    });
+    return () => subscription.remove();
+  }, [router]);
+
   useEffect(() => {
     // Check hydration status to avoid reading false defaults
     const unsubHydrate = useSettingsStore.persist.onFinishHydration(() => setIsHydrated(true));
@@ -328,7 +341,8 @@ export default function RootLayout() {
           const userId = session.user.id;
           if (__DEV__) console.log(`RootLayout: Setting up Realtime bookings listener for user_id: ${userId}`);
 
-          const channel = supabase.channel('public-bookings-listener');
+          // Ganti nama channel menjadi unik per user untuk menghindari tabrakan jika ada lebih dari 1 user dalam app yang sama
+          const channel = supabase.channel(`public-bookings-listener-${userId}`);
           
           channel.on(
             'postgres_changes',
@@ -341,53 +355,11 @@ export default function RootLayout() {
             async (payload: any) => {
               if (__DEV__) console.log('Realtime: Received INSERT event payload:', payload);
               try {
-                // Ganti cek SQLite dengan cek timestamp created_at untuk menghindari race condition
-                const createdAtStr = payload.new.created_at;
-                let isBrandNew = false;
-                if (createdAtStr) {
-                  const createdAt = new Date(createdAtStr);
-                  const now = new Date();
-                  const diffSeconds = Math.abs((now.getTime() - createdAt.getTime()) / 1000);
-                  isBrandNew = diffSeconds < 60;
-                }
-
-                if (isBrandNew) {
-                  // Ambil nama klien secara dinamis dari Supabase
-                  let clientName = 'Klien Baru';
-                  if (payload.new.client_id) {
-                    try {
-                      const { data: clientData, error: clientErr } = await supabase
-                        .from('clients')
-                        .select('name')
-                        .eq('id', payload.new.client_id)
-                        .single();
-                      
-                      if (clientErr) {
-                        console.warn('Realtime: Failed to fetch client name:', clientErr);
-                      } else if (clientData?.name) {
-                        clientName = clientData.name;
-                      }
-                    } catch (fetchErr) {
-                      console.warn('Realtime: Client name fetch exception:', fetchErr);
-                    }
-                  }
-
-                  const bookingDate = payload.new.booking_date || '';
-                  const startTime = payload.new.start_time || '';
-                  
-                  if (__DEV__) console.log(`Realtime: Showing notification for booking from ${clientName}`);
-                  
-                  await showImmediateNotification(
-                    '📅 Booking Baru Masuk!',
-                    `${clientName} baru saja booking untuk tanggal ${bookingDate} jam ${startTime}`,
-                    { type: 'new_booking', bookingId: payload.new.id }
-                  );
-                  
-                  if (__DEV__) console.log('Realtime: Starting full sync...');
-                  syncRepository.fullSync();
-                } else {
-                  if (__DEV__) console.log(`Realtime: Booking ${payload.new.id} is not new (created_at: ${payload.new.created_at}). Skipping notification.`);
-                }
+                if (__DEV__) console.log('Realtime: Starting full sync to update local data...');
+                // Sinkronisasi data di background tanpa memunculkan notifikasi lokal ganda.
+                // Notifikasi utama kini ditangani oleh Push Notification Server yang dikirim dari form open booking 
+                // sehingga notifikasi lebih handal dan sampai walau app ditutup (killed).
+                syncRepository.fullSync();
               } catch (e) {
                 console.warn('Realtime booking handler error:', e);
               }
