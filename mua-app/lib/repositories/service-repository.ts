@@ -4,16 +4,23 @@ import { db } from "../db/client";
 import { services } from "../db/schema";
 import { servicesService } from "../supabase/services";
 import { eq, asc } from "drizzle-orm";
+import { supabase } from "../supabase/client";
 
 export const serviceRepository = {
   async getAll() {
+    // Get current logged-in user ID to isolate local SQLite data
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    if (!userId) return [];
+
     const local = await db
       .select()
       .from(services)
+      .where(eq(services.userId, userId))
       .orderBy(asc(services.sortOrder));
     NetInfo.fetch().then((s: any) => {
       if (s.isConnected) {
-        syncServicesFromRemote().catch(() => {});
+        syncServicesFromRemote(userId).catch(() => {});
         serviceRepository.pushUnsyncedServices().catch(() => {});
       }
     });
@@ -121,9 +128,9 @@ export const serviceRepository = {
 };
 
 
-async function syncServicesFromRemote() {
+async function syncServicesFromRemote(userId: string) {
   try {
-    const remote = await servicesService.getAll();
+    const remote = await servicesService.getAll({ userId });
     for (const s of remote) {
       // Normalize snake_case from Supabase to camelCase for Drizzle
       const normalized = {

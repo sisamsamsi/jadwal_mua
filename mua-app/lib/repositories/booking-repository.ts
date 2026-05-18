@@ -5,17 +5,27 @@ import { bookings, clients, services } from "../db/schema";
 import { bookingsService } from "../supabase/bookings";
 import { eq, and, not, asc } from "drizzle-orm";
 import { scheduleAllBookingReminders, cancelNotificationByBookingId } from "../utils/notifications";
+import { supabase } from "../supabase/client";
 
 export const bookingRepository = {
   async getAll() {
+    // Get current logged-in user ID to isolate local SQLite data
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    if (!userId) return [];
+
     // 1. Read from local
-    const local = await db.select().from(bookings).orderBy(asc(bookings.bookingDate));
+    const local = await db
+      .select()
+      .from(bookings)
+      .where(eq(bookings.userId, userId))
+      .orderBy(asc(bookings.bookingDate));
 
     // 2. Background sync (non-blocking)
     NetInfo.fetch().then((state: any) => {
       if (state.isConnected) {
         // We sync for a range around today for general dashboard
-        syncBookingsFromRemote().catch(() => {});
+        syncBookingsFromRemote(userId).catch(() => {});
       }
     });
 
@@ -23,12 +33,18 @@ export const bookingRepository = {
   },
 
   async getByDate(date: string) {
+    // Get current logged-in user ID to isolate local SQLite data
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    if (!userId) return [];
+
     // 1. Read from local SQLite
     const local = await db
       .select()
       .from(bookings)
       .where(
         and(
+          eq(bookings.userId, userId),
           eq(bookings.bookingDate, date),
           not(eq(bookings.status, "cancelled")),
         ),
@@ -38,7 +54,7 @@ export const bookingRepository = {
     // 2. Background sync (non-blocking)
     NetInfo.fetch().then((state: any) => {
       if (state.isConnected) {
-        syncBookingsFromRemote().catch(() => {});
+        syncBookingsFromRemote(userId).catch(() => {});
       }
     });
 
@@ -297,10 +313,10 @@ function normalizeFromSupabase(b: any) {
   return normalized;
 }
 
-async function syncBookingsFromRemote() {
+async function syncBookingsFromRemote(userId: string) {
   try {
     const today = new Date().toISOString().split("T")[0];
-    const remote = await bookingsService.getAll({ fromDate: today });
+    const remote = await bookingsService.getAll({ fromDate: today, userId });
     for (const b of remote) {
       const normalized = normalizeFromSupabase(b);
       // upsert local

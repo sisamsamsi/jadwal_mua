@@ -27,6 +27,23 @@ export const syncRepository = {
     useSyncStore.getState().setSyncing(true);
 
     try {
+      // Purge foreign data to ensure absolute data isolation locally
+      if (__DEV__) console.log(`SyncRepository: Purging foreign SQLite data not matching userId: ${userId}`);
+      try {
+        await db.delete(schema.clients).where(not(eq(schema.clients.userId, userId)));
+        await db.delete(schema.bookings).where(not(eq(schema.bookings.userId, userId)));
+        await db.delete(schema.services).where(not(eq(schema.services.userId, userId)));
+        await db.delete(schema.profiles).where(not(eq(schema.profiles.id, userId)));
+        await db.delete(schema.packages).where(not(eq(schema.packages.userId, userId)));
+        await db.delete(schema.payments).where(not(eq(schema.payments.userId, userId)));
+        await db.delete(schema.invoices).where(not(eq(schema.invoices.userId, userId)));
+        await db.delete(schema.expenses).where(not(eq(schema.expenses.userId, userId)));
+        await db.delete(schema.products).where(not(eq(schema.products.userId, userId)));
+        await db.delete(schema.reminders).where(not(eq(schema.reminders.userId, userId)));
+      } catch (purgeErr) {
+        console.warn("SyncRepository: Local database purge failed:", purgeErr);
+      }
+
       // Clients
       const remoteClients = await clientsService.getAll({ userId });
       for (const c of remoteClients) {

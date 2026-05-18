@@ -3,17 +3,27 @@ import * as Crypto from "expo-crypto";
 import { db } from "../db/client";
 import { clients } from "../db/schema";
 import { clientsService } from "../supabase/clients";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, and } from "drizzle-orm";
+import { supabase } from "../supabase/client";
 
 export const clientRepository = {
   async getAll() {
-    // read local first
-    const local = await db.select().from(clients).orderBy(asc(clients.name));
+    // Get current logged-in user ID to isolate local SQLite data
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    if (!userId) return [];
+
+    // read local first and filter by userId
+    const local = await db
+      .select()
+      .from(clients)
+      .where(eq(clients.userId, userId))
+      .orderBy(asc(clients.name));
 
     // background sync
     NetInfo.fetch().then((s: any) => {
       if (s.isConnected) {
-        syncClientsFromRemote().catch(() => {});
+        syncClientsFromRemote(userId).catch(() => {});
       }
     });
 
@@ -110,9 +120,9 @@ function normalizeFromSupabase(c: any) {
   return normalized;
 }
 
-async function syncClientsFromRemote() {
+async function syncClientsFromRemote(userId: string) {
   try {
-    const remote = await clientsService.getAll();
+    const remote = await clientsService.getAll({ userId });
     for (const c of remote) {
       const normalized = normalizeFromSupabase(c);
       try {
