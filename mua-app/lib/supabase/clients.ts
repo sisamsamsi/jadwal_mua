@@ -15,8 +15,9 @@ const mapToSupabase = (payload: any) => {
 };
 
 export const clientsService = {
-  async getAll(params?: { limit?: number; offset?: number }) {
+  async getAll(params?: { limit?: number; offset?: number; userId?: string }) {
     let query: any = supabase.from(Tables.clients).select("*").order("name", { ascending: true });
+    if (params?.userId) query = query.eq("user_id", params.userId);
     if (params?.limit) query = query.limit(params.limit);
     if (params?.offset && params?.limit) query = query.range(params.offset, params.offset + params.limit - 1);
     const { data, error } = await query;

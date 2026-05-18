@@ -1,5 +1,5 @@
-import React from "react";
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, Platform } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, Platform, ScrollView, RefreshControl } from "react-native";
 import { useRouter } from "expo-router";
 import { Button } from "@/components/ui/Button";
 import { Crown, CheckCircle2, MessageCircle, ArrowLeft } from "lucide-react-native";
@@ -12,7 +12,14 @@ import { id } from "date-fns/locale";
 export default function SubscriptionScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const { data: profile, isLoading } = useProfile();
+  const { data: profile, isLoading, refetch } = useProfile();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refetch().catch(() => {});
+    setIsRefreshing(false);
+  };
 
   const handleContactAdmin = () => {
     // GANTI NOMOR WA ADMIN DI SINI
@@ -25,59 +32,85 @@ export default function SubscriptionScreen() {
   const expiryDate = isTrial ? profile?.trialEndsAt : profile?.subscriptionEndsAt;
   const isExpired = expiryDate ? new Date(expiryDate) < new Date() : true;
 
+  // Auto-navigate ke dashboard jika langganan aktif / tidak expired
+  useEffect(() => {
+    if (profile && !isExpired) {
+      router.replace('/(tabs)/home');
+    }
+  }, [profile, isExpired]);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity 
+          onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/home')} 
+          style={styles.backButton}
+        >
           <ArrowLeft size={24} color="#1F2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Langganan Premium</Text>
       </View>
 
-      <View style={styles.content}>
-        <View style={styles.iconContainer}>
-          <View style={styles.crownCircle}>
-            <Crown size={48} color="#B76E79" fill="#B76E79" />
-          </View>
-        </View>
-
-        <View style={styles.statusContainer}>
-          <Text style={styles.title}>
-            {isExpired ? "Masa Akses Berakhir" : "Akses Premium Aktif"}
-          </Text>
-          <Text style={styles.description}>
-            {isExpired 
-              ? "Terima kasih telah mencoba Fixatif. Masa akses Anda telah habis. Silakan perpanjang untuk terus menggunakan fitur lengkap." 
-              : `Anda sedang dalam masa ${isTrial ? 'Trial' : 'Berlangganan'}. Berakhir pada ${expiryDate ? new Date(expiryDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}`}
-          </Text>
-        </View>
-
-        <View style={styles.benefitsContainer}>
-          {[
-            "Manajemen Jadwal Tanpa Batas",
-            "Sistem Invoice & Kwitansi Otomatis",
-            "Laporan Keuangan & Laba Rugi",
-            "Booking Link untuk Klien",
-            "Manajemen Inventaris Produk"
-          ].map((benefit, index) => (
-            <View key={index} style={styles.benefitItem}>
-              <CheckCircle2 size={20} color="#10B981" />
-              <Text style={styles.benefitText}>{benefit}</Text>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} colors={["#B76E79"]} />
+        }
+      >
+        <View style={styles.content}>
+          <View style={styles.iconContainer}>
+            <View style={styles.crownCircle}>
+              <Crown size={48} color="#B76E79" fill="#B76E79" />
             </View>
-          ))}
-        </View>
-
-        <View style={styles.priceCard}>
-          <Text style={styles.priceLabel}>Biaya Langganan</Text>
-          <View style={styles.priceRow}>
-            <Text style={styles.price}>Rp 79.000</Text>
-            <Text style={styles.period}>/ bulan</Text>
           </View>
-          <Text style={styles.priceSubtext}>Semua fitur, tanpa biaya tersembunyi.</Text>
+
+          <View style={styles.statusContainer}>
+            <Text style={styles.title}>
+              {isExpired ? "Masa Akses Berakhir" : "Akses Premium Aktif"}
+            </Text>
+            <Text style={styles.description}>
+              {isExpired 
+                ? "Terima kasih telah mencoba Fixatif. Masa akses Anda telah habis. Silakan perpanjang untuk terus menggunakan fitur lengkap." 
+                : `Anda sedang dalam masa ${isTrial ? 'Trial' : 'Berlangganan'}. Berakhir pada ${expiryDate ? new Date(expiryDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}`}
+            </Text>
+          </View>
+
+          <View style={styles.benefitsContainer}>
+            {[
+              "Manajemen Jadwal Tanpa Batas",
+              "AI Asisten dari Pesan WA (Proses Booking Otomatis)",
+              "Sistem Invoice & Kwitansi Otomatis",
+              "Laporan Keuangan & Laba Rugi",
+              "Booking Link untuk Klien",
+              "Manajemen Inventaris Produk"
+            ].map((benefit, index) => (
+              <View key={index} style={styles.benefitItem}>
+                <CheckCircle2 size={20} color="#10B981" />
+                <Text style={styles.benefitText}>{benefit}</Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.priceCard}>
+            <Text style={styles.priceLabel}>Biaya Langganan</Text>
+            <View style={styles.priceRow}>
+              <Text style={styles.price}>Rp 79.000</Text>
+              <Text style={styles.period}>/ bulan</Text>
+            </View>
+            <Text style={styles.priceSubtext}>Semua fitur, tanpa biaya tersembunyi.</Text>
+          </View>
         </View>
-      </View>
+      </ScrollView>
 
       <View style={styles.footer}>
+        <Button 
+          label={isLoading || isRefreshing ? "Memeriksa..." : "Sudah Bayar? Cek Status"}
+          onPress={handleRefresh}
+          variant="outline"
+          className="h-14 rounded-2xl mb-3"
+          disabled={isLoading || isRefreshing}
+        />
         <Button 
           label="Hubungi Admin via WhatsApp"
           onPress={handleContactAdmin}
@@ -211,5 +244,8 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     textAlign: "center",
     marginTop: 12,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
 });

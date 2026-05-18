@@ -16,11 +16,19 @@ export const syncRepository = {
     const state = await NetInfo.fetch();
     if (!state.isConnected) return;
 
+    // Get current logged-in user ID to isolate sync data
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    if (!userId) {
+      if (__DEV__) console.log("SyncRepository: No active user session, skipping sync.");
+      return;
+    }
+
     useSyncStore.getState().setSyncing(true);
 
     try {
       // Clients
-      const remoteClients = await clientsService.getAll();
+      const remoteClients = await clientsService.getAll({ userId });
       for (const c of remoteClients) {
         const normalized = {
           id: c.id,
@@ -54,7 +62,7 @@ export const syncRepository = {
       }
 
       // Services
-      const remoteServices = await servicesService.getAll();
+      const remoteServices = await servicesService.getAll({ userId });
       for (const s of remoteServices) {
         const normalized = {
           ...s,
@@ -96,7 +104,7 @@ export const syncRepository = {
       fromDate.setDate(fromDate.getDate() - 30);
       const fromDateStr = fromDate.toISOString().split("T")[0];
       
-      const remoteBookings = await bookingsService.getAll({ fromDate: fromDateStr });
+      const remoteBookings = await bookingsService.getAll({ fromDate: fromDateStr, userId });
       for (const b of remoteBookings) {
         const normalized = {
           ...b,

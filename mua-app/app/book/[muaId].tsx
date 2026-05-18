@@ -166,7 +166,9 @@ export default function PublicBookingForm() {
           .eq("id", muaId)
           .single();
 
-        if (muaProfileData?.fcm_token) {
+        if (!muaProfileData?.fcm_token) {
+          console.warn("MUA push token not found (null or empty), notification skipped!");
+        } else {
           const clientName = formData.name || "Klien Baru";
           await fetch('https://exp.host/--/api/v2/push/send', {
             method: 'POST',

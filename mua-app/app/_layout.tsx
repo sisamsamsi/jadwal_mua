@@ -36,7 +36,7 @@ import { bookings } from "@/lib/db/schema";
 import { Platform } from "react-native";
 import { eq } from "drizzle-orm";
 
-import { registerForPushNotificationsAsync, scheduleSubscriptionReminder, showImmediateNotification } from "@/lib/utils/notifications";
+import { registerForPushNotificationsAsync, scheduleSubscriptionReminder } from "@/lib/utils/notifications";
 import * as Notifications from "expo-notifications";
 
 Notifications.setNotificationHandler({
@@ -74,8 +74,7 @@ export default function RootLayout() {
   const navigationState = useRootNavigationState();
 
   const [isHydrated, setIsHydrated] = useState(false);
-  const [isSynced, setIsSynced] = useState(false);
-  const [isSyncTimedOut, setIsSyncTimedOut] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const realtimeChannelRef = useRef<any>(null);
   const appStateRef = useRef(AppState.currentState);
 
@@ -257,20 +256,26 @@ export default function RootLayout() {
               {
                 text: "Update & Restart",
                 onPress: async () => {
-                  await Updates.fetchUpdateAsync();
-                  await Updates.reloadAsync();
+                  try {
+                    setIsUpdating(true);
+                    await Updates.fetchUpdateAsync();
+                    await Updates.reloadAsync();
+                  } catch (err) {
+                    setIsUpdating(false);
+                    if (__DEV__) console.log("Fetch update error:", err);
+                  }
                 },
               },
             ]
           );
         }
       } catch (error) {
-        // Error di development mode diabaikan
-        console.log("Updates error:", error);
+        if (__DEV__) console.log("Updates error:", error);
       }
     }
 
-    onFetchUpdateAsync();
+    const otaTimeout = setTimeout(onFetchUpdateAsync, 30000);
+    return () => clearTimeout(otaTimeout);
   }, []);
 
 
@@ -294,21 +299,9 @@ export default function RootLayout() {
         clearTimeout(safetyTimeout);
         
         if (data.session) {
-          // BUG FIX: Set timeout 5 detik sebagai fallback jika network lambat / offline.
-          // Ini mencegah infinite loading setelah OTA restart.
-          const syncTimeout = setTimeout(() => {
-            if (__DEV__) console.log("RootLayout: Sync timed out, proceeding with local data.");
-            setIsSyncTimedOut(true);
-          }, 5000);
-
           syncRepository.fullSync().finally(() => {
-            clearTimeout(syncTimeout);
-            setIsSynced(true);
             queryClient.invalidateQueries({ queryKey: ["profile", data.session?.user.id] });
           });
-        } else {
-          // Tidak ada session, tidak perlu sync
-          setIsSynced(true);
         }
 
         // Keep-alive ping: Melakukan query ringan agar Supabase tetap aktif
@@ -427,6 +420,27 @@ export default function RootLayout() {
         <StatusBar style="dark" />
         <Stack screenOptions={{ headerShown: false }} />
         <CustomAlert />
+        {isUpdating && (
+          <View style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 99999
+          }}>
+            <ActivityIndicator size="large" color="#B76E79" />
+            <Text style={{ marginTop: 15, color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+              Mengunduh pembaruan...
+            </Text>
+            <Text style={{ marginTop: 5, color: '#ddd', fontSize: 13 }}>
+              Aplikasi akan restart secara otomatis setelah selesai
+            </Text>
+          </View>
+        )}
       </QueryClientProvider>
 
     </GestureHandlerRootView>

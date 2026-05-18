@@ -34,6 +34,7 @@ export const bookingsService = {
     status?: string;
     limit?: number;
     offset?: number;
+    userId?: string;
   }) {
     let query: any = supabase
       .from(Tables.bookings)
@@ -41,6 +42,7 @@ export const bookingsService = {
       .order("booking_date", { ascending: true })
       .order("start_time", { ascending: true });
 
+    if (params?.userId) query = query.eq("user_id", params.userId);
     if (params?.fromDate) query = query.gte("booking_date", params.fromDate);
     if (params?.toDate) query = query.lte("booking_date", params.toDate);
     if (params?.status) query = query.eq("status", params.status);
