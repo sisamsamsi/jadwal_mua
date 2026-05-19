@@ -3,10 +3,15 @@ import { packages, packageItems } from "../db/schema";
 import { eq, and } from "drizzle-orm";
 import { packageService } from "../supabase/packages";
 import { useSyncStore } from "../stores/sync-store";
+import { supabase } from "../supabase/client";
 
 export const packageRepository = {
   async getAll() {
-    return await db.select().from(packages).orderBy(packages.createdAt);
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    if (!userId) return [];
+
+    return await db.select().from(packages).where(eq(packages.userId, userId)).orderBy(packages.createdAt);
   },
 
   async getById(id: string) {
@@ -19,8 +24,12 @@ export const packageRepository = {
   },
 
   async create(data: any, items: any[]) {
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+
     const newPkg = {
       ...data,
+      userId: userId || data.userId,
       isSynced: false,
       localUpdatedAt: new Date().toISOString(),
     };

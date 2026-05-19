@@ -12,7 +12,7 @@ if (typeof global.crypto.randomUUID !== 'function') {
   } as any;
 }
 import React, { useEffect, useState, useRef } from "react";
-import { View, Text, ActivityIndicator, AppState } from "react-native";
+import { View, Text, ActivityIndicator, AppState, TouchableOpacity } from "react-native";
 import { Stack } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -27,6 +27,7 @@ import * as Updates from "expo-updates";
 import { Alert } from "react-native";
 import * as Linking from "expo-linking";
 import { profileRepository } from "@/lib/repositories/profile-repository";
+import * as FileSystem from "expo-file-system";
 
 
 import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
@@ -75,8 +76,41 @@ export default function RootLayout() {
 
   const [isHydrated, setIsHydrated] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [showRecoveryOption, setShowRecoveryOption] = useState(false);
   const realtimeChannelRef = useRef<any>(null);
   const appStateRef = useRef(AppState.currentState);
+
+  useEffect(() => {
+    let timer: any;
+    if (!success) {
+      timer = setTimeout(() => {
+        setShowRecoveryOption(true);
+      }, 6000); // 6 detik safety timeout
+    } else {
+      setShowRecoveryOption(false);
+    }
+    return () => clearTimeout(timer);
+  }, [success]);
+
+  const forceResetDatabaseAndRestart = async () => {
+    try {
+      const dbPath = `${(FileSystem as any).documentDirectory}SQLite/mua_app.db`;
+      const info = await FileSystem.getInfoAsync(dbPath);
+      if (info.exists) {
+        await FileSystem.deleteAsync(dbPath, { idempotent: true });
+      }
+      await Updates.reloadAsync();
+    } catch (err) {
+      console.error("Force reset database failed:", err);
+      try {
+        const { clearLocalDatabase } = require("@/lib/db/client");
+        await clearLocalDatabase();
+        await Updates.reloadAsync();
+      } catch (e) {
+        Alert.alert("Gagal Memulihkan", "Gagal membersihkan database otomatis. Silakan instal ulang aplikasi.");
+      }
+    }
+  };
 
   // Deep Link Handling for Password Reset & OAuth
   useEffect(() => {
@@ -407,9 +441,28 @@ export default function RootLayout() {
   // Jika migrasi belum sukses dan belum ada error, tampilkan loading utama
   if (!success) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#FAF7F5" }}>
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#FAF7F5", padding: 24 }}>
         <ActivityIndicator size="large" color="#B76E79" />
-        <Text style={{ marginTop: 12, color: "#B76E79" }}>Menyiapkan Database...</Text>
+        <Text style={{ marginTop: 16, color: "#B76E79", fontWeight: "600", fontSize: 16 }}>Menyiapkan Database...</Text>
+        <Text style={{ marginTop: 8, color: "#9E9E9E", fontSize: 12, textAlign: "center" }}>
+          Ini memerlukan waktu beberapa saat saat pertama kali atau setelah pembaruan.
+        </Text>
+        
+        {showRecoveryOption && (
+          <View style={{ marginTop: 32, padding: 20, backgroundColor: "#FFF", borderRadius: 16, borderWidth: 1, borderColor: "#E0E0E0", width: "100%", alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 }}>
+            <Text style={{ fontSize: 13, fontWeight: "bold", color: "#E57373", textTransform: "uppercase", letterSpacing: 1 }}>Proses Terlalu Lama?</Text>
+            <Text style={{ fontSize: 12, color: "#757575", marginTop: 6, textAlign: "center", marginBottom: 16, lineHeight: 18 }}>
+              Jika aplikasi macet di layar ini, mungkin terjadi konflik database lokal setelah update. Anda dapat membersihkan cache lokal dengan aman dan menyinkronkan ulang data secara bersih dari server.
+            </Text>
+            <TouchableOpacity 
+              onPress={forceResetDatabaseAndRestart}
+              activeOpacity={0.8}
+              style={{ backgroundColor: "#E57373", paddingVertical: 12, paddingHorizontal: 20, borderRadius: 12, width: "100%", alignItems: "center" }}
+            >
+              <Text style={{ color: "#FFF", fontWeight: "bold", fontSize: 13 }}>Bersihkan & Reset Database Lokal</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     );
   }

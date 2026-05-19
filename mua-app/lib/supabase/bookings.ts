@@ -66,9 +66,14 @@ export const bookingsService = {
   },
 
   async getByDate(date: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    if (!userId) return [];
+
     const { data, error } = await supabase
       .from(Tables.bookings)
       .select("*")
+      .eq("user_id", userId)
       .eq("booking_date", date)
       .neq("status", "cancelled")
       .order("start_time", { ascending: true });

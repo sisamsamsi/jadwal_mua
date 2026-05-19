@@ -2,10 +2,15 @@ import { db } from "../db/client";
 import { invoices } from "../db/schema";
 import { eq, and } from "drizzle-orm";
 import { invoiceService } from "../supabase/invoices";
+import { supabase } from "../supabase/client";
 
 export const invoiceRepository = {
   async getAll() {
-    return await db.select().from(invoices).orderBy(invoices.createdAt);
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    if (!userId) return [];
+
+    return await db.select().from(invoices).where(eq(invoices.userId, userId)).orderBy(invoices.createdAt);
   },
 
   async getByBookingId(bookingId: string) {
@@ -13,8 +18,12 @@ export const invoiceRepository = {
   },
 
   async create(data: any) {
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+
     const newInvoice = {
       ...data,
+      userId: userId || data.userId,
       isSynced: false,
       localUpdatedAt: new Date().toISOString(),
     };

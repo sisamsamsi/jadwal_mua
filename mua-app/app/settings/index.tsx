@@ -23,7 +23,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { isPremium } = useSubscription();
-  const [showOtaDetails, setShowOtaDetails] = useState(false);
+  const { user } = useAuthStore();
   const { 
     showBridalParty, 
     showInventory, 
@@ -37,7 +37,83 @@ export default function SettingsScreen() {
     paymentInstructions: savedPaymentInstructions,
     setPaymentInstructions
   } = useSettingsStore();
-  const { user } = useAuthStore();
+
+  const [showOtaDetails, setShowOtaDetails] = useState(false);
+  const [pushToken, setPushToken] = useState<string | null>(null);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [isTestingNotification, setIsTestingNotification] = useState(false);
+
+  React.useEffect(() => {
+    if (user?.id) {
+      profileRepository.getById(user.id).then((p: any) => {
+        if (p?.fcmToken) {
+          setPushToken(p.fcmToken);
+        }
+      }).catch(() => {});
+    }
+  }, [user?.id]);
+
+  const handleRegisterPushToken = async () => {
+    if (!user?.id) {
+      showAlert("Error", "Sesi login tidak ditemukan.");
+      return;
+    }
+    setIsRegistering(true);
+    try {
+      const { registerForPushNotificationsAsync } = require("@/lib/utils/notifications");
+      const token = await registerForPushNotificationsAsync();
+      if (token) {
+        setPushToken(token);
+        await profileRepository.update(user.id, { fcmToken: token });
+        showAlert("Berhasil", "Token Notifikasi berhasil didaftarkan dan disinkronkan ke Supabase.");
+      } else {
+        showAlert("Perhatian", "Gagal mendapatkan token notifikasi. Periksa izin notifikasi di pengaturan HP Anda.");
+      }
+    } catch (err: any) {
+      showAlert("Error", "Gagal mendaftarkan token: " + (err?.message || err));
+    } finally {
+      setIsRegistering(false);
+    }
+  };
+
+  const handleSendTestNotification = async () => {
+    if (!pushToken) {
+      showAlert("Perhatian", "Token notifikasi belum terdaftar. Silakan klik 'Daftarkan Perangkat' terlebih dahulu.");
+      return;
+    }
+    setIsTestingNotification(true);
+    try {
+      const { showImmediateNotification } = require("@/lib/utils/notifications");
+      await showImmediateNotification("📲 Test Notifikasi Lokal", "Jalur komunikasi internal aktif!");
+
+      const response = await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          to: pushToken,
+          title: "🔔 Test Push Notification (Sukses)",
+          body: "Hebat! Jalur remote push dari server Expo ke HP Anda berhasil terhubung 100%!",
+          data: { type: "test" },
+          sound: "default",
+          priority: "high",
+        }),
+      });
+      
+      const result = await response.json();
+      if (response.ok) {
+        showAlert("Sukses", "Tes notifikasi berhasil dikirim via Expo Server! Silakan tunggu 1-3 detik untuk notifikasi muncul.");
+      } else {
+        showAlert("Info", "Notifikasi lokal dikirim. Pengiriman remote gagal: " + JSON.stringify(result));
+      }
+    } catch (err: any) {
+      showAlert("Error", "Gagal melakukan tes notifikasi: " + (err?.message || err));
+    } finally {
+      setIsTestingNotification(false);
+    }
+  };
 
   const [businessName, setBusinessName] = useState(savedBusinessName);
   const [whatsapp, setWhatsapp] = useState(savedWhatsapp);
@@ -321,44 +397,78 @@ export default function SettingsScreen() {
            </TouchableOpacity>
 
            {showOtaDetails && (
-             <Card className="mt-4 p-5 w-full bg-surface border border-divider rounded-2xl shadow-md gap-y-3">
-               <Text className="text-xs font-bold text-text-secondary uppercase tracking-widest border-b border-divider pb-2 mb-1">
-                 Informasi Update Aplikasi
-               </Text>
-               <View className="gap-y-2.5">
-                 <View className="flex-row justify-between items-center">
-                   <Text className="text-xs text-text-hint">Update ID</Text>
-                   <Text className="text-xs text-text-primary font-mono bg-neutral-background px-2 py-0.5 rounded select-all border border-divider">
-                     {Updates.updateId ? Updates.updateId.substring(0, 8) + "..." : "N/A (Lokal/Dev)"}
-                   </Text>
-                 </View>
-                 <View className="flex-row justify-between items-center">
-                   <Text className="text-xs text-text-hint">Tanggal Rilis</Text>
-                   <Text className="text-xs text-text-primary font-semibold">
-                     {Updates.createdAt ? new Date(Updates.createdAt).toLocaleString('id-ID', {
-                       day: 'numeric',
-                       month: 'short',
-                       year: 'numeric',
-                       hour: '2-digit',
-                       minute: '2-digit'
-                     }) : '-'}
-                   </Text>
-                 </View>
-                 <View className="flex-row justify-between items-center">
-                   <Text className="text-xs text-text-hint">Channel Rilis</Text>
-                   <Text className="text-xs text-text-primary font-bold text-primary capitalize bg-primary/5 px-2 py-0.5 rounded border border-primary/10">
-                     {Updates.channel || "development"}
-                   </Text>
-                 </View>
-                 <View className="flex-row justify-between items-center">
-                   <Text className="text-xs text-text-hint">Sumber Bundle</Text>
-                   <Text className="text-xs text-text-primary font-semibold">
-                     {Updates.isEmbeddedLaunch ? "Built-in (Asli)" : "OTA Downloaded (Terbaru)"}
-                   </Text>
-                 </View>
-               </View>
-             </Card>
-           )}
+              <Card className="mt-4 p-5 w-full bg-surface border border-divider rounded-2xl shadow-md gap-y-3">
+                <Text className="text-xs font-bold text-text-secondary uppercase tracking-widest border-b border-divider pb-2 mb-1">
+                  Informasi Update Aplikasi
+                </Text>
+                <View className="gap-y-2.5">
+                  <View className="flex-row justify-between items-center">
+                    <Text className="text-xs text-text-hint">Update ID</Text>
+                    <Text className="text-xs text-text-primary font-mono bg-neutral-background px-2 py-0.5 rounded select-all border border-divider">
+                      {Updates.updateId ? Updates.updateId.substring(0, 8) + "..." : "N/A (Lokal/Dev)"}
+                    </Text>
+                  </View>
+                  <View className="flex-row justify-between items-center">
+                    <Text className="text-xs text-text-hint">Tanggal Rilis</Text>
+                    <Text className="text-xs text-text-primary font-semibold">
+                      {Updates.createdAt ? new Date(Updates.createdAt).toLocaleString('id-ID', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      }) : '-'}
+                    </Text>
+                  </View>
+                  <View className="flex-row justify-between items-center">
+                    <Text className="text-xs text-text-hint">Channel Rilis</Text>
+                    <Text className="text-xs text-text-primary font-bold text-primary capitalize bg-primary/5 px-2 py-0.5 rounded border border-primary/10">
+                      {Updates.channel || "development"}
+                    </Text>
+                  </View>
+                  <View className="flex-row justify-between items-center">
+                    <Text className="text-xs text-text-hint">Sumber Bundle</Text>
+                    <Text className="text-xs text-text-primary font-semibold">
+                      {Updates.isEmbeddedLaunch ? "Built-in (Asli)" : "OTA Downloaded (Terbaru)"}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text className="text-xs font-bold text-text-secondary uppercase tracking-widest border-t border-divider pt-3 pb-2 mt-2">
+                  Diagnostik Notifikasi (Tes)
+                </Text>
+                <View className="gap-y-3">
+                  <View className="flex-row justify-between items-center">
+                    <Text className="text-xs text-text-hint">Push Token</Text>
+                    <Text className="text-xs text-text-primary font-mono bg-neutral-background px-2 py-0.5 rounded select-all border border-divider max-w-[180px]" numberOfLines={1}>
+                      {pushToken ? `${pushToken.substring(0, 15)}...` : "Belum Terdaftar"}
+                    </Text>
+                  </View>
+                  
+                  <View className="flex-row gap-x-2 mt-1">
+                    <TouchableOpacity 
+                      disabled={isRegistering}
+                      onPress={handleRegisterPushToken}
+                      className="flex-1 bg-primary/10 border border-primary/20 py-2.5 rounded-xl items-center justify-center"
+                    >
+                      <Text className="text-xs text-primary font-bold">
+                        {isRegistering ? "Mendaftarkan..." : "Daftarkan HP"}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      disabled={isTestingNotification}
+                      onPress={handleSendTestNotification}
+                      className="flex-1 bg-emerald-500 py-2.5 rounded-xl items-center justify-center"
+                    >
+                      <Text className="text-xs text-white font-bold">
+                        {isTestingNotification ? "Mengirim..." : "Kirim Uji Coba"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </Card>
+            )}
          </View>
        </ScrollView>
     </SafeAreaView>

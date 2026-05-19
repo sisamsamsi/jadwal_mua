@@ -2,15 +2,24 @@ import { db } from "../db/client";
 import { expenses } from "../db/schema";
 import { eq, and } from "drizzle-orm";
 import { expenseService } from "../supabase/expenses";
+import { supabase } from "../supabase/client";
 
 export const expenseRepository = {
   async getAll() {
-    return await db.select().from(expenses).orderBy(expenses.expenseDate);
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    if (!userId) return [];
+
+    return await db.select().from(expenses).where(eq(expenses.userId, userId)).orderBy(expenses.expenseDate);
   },
 
   async create(data: any) {
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    
     const newExpense = {
       ...data,
+      userId: userId || data.userId,
       isSynced: false,
       localUpdatedAt: new Date().toISOString(),
     };

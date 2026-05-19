@@ -2,15 +2,24 @@ import { db } from "../db/client";
 import { products } from "../db/schema";
 import { eq, and } from "drizzle-orm";
 import { productService } from "../supabase/products";
+import { supabase } from "../supabase/client";
 
 export const productRepository = {
   async getAll() {
-    return await db.select().from(products).orderBy(products.name);
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    if (!userId) return [];
+
+    return await db.select().from(products).where(eq(products.userId, userId)).orderBy(products.name);
   },
 
   async create(data: any) {
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+
     const newProduct = {
       ...data,
+      userId: userId || data.userId,
       isSynced: false,
       localUpdatedAt: new Date().toISOString(),
     };
