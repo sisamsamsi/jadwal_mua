@@ -64,7 +64,7 @@ export default function SubscriptionScreen() {
             <Calendar size={16} color="#757575" className="mr-2" />
             <Text className="text-text-secondary text-xs">
               {isTrial 
-                ? `Masa trial berakhir dalam ${daysLeft > 0 ? daysLeft : 0} hari lagi.` 
+                ? `Masa trial berakhir dalam ${daysLeft > 0 ? daysLeft : 0} hari lagi (Maks. 10 booking).` 
                 : `Langganan Premium aktif hingga ${new Date(trialEndsAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`}
             </Text>
           </View>

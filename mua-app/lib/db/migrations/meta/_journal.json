@@ -8,6 +8,13 @@
       "when": 1778117097648,
       "tag": "0000_thin_synch",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1748001000000,
+      "tag": "0001_add_subscription_and_booking_fields",
+      "breakpoints": true
     }
   ]
 }

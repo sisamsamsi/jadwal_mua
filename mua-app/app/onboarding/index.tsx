@@ -54,8 +54,8 @@ const slides = [
     image: require("@/assets/images/slide3.png"),
     headline: "Mulai Langkah Sukses Anda",
     subheadline:
-      "Coba seluruh fitur Premium gratis selama 7 hari. Rasakan kemudahan mengelola bisnis MUA secara modern.",
-    caption: "Tanpa komitmen kartu kredit. Bisa batal kapan saja.",
+      "Coba asisten digital Fixatif gratis selama 7 hari (maksimal 10 booking). Rasakan kemudahan mengelola bisnis MUA secara modern.",
+    caption: "Tanpa kartu kredit · Berlangganan Premium untuk akses tanpa batas",
   },
 ];
 

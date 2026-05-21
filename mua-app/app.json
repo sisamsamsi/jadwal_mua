@@ -50,7 +50,6 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/46c5b27f-195d-406e-8558-0043cfa211b8",
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0
     },
@@ -65,7 +64,10 @@
         "expo-build-properties",
         {
           "android": {
-            "abiFilters": ["armeabi-v7a", "arm64-v8a"]
+            "abiFilters": [
+              "armeabi-v7a",
+              "arm64-v8a"
+            ]
           }
         }
       ]
@@ -76,8 +78,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "46c5b27f-195d-406e-8558-0043cfa211b8"
+        "projectId": "d984d543-82ff-4877-94ba-e4ed7d6ccb36"
       }
-    }
+    },
+    "owner": "anastasiatita"
   }
 }
