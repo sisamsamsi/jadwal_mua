@@ -179,6 +179,79 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleResetAllData = () => {
+    showAlert(
+      "Reset Seluruh Data Akun",
+      "Apakah Anda yakin ingin menghapus PERMANEN semua data booking, klien, layanan, paket, invoice, pembayaran, pengeluaran, dan produk? Tindakan ini akan menghapus data di HP Anda dan di server Supabase secara permanen.",
+      [
+        { text: "Batal", style: "cancel" },
+        { 
+          text: "Ya, Hapus Permanen", 
+          style: "destructive",
+          onPress: async () => {
+            try {
+              if (!user?.id) return;
+              const userId = user.id;
+              const { supabase: supabaseClient } = require("@/lib/supabase/client");
+              const { db: dbClient } = require("@/lib/db/client");
+              const schemaTable = require("@/lib/db/schema");
+              const { eq: eqOp } = require("drizzle-orm");
+
+              // 1. Hapus data di Supabase (remote)
+              const { data: userBookings } = await supabaseClient.from("bookings").select("id").eq("user_id", userId);
+              const bookingIds = userBookings?.map((b: any) => b.id) || [];
+
+              if (bookingIds.length > 0) {
+                await supabaseClient.from("bridal_party").delete().in("booking_id", bookingIds);
+                await supabaseClient.from("booking_logs").delete().in("booking_id", bookingIds);
+              }
+              await supabaseClient.from("payments").delete().eq("user_id", userId);
+              await supabaseClient.from("invoices").delete().eq("user_id", userId);
+              await supabaseClient.from("bookings").delete().eq("user_id", userId);
+              
+              const { data: userClients } = await supabaseClient.from("clients").select("id").eq("user_id", userId);
+              const clientIds = userClients?.map((c: any) => c.id) || [];
+              if (clientIds.length > 0) {
+                await supabaseClient.from("client_photos").delete().in("client_id", clientIds);
+              }
+              await supabaseClient.from("clients").delete().eq("user_id", userId);
+              await supabaseClient.from("services").delete().eq("user_id", userId);
+              await supabaseClient.from("packages").delete().eq("user_id", userId);
+              await supabaseClient.from("expenses").delete().eq("user_id", userId);
+              await supabaseClient.from("products").delete().eq("user_id", userId);
+              await supabaseClient.from("reminders").delete().eq("user_id", userId);
+
+              // 2. Hapus data di SQLite (lokal)
+              await dbClient.delete(schemaTable.bridalParty).where(
+                eqOp(schemaTable.bridalParty.bookingId, dbClient.select({ id: schemaTable.bookings.id }).from(schemaTable.bookings).where(eqOp(schemaTable.bookings.userId, userId)))
+              ).catch(() => {});
+              await dbClient.delete(schemaTable.payments).where(eqOp(schemaTable.payments.userId, userId)).catch(() => {});
+              await dbClient.delete(schemaTable.invoices).where(eqOp(schemaTable.invoices.userId, userId)).catch(() => {});
+              await dbClient.delete(schemaTable.bookings).where(eqOp(schemaTable.bookings.userId, userId)).catch(() => {});
+              await dbClient.delete(schemaTable.clients).where(eqOp(schemaTable.clients.userId, userId)).catch(() => {});
+              await dbClient.delete(schemaTable.services).where(eqOp(schemaTable.services.userId, userId)).catch(() => {});
+              await dbClient.delete(schemaTable.packages).where(eqOp(schemaTable.packages.userId, userId)).catch(() => {});
+              await dbClient.delete(schemaTable.expenses).where(eqOp(schemaTable.expenses.userId, userId)).catch(() => {});
+              await dbClient.delete(schemaTable.products).where(eqOp(schemaTable.products.userId, userId)).catch(() => {});
+              await dbClient.delete(schemaTable.reminders).where(eqOp(schemaTable.reminders.userId, userId)).catch(() => {});
+
+              // 3. Clear Query Cache and Reload App
+              queryClient.clear();
+              
+              showAlert(
+                "Berhasil", 
+                "Seluruh data transaksi dan master berhasil dihapus. Aplikasi akan memuat ulang.",
+                [{ text: "OK", onPress: () => Updates.reloadAsync() }]
+              );
+            } catch (err: any) {
+              showAlert("Error", "Gagal menghapus data: " + err.message);
+            }
+          }
+        }
+      ]
+    );
+  };
+
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -365,21 +438,32 @@ export default function SettingsScreen() {
         </Card>
 
         <Text className="text-text-hint font-bold uppercase text-xs mb-4">Bahaya / Manajemen Data</Text>
-        <Card className="p-4 mb-10 border-red-100 bg-red-50/30">
+        <Card className="p-4 mb-10 border-red-100 bg-red-50/30 gap-y-4">
            <View className="flex-row items-center mb-4">
               <Trash2 size={20} color="#F44336" className="mr-3" />
-              <View>
-                 <Text className="font-bold text-text-primary">Reset Keuangan</Text>
-                 <Text className="text-text-hint text-[10px]">Hapus semua riwayat pemasukan & pengeluaran</Text>
+              <View className="flex-1">
+                 <Text className="font-bold text-text-primary">Manajemen Data</Text>
+                 <Text className="text-text-hint text-[10px]">Hapus riwayat keuangan atau reset total akun Anda</Text>
               </View>
            </View>
-           <Button 
-              label="Reset Semua Data Keuangan" 
-              variant="outline"
-              className="border-status-error"
-              textClassName="text-status-error"
-              onPress={handleResetFinance}
-           />
+           
+           <View className="gap-y-3">
+             <Button 
+                label="Reset Hanya Data Keuangan" 
+                variant="outline"
+                className="border-status-error h-11 rounded-xl"
+                textClassName="text-status-error"
+                onPress={handleResetFinance}
+             />
+
+             <Button 
+                label="Reset Seluruh Data (Jadwal, Klien, Layanan)" 
+                variant="primary"
+                className="bg-status-error border-status-error h-11 rounded-xl"
+                textClassName="text-white font-bold"
+                onPress={handleResetAllData}
+             />
+           </View>
          </Card>
  
          <View className="mt-10 mb-8 items-center">

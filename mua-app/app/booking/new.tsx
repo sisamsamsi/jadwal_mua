@@ -55,6 +55,21 @@ export default function NewBooking() {
   const [newClientPhone, setNewClientPhone] = useState("");
   const [newServiceName, setNewServiceName] = useState("");
   const [newServicePrice, setNewServicePrice] = useState("");
+  const [aiServiceName, setAiServiceName] = useState("");
+
+  // Prefill new client name from AI extracted client name if not yet created
+  useEffect(() => {
+    if (isClientModalVisible && !formData.clientId && formData.clientName && !newClientName) {
+      setNewClientName(formData.clientName);
+    }
+  }, [isClientModalVisible, formData.clientId, formData.clientName]);
+
+  // Prefill new service name from AI extracted service name if not yet created
+  useEffect(() => {
+    if (isServiceModalVisible && !formData.serviceId && !formData.packageId && aiServiceName && !newServiceName) {
+      setNewServiceName(aiServiceName);
+    }
+  }, [isServiceModalVisible, formData.serviceId, formData.packageId, aiServiceName]);
 
   const handleCreateClient = async () => {
     if (!newClientName) return;
@@ -167,6 +182,7 @@ export default function NewBooking() {
       }));
 
       if (matchedServiceId) setBasePricePerPerson(matchedServicePrice);
+      setAiServiceName(result.serviceName || "");
 
       // 5. Ringkasan feedback per field dengan emoji
       const fields: string[] = [];

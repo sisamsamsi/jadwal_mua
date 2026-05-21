@@ -32,30 +32,30 @@ const slides = [
   {
     id: "1",
     image: require("@/assets/images/slide1.png"),
-    headline: "Hai, Selamat Datang di Fixatif!",
+    headline: "Bisnis MUA Lebih Rapi & Profesional",
     subheadline:
-      "Asisten bisnis kamu sebagai MUA — dari jadwal, klien, hingga keuangan. Semua dalam satu genggaman.",
-    caption: "Dibuat khusus untuk MUA Indonesia yang ingin kerja lebih rapi.",
+      "Fixatif membantu Anda mengelola jadwal klien, invoice pembayaran, dan laporan keuangan dalam satu asisten cerdas.",
+    caption: "Dibuat khusus untuk Makeup Artist Indonesia.",
   },
   {
     id: "2",
     image: require("@/assets/images/slide2.png"),
-    headline: "Fixatif bisa bantu banyak hal",
+    headline: "Kelola Booking Tanpa Repot",
     subheadline:
-      "Catat booking, buat invoice, kirim pengingat WA ke klien — bahkan baca pesan WA klien langsung jadi jadwal otomatis.",
+      "Catat reservasi otomatis, kirim invoice instan, dan buat pengingat jadwal WhatsApp otomatis untuk klien Anda.",
     features: [
-      { label: "Jadwal & Kalender" },
-      { label: "Keuangan & Invoice" },
-      { label: "AI dari Pesan WA" },
+      { label: "Kalender & Jadwal Interaktif" },
+      { label: "Invoice Otomatis & Catatan Keuangan" },
+      { label: "AI WhatsApp Booking Integration" },
     ],
   },
   {
     id: "3",
     image: require("@/assets/images/slide3.png"),
-    headline: "Mulai sekarang, gratis dulu boleh!",
+    headline: "Mulai Langkah Sukses Anda",
     subheadline:
-      "Coba semua fitur selama 7 hari tanpa bayar. Kalau sudah cocok, lanjut bareng kami.",
-    caption: "Tidak perlu kartu kredit. Bisa batal kapan saja.",
+      "Coba seluruh fitur Premium gratis selama 7 hari. Rasakan kemudahan mengelola bisnis MUA secara modern.",
+    caption: "Tanpa komitmen kartu kredit. Bisa batal kapan saja.",
   },
 ];
 
@@ -106,94 +106,108 @@ const SlideItem = ({
         style={{ width, height }}
         resizeMode="cover"
       >
-        {/* Teks di-render dinamis di area bawah gambar dengan gradien warna yang menyatu */}
         <View
           style={{
             flex: 1,
             justifyContent: "flex-end",
-            paddingHorizontal: 28,
-            paddingTop: insets.top + 20,
+            paddingHorizontal: 20,
             paddingBottom: 220 + insets.bottom, 
           }}
         >
-          {/* Judul Slide */}
-          <Text
+          {/* ── Premium Frosted Glassmorphism Card ── */}
+          <View
             style={{
-              fontSize: 24,
-              fontWeight: "800",
-              color: "#4A2D33",
-              lineHeight: 32,
-              marginBottom: 10,
+              backgroundColor: "rgba(250, 247, 245, 0.94)", // Premium warm white with high opacity for readability
+              borderRadius: 24,
+              padding: 24,
+              borderWidth: 1.5,
+              borderColor: "rgba(255, 255, 255, 0.7)", // Frosted border glow
+              shadowColor: "#4A2D33",
+              shadowOffset: { width: 0, height: 10 },
+              shadowOpacity: 0.12,
+              shadowRadius: 20,
+              elevation: 8,
             }}
           >
-            {item.headline}
-          </Text>
-
-          {/* Deskripsi/Subjudul */}
-          <Text
-            style={{
-              fontSize: 15,
-              color: "#6E5B5E",
-              lineHeight: 22,
-              marginBottom: item.features ? 14 : 16,
-            }}
-          >
-            {item.subheadline}
-          </Text>
-
-          {/* List Fitur (Untuk Slide 2) */}
-          {item.features && (
-            <View style={{ gap: 10, marginTop: 4 }}>
-              {item.features.map((feature, idx) => (
-                <View key={idx} style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                  <View
-                    style={{
-                      width: 22,
-                      height: 22,
-                      borderRadius: 11,
-                      backgroundColor: "#E8D5D8",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        color: "#B76E79",
-                        fontWeight: "700",
-                      }}
-                    >
-                      {idx + 1}
-                    </Text>
-                  </View>
-                  <Text
-                    style={{
-                      fontSize: 15,
-                      fontWeight: "600",
-                      color: "#4A2D33",
-                    }}
-                  >
-                    {feature.label}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {/* Keterangan Tambahan / Caption */}
-          {item.caption && (
+            {/* Judul Slide */}
             <Text
               style={{
-                fontSize: 13,
-                color: "#8C7B7D",
-                fontStyle: "italic",
-                lineHeight: 18,
-                marginTop: 4,
+                fontSize: 22,
+                fontWeight: "800",
+                color: "#4A2D33",
+                lineHeight: 30,
+                marginBottom: 8,
               }}
             >
-              {item.caption}
+              {item.headline}
             </Text>
-          )}
+
+            {/* Deskripsi/Subjudul */}
+            <Text
+              style={{
+                fontSize: 14,
+                color: "#6E5B5E",
+                lineHeight: 20,
+                marginBottom: item.features ? 14 : (item.caption ? 12 : 0),
+              }}
+            >
+              {item.subheadline}
+            </Text>
+
+            {/* List Fitur (Untuk Slide 2) */}
+            {item.features && (
+              <View style={{ gap: 10, marginTop: 2 }}>
+                {item.features.map((feature, idx) => (
+                  <View key={idx} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                    <View
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: 10,
+                        backgroundColor: "#F3EAEB", // Soft blush pink tint
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          color: "#B76E79",
+                          fontWeight: "800",
+                        }}
+                      >
+                        ✓
+                      </Text>
+                    </View>
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontWeight: "600",
+                        color: "#4A2D33",
+                      }}
+                    >
+                      {feature.label}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Keterangan Tambahan / Caption */}
+            {item.caption && (
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: "#8C7B7D",
+                  fontStyle: "italic",
+                  lineHeight: 16,
+                  marginTop: 6,
+                }}
+              >
+                {item.caption}
+              </Text>
+            )}
+          </View>
         </View>
       </ImageBackground>
     </View>

@@ -308,7 +308,7 @@ export default function RootLayout() {
       }
     }
 
-    const otaTimeout = setTimeout(onFetchUpdateAsync, 30000);
+    const otaTimeout = setTimeout(onFetchUpdateAsync, 2000);
     return () => clearTimeout(otaTimeout);
   }, []);
 
