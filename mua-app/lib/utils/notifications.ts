@@ -29,7 +29,8 @@ export async function registerForPushNotificationsAsync() {
   try {
     const projectId =
       Constants?.expoConfig?.extra?.eas?.projectId ??
-      Constants?.easConfig?.projectId;
+      Constants?.easConfig?.projectId ??
+      "46c5b27f-195d-406e-8558-0043cfa211b8";
 
     if (!projectId) {
       console.warn("Project ID not found in expo config, notification registration might fail.");
