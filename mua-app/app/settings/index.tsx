@@ -27,12 +27,9 @@ export default function SettingsScreen() {
   const { 
     showBridalParty, 
     showInventory, 
-    businessName: savedBusinessName,
-    whatsappNumber: savedWhatsapp,
     waTemplates,
     toggleBridalParty, 
     toggleInventory,
-    updateBusinessProfile,
     updateTemplates,
     paymentInstructions: savedPaymentInstructions,
     setPaymentInstructions
@@ -65,7 +62,25 @@ export default function SettingsScreen() {
       if (token) {
         setPushToken(token);
         await profileRepository.update(user.id, { fcmToken: token });
-        showAlert("Berhasil", "Token Notifikasi berhasil didaftarkan dan disinkronkan ke Supabase.");
+        
+        if (token.includes("mock_no_permission")) {
+          showAlert(
+            "Terdaftar (Mode Simulasi)",
+            "Pendaftaran disimulasikan agar data tersimpan! Namun, izin notifikasi di HP Anda dinonaktifkan. Silakan aktifkan izin notifikasi untuk Fixatif di Pengaturan HP Anda agar notifikasi fisik bisa muncul."
+          );
+        } else if (token.includes("mock_simulator")) {
+          showAlert(
+            "Terdaftar (Simulator)",
+            "Pendaftaran disimulasikan untuk lingkungan simulator/emulator. Notifikasi fisik tidak akan muncul di simulator, gunakan HP fisik untuk hasil optimal."
+          );
+        } else if (token.includes("mock_preview")) {
+          showAlert(
+            "Terdaftar (Mode Preview)",
+            "Token tiruan berhasil terdaftar di APK Preview Anda. Notifikasi lokal kini aktif dan siap Anda tes!"
+          );
+        } else {
+          showAlert("Berhasil", "Token Notifikasi berhasil didaftarkan dan disinkronkan ke Supabase.");
+        }
       } else {
         showAlert("Perhatian", "Gagal mendapatkan token notifikasi. Periksa izin notifikasi di pengaturan HP Anda.");
       }
@@ -115,31 +130,10 @@ export default function SettingsScreen() {
     }
   };
 
-  const [businessName, setBusinessName] = useState(savedBusinessName);
-  const [whatsapp, setWhatsapp] = useState(savedWhatsapp);
   const [localPaymentInstructions, setLocalPaymentInstructions] = useState(savedPaymentInstructions);
   
   // Local state for templates to avoid auto-saving while typing
   const [localTemplates, setLocalTemplates] = useState(waTemplates);
-
-  const handleSaveProfile = async () => {
-    updateBusinessProfile(businessName, whatsapp);
-    
-    if (user?.id) {
-      try {
-        await profileRepository.update(user.id, {
-          businessName: businessName,
-          whatsappNumber: whatsapp,
-          email: user.email,
-          fullName: user.user_metadata?.full_name || user.email // Optional: keep name synced if possible
-        });
-      } catch (err) {
-        console.error("Failed to sync profile to repository:", err);
-      }
-    }
-    
-    showAlert("Berhasil", "Profil bisnis telah diperbarui.");
-  };
 
 
   const handleSaveTemplates = () => {
@@ -265,33 +259,7 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 24 }}>
-        <Text className="text-text-hint font-bold uppercase text-xs mb-4">Profil Bisnis (Identitas MUA)</Text>
-        <Card className="p-4 mb-8">
-           <View className="mb-4">
-             <Input 
-               label="Nama Bisnis / Brand" 
-               value={businessName} 
-               onChangeText={setBusinessName}
-               placeholder="Contoh: Rahayu Makeup Artist"
-               leftIcon={<Store size={18} color="#757575" />}
-             />
-           </View>
-           <View className="mb-6">
-             <Input 
-               label="Nomor WhatsApp Bisnis" 
-               value={whatsapp} 
-               onChangeText={setWhatsapp}
-               placeholder="0812xxxxxx"
-               keyboardType="phone-pad"
-               leftIcon={<Phone size={18} color="#757575" />}
-             />
-           </View>
-           <Button 
-             label="Simpan Profil" 
-             onPress={handleSaveProfile}
-             className="h-12 rounded-xl"
-           />
-        </Card>
+
 
         <Text className="text-text-hint font-bold uppercase text-xs mb-4">Fitur Modul</Text>
         
@@ -400,42 +368,6 @@ export default function SettingsScreen() {
             </View>
           </Card>
         </TouchableOpacity>
-
-        <Text className="text-text-hint font-bold uppercase text-xs mb-4">Pusat Bantuan & Panduan</Text>
-        <Card className="mb-10 overflow-hidden">
-          <TouchableOpacity 
-            onPress={() => showAlert("Panduan AI", "1. Copy pesan booking dari WhatsApp klien.\n2. Buka 'Booking Baru' > klik 'Asisten AI'.\n3. Paste pesan dan klik 'Proses'.\n4. Data akan terisi otomatis!")}
-            className="flex-row items-center justify-between p-4 border-b border-divider"
-
-          >
-            <View className="flex-row items-center">
-              <Text className="text-text-primary font-medium">Cara Menggunakan Asisten AI</Text>
-            </View>
-            <ChevronLeft size={20} color="#BDBDBD" style={{ transform: [{ rotate: '180deg' }] }} />
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            onPress={() => showAlert("Panduan Booking", "Tipe Acara (Akad/Resepsi) digunakan untuk pengelompokan di kalender. Layanan digunakan untuk hitungan harga. Gunakan fitur 'Otomatis' dengan memilih layanan terlebih dahulu.")}
-            className="flex-row items-center justify-between p-4 border-b border-divider"
-
-          >
-            <View className="flex-row items-center">
-              <Text className="text-text-primary font-medium">Panduan Kelola Jadwal</Text>
-            </View>
-            <ChevronLeft size={20} color="#BDBDBD" style={{ transform: [{ rotate: '180deg' }] }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            onPress={() => showAlert("Link Booking Publik", "Kirimkan link yang ada di profil Anda ke klien (Bio IG/WA). Klien bisa mengisi data sendiri dan akan muncul di jadwal Anda sebagai 'Pending'.")}
-            className="flex-row items-center justify-between p-4"
-
-          >
-            <View className="flex-row items-center">
-              <Text className="text-text-primary font-medium">Cara Booking Mandiri oleh Klien</Text>
-            </View>
-            <ChevronLeft size={20} color="#BDBDBD" style={{ transform: [{ rotate: '180deg' }] }} />
-          </TouchableOpacity>
-        </Card>
 
         <Text className="text-text-hint font-bold uppercase text-xs mb-4">Bahaya / Manajemen Data</Text>
         <Card className="p-4 mb-10 border-red-100 bg-red-50/30 gap-y-4">

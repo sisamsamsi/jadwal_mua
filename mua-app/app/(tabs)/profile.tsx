@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, ScrollView, TouchableOpacity, Alert, Linking, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Alert, Linking, ActivityIndicator, Modal, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { authService } from "@/lib/supabase/auth";
@@ -17,7 +17,9 @@ import {
   Link as LinkIcon,
   Copy,
   Share2,
-  Plus
+  Plus,
+  Store,
+  Phone
 } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useSettingsStore } from "@/lib/stores/settings-store";
@@ -42,6 +44,43 @@ export default function ProfileScreen() {
   const updateProfileMutation = useUpdateProfile();
   const [uploading, setUploading] = React.useState(false);
   const { showAlert } = useAlertStore();
+  const { whatsappNumber, updateBusinessProfile } = useSettingsStore();
+
+  const [isEditModalVisible, setIsEditModalVisible] = React.useState(false);
+  const [editFullName, setEditFullName] = React.useState("");
+  const [editBusinessName, setEditBusinessName] = React.useState("");
+  const [editWhatsappNumber, setEditWhatsappNumber] = React.useState("");
+  const [isSavingProfile, setIsSavingProfile] = React.useState(false);
+
+  const handleOpenEditModal = () => {
+    setEditFullName(profile?.fullName || displayName);
+    setEditBusinessName(profile?.businessName || businessName || "");
+    setEditWhatsappNumber(profile?.whatsappNumber || whatsappNumber || "");
+    setIsEditModalVisible(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!session?.user?.id) return;
+    setIsSavingProfile(false);
+    setIsSavingProfile(true);
+    try {
+      updateBusinessProfile(editBusinessName, editWhatsappNumber);
+      
+      await updateProfileMutation.mutateAsync({
+        fullName: editFullName,
+        businessName: editBusinessName,
+        whatsappNumber: editWhatsappNumber,
+        email: session.user.email || ""
+      });
+      
+      setIsEditModalVisible(false);
+      showAlert("Berhasil", "Profil bisnis Anda telah diperbarui.");
+    } catch (err: any) {
+      showAlert("Error", "Gagal menyimpan profil: " + (err?.message || err));
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
 
   const bookingLink = `${APP_CONFIG.PUBLIC_BOOKING_BASE_URL}/${session?.user?.id}`;
 
@@ -149,6 +188,15 @@ export default function ProfileScreen() {
               label={isPremium ? "Lisensi Aktif" : "Mode Trial"} 
             />
           </View>
+
+          <TouchableOpacity 
+            onPress={handleOpenEditModal}
+            activeOpacity={0.7}
+            className="mt-4 flex-row items-center bg-primary/10 px-4 py-2 rounded-full border border-primary/20"
+          >
+            <Settings size={13} color="#B76E79" className="mr-1.5" />
+            <Text className="text-primary font-bold text-xs">Edit Profil Rias</Text>
+          </TouchableOpacity>
         </View>
 
         <View className="gap-y-4">
@@ -241,6 +289,89 @@ export default function ProfileScreen() {
 
         <Text className="text-center text-text-hint mt-10 mb-6">MUA App v{APP_CONFIG.VERSION}</Text>
       </ScrollView>
+
+      {/* Modal Edit Profil */}
+      <Modal
+        visible={isEditModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsEditModalVisible(false)}
+      >
+        <View className="flex-1 justify-end bg-black/60">
+          <View className="bg-surface rounded-t-[32px] p-6 shadow-2xl border-t border-divider max-h-[85%]">
+            {/* Header Modal */}
+            <View className="flex-row justify-between items-center mb-6 pb-4 border-b border-divider">
+              <Text className="text-xl font-bold text-text-primary">Edit Profil Rias</Text>
+              <TouchableOpacity onPress={() => setIsEditModalVisible(false)} className="p-1">
+                <Text className="text-text-hint font-semibold text-sm">Batal</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+              {/* Input Nama Owner */}
+              <View className="gap-y-1.5 mb-4">
+                <Text className="text-text-secondary font-bold text-xs uppercase tracking-wider">Nama Lengkap Owner</Text>
+                <View className="flex-row items-center border border-divider rounded-xl px-3 bg-neutral-background h-12">
+                  <User size={18} color="#757575" className="mr-2.5" />
+                  <TextInput
+                    value={editFullName}
+                    onChangeText={setEditFullName}
+                    placeholder="Contoh: Rahayu Wardani"
+                    className="flex-1 text-text-primary text-sm font-medium"
+                    placeholderTextColor="#9E9E9E"
+                  />
+                </View>
+              </View>
+
+              {/* Input Brand Bisnis */}
+              <View className="gap-y-1.5 mb-4">
+                <Text className="text-text-secondary font-bold text-xs uppercase tracking-wider">Nama Bisnis / Brand MUA</Text>
+                <View className="flex-row items-center border border-divider rounded-xl px-3 bg-neutral-background h-12">
+                  <Store size={18} color="#757575" className="mr-2.5" />
+                  <TextInput
+                    value={editBusinessName}
+                    onChangeText={setEditBusinessName}
+                    placeholder="Contoh: Rahayu Makeup Artist"
+                    className="flex-1 text-text-primary text-sm font-medium"
+                    placeholderTextColor="#9E9E9E"
+                  />
+                </View>
+              </View>
+
+              {/* Input Nomor WA */}
+              <View className="gap-y-1.5 mb-4">
+                <Text className="text-text-secondary font-bold text-xs uppercase tracking-wider">Nomor WhatsApp Bisnis</Text>
+                <View className="flex-row items-center border border-divider rounded-xl px-3 bg-neutral-background h-12">
+                  <Phone size={18} color="#757575" className="mr-2.5" />
+                  <TextInput
+                    value={editWhatsappNumber}
+                    onChangeText={setEditWhatsappNumber}
+                    placeholder="Contoh: 0812xxxxxx"
+                    keyboardType="phone-pad"
+                    className="flex-1 text-text-primary text-sm font-medium"
+                    placeholderTextColor="#9E9E9E"
+                  />
+                </View>
+              </View>
+              
+              <View className="bg-primary/5 p-3 rounded-lg border border-primary/10 mt-2">
+                <Text className="text-[10px] text-primary italic leading-4">
+                  * Informasi ini akan ditampilkan di Bio Profil Anda dan digunakan oleh sistem untuk notifikasi WhatsApp.
+                </Text>
+              </View>
+            </ScrollView>
+
+            {/* Simpan Button */}
+            <Button
+              label={isSavingProfile ? "Menyimpan..." : "Simpan Perubahan"}
+              disabled={isSavingProfile}
+              onPress={handleSaveProfile}
+              className="h-12 rounded-xl mt-4 bg-primary"
+              textClassName="text-white font-bold"
+            />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
