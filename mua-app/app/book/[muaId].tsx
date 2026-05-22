@@ -174,6 +174,15 @@ export default function PublicBookingForm() {
           }
         );
 
+        console.log("NOTIFY RESULT:", JSON.stringify(notifyResult));
+        console.log("NOTIFY ERROR:", JSON.stringify(notifyError));
+        
+        if (Platform.OS === 'web') {
+          alert(`Notif: ${JSON.stringify(notifyError || notifyResult)}`);
+        } else {
+          Alert.alert("Debug Notif", JSON.stringify(notifyError || notifyResult));
+        }
+
         if (notifyError) {
           console.error("Gagal memanggil Edge Function send-booking-notification:", notifyError);
         } else {
@@ -181,6 +190,11 @@ export default function PublicBookingForm() {
         }
       } catch (pushErr) {
         console.error("Gagal memicu push notification:", pushErr);
+        if (Platform.OS === 'web') {
+          alert(`Push Error: ${pushErr instanceof Error ? pushErr.message : String(pushErr)}`);
+        } else {
+          Alert.alert("Push Error", pushErr instanceof Error ? pushErr.message : String(pushErr));
+        }
       }
 
       setIsSuccess(true);
