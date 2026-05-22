@@ -64,7 +64,9 @@ REFERENSI WAKTU:
 OUTPUT JSON:
 {
   "clientName": string,
+  "clientPhone": string (nomor HP/WhatsApp klien jika disebutkan di dalam teks, contoh: "08123456789", kosongkan jika tidak ada),
   "serviceName": string (nama layanan makeup yang disebutkan, misal: "Makeup Pengantin", "Makeup Wisuda". Kosong string jika tidak disebutkan),
+  "servicePrice": number (harga/budget layanan yang disebutkan/disepakati jika ada di dalam teks, contoh: 500000, isi 0 jika tidak ada),
   "bookingDate": "YYYY-MM-DD",
   "startTime": "HH:mm",
   "endTime": "HH:mm" (tambah 2-3 jam dari startTime jika tidak disebut),

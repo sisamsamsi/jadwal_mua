@@ -122,6 +122,15 @@ export default function NewBooking() {
   const handleAiParse = async () => {
     if (!aiInputText.trim()) return;
     setIsParsing(true);
+    
+    // Resolusi userId dinamis dari store langsung untuk mencegah stale closure atau empty string
+    const activeUserId = userId || useAuthStore.getState().session?.user?.id;
+    if (!activeUserId) {
+      showAlert("Sesi Tidak Ditemukan", "Sesi login MUA tidak valid. Silakan login kembali.");
+      setIsParsing(false);
+      return;
+    }
+
     try {
       const result = await aiService.parseBookingMessage(aiInputText);
       
@@ -129,6 +138,7 @@ export default function NewBooking() {
       // Contoh: AI kirim "Rina" → cocok dengan "Ibu Rina Wulandari" di DB, dan sebaliknya
       let matchedClientId = "";
       let matchedClientName = result.clientName || "";
+      let isNewClientCreated = false;
       
       if (result.clientName) {
         const aiName = result.clientName.toLowerCase().trim();
@@ -139,12 +149,27 @@ export default function NewBooking() {
         if (match) {
           matchedClientId = match.id;
           matchedClientName = match.name;
+        } else {
+          // Buat klien baru secara otomatis!
+          try {
+            const newClient = await createClientMutation.mutateAsync({
+              name: result.clientName,
+              phone: result.clientPhone || "",
+              userId: activeUserId,
+            });
+            matchedClientId = newClient.id;
+            matchedClientName = newClient.name;
+            isNewClientCreated = true;
+          } catch (createErr) {
+            console.error("Gagal membuat klien baru otomatis via AI:", createErr);
+          }
         }
       }
 
       // 2. Matching layanan dari nama yang diekstrak AI
       let matchedServiceId = "";
       let matchedServicePrice = 0;
+      let isNewServiceCreated = false;
 
       if (result.serviceName) {
         const aiSvc = result.serviceName.toLowerCase().trim();
@@ -155,6 +180,22 @@ export default function NewBooking() {
         if (matchedSvc) {
           matchedServiceId = matchedSvc.id;
           matchedServicePrice = matchedSvc.basePrice || 0;
+        } else {
+          // Buat layanan baru secara otomatis!
+          try {
+            const price = result.servicePrice || 0;
+            const newSvc = await createServiceMutation.mutateAsync({
+              name: result.serviceName,
+              basePrice: price,
+              category: "Makeup",
+              userId: activeUserId,
+            });
+            matchedServiceId = newSvc.id;
+            matchedServicePrice = newSvc.basePrice || 0;
+            isNewServiceCreated = true;
+          } catch (createErr) {
+            console.error("Gagal membuat layanan baru otomatis via AI:", createErr);
+          }
         }
       }
 
@@ -186,10 +227,22 @@ export default function NewBooking() {
 
       // 5. Ringkasan feedback per field dengan emoji
       const fields: string[] = [];
-      if (matchedClientId) fields.push("✅ Klien ditemukan");
-      else if (result.clientName) fields.push(`⚠️ Klien "${result.clientName}" tidak ada di daftar`);
-      if (matchedServiceId) fields.push("✅ Layanan ditemukan");
-      else if (result.serviceName) fields.push(`⚠️ Layanan "${result.serviceName}" tidak ada di daftar`);
+      if (isNewClientCreated) {
+        fields.push(`✨ Klien Baru "${result.clientName}" dibuat otomatis`);
+      } else if (matchedClientId) {
+        fields.push(`✅ Klien "${matchedClientName}" terpilih`);
+      } else if (result.clientName) {
+        fields.push(`⚠️ Gagal memproses klien "${result.clientName}"`);
+      }
+
+      if (isNewServiceCreated) {
+        fields.push(`✨ Layanan Baru "${result.serviceName}" dibuat otomatis (Rp ${matchedServicePrice.toLocaleString('id-ID')})`);
+      } else if (matchedServiceId) {
+        fields.push(`✅ Layanan "${result.serviceName}" terpilih`);
+      } else if (result.serviceName) {
+        fields.push(`⚠️ Gagal memproses layanan "${result.serviceName}"`);
+      }
+
       if (result.bookingDate) fields.push("✅ Tanggal");
       if (result.startTime) fields.push("✅ Waktu");
       if (result.locationName) fields.push("✅ Lokasi");
@@ -201,7 +254,6 @@ export default function NewBooking() {
       setAiInputText("");
     } catch (error: any) {
       showAlert("Gagal Membaca", "Gagal memproses teks. Pastikan koneksi internet stabil.");
-
     } finally {
       setIsParsing(false);
     }

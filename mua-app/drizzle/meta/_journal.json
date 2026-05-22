@@ -15,6 +15,13 @@
       "when": 1778387191679,
       "tag": "0001_powerful_ser_duncan",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1778401000000,
+      "tag": "0002_add_subscription_status",
+      "breakpoints": true
     }
   ]
 }

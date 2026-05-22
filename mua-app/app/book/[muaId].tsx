@@ -158,37 +158,29 @@ export default function PublicBookingForm() {
 
       console.log("Booking submitted successfully!");
 
-      // 3. Kirim Push Notification ke perangkat MUA
+      // 3. Kirim Push Notification ke perangkat MUA via Edge Function secara aman (Bypass RLS secara aman)
       try {
-        const { data: muaProfileData } = await supabase
-          .from("profiles")
-          .select("fcm_token")
-          .eq("id", muaId)
-          .single();
-
-        if (!muaProfileData?.fcm_token) {
-          console.warn("MUA push token not found (null or empty), notification skipped!");
-        } else {
-          const clientName = formData.name || "Klien Baru";
-          await fetch('https://exp.host/--/api/v2/push/send', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
+        console.log("Memicu secure Edge Function untuk booking push notification...");
+        const { data: notifyResult, error: notifyError } = await supabase.functions.invoke(
+          "send-booking-notification",
+          {
+            body: {
+              bookingId: bookingData?.id,
+              muaId: muaId,
+              clientName: formData.name,
+              date: formData.date,
+              time: formData.time,
             },
-            body: JSON.stringify({
-              to: muaProfileData.fcm_token,
-              title: '📅 Booking Baru Masuk!',
-              body: `${clientName} baru saja booking untuk tanggal ${formData.date} jam ${formData.time}`,
-              data: { type: 'new_booking', bookingId: bookingData?.id },
-              sound: 'default',
-              priority: 'high',
-            }),
-          });
-          console.log("Push notification sent to MUA");
+          }
+        );
+
+        if (notifyError) {
+          console.error("Gagal memanggil Edge Function send-booking-notification:", notifyError);
+        } else {
+          console.log("Push notification request berhasil dikirim ke backend:", notifyResult);
         }
       } catch (pushErr) {
-        console.error("Gagal mengirim push notification:", pushErr);
+        console.error("Gagal memicu push notification:", pushErr);
       }
 
       setIsSuccess(true);
