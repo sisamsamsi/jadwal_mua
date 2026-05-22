@@ -38,17 +38,6 @@ import { Platform } from "react-native";
 import { eq } from "drizzle-orm";
 
 import { registerForPushNotificationsAsync, scheduleSubscriptionReminder } from "@/lib/utils/notifications";
-import * as Notifications from "expo-notifications";
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
 
 const queryClient = new QueryClient();
 
@@ -159,18 +148,7 @@ export default function RootLayout() {
     };
   }, [router]);
 
-  // Handle Notification Taps
-  useEffect(() => {
-    const subscription = Notifications.addNotificationResponseReceivedListener(response => {
-      const { data } = response.notification.request.content;
-      if (data?.bookingId) {
-        router.push(`/booking/${data.bookingId}` as any);
-      } else if (data?.type === 'subscription_reminder') {
-        router.push(`/subscription` as any);
-      }
-    });
-    return () => subscription.remove();
-  }, [router]);
+  // Handle Notification Taps (Disabled)
 
   useEffect(() => {
     // Check hydration status to avoid reading false defaults
@@ -235,20 +213,7 @@ export default function RootLayout() {
             }
           }
 
-          // Push notification registration
-          if (Platform.OS !== 'web') {
-            const localProfile = await profileRepository.getById(session.user.id).catch(() => null);
-            registerForPushNotificationsAsync().then((token) => {
-              if (token && token !== localProfile?.fcmToken) {
-                profileRepository.update(session.user.id, { fcmToken: token });
-              }
-            });
-
-            const reminderDate = localProfile?.subscriptionStatus === 'trial'
-              ? localProfile?.trialEndsAt
-              : localProfile?.subscriptionEndsAt;
-            if (reminderDate) scheduleSubscriptionReminder(new Date(reminderDate));
-          }
+          // Push notification registration (Disabled)
 
           if (isExpired) {
             if (!isSubscriptionPage) router.replace("/subscription" as any);
