@@ -303,7 +303,14 @@ Mohon untuk dikonfirmasi ya Kak. Terima kasih! ✨
 _ID Booking: ${createdBooking.id}_`;
 
     const handleSendWhatsApp = () => {
-      const sanitizedPhone = getSanitizedWaNumber(muaProfile?.whatsappNumber || "628884000585");
+      if (!muaProfile?.whatsappNumber) {
+        Alert.alert(
+          "WhatsApp MUA Belum Aktif",
+          "MUA ini belum mengatur nomor WhatsApp bisnis di akun mereka. Silakan simpan bukti booking ini dan hubungi MUA melalui kontak lain."
+        );
+        return;
+      }
+      const sanitizedPhone = getSanitizedWaNumber(muaProfile.whatsappNumber);
       const waUrl = `https://wa.me/${sanitizedPhone}?text=${encodeURIComponent(waMessage)}`;
       if (Platform.OS === 'web') {
         window.open(waUrl, '_blank');
@@ -621,12 +628,22 @@ _ID Booking: ${createdBooking.id}_`;
           
           <TouchableOpacity 
             onPress={() => {
+              if (!muaProfile?.whatsappNumber) {
+                Alert.alert(
+                  "WhatsApp MUA Belum Aktif",
+                  "MUA ini belum mengatur nomor WhatsApp bisnis di akun mereka. Silakan hubungi MUA melalui kontak lain."
+                );
+                return;
+              }
               const message = `Halo, saya ingin booking layanan ${formData.serviceName || "[Layanan]"} pada tanggal ${formData.date || "[Tanggal]"} jam ${formData.time || "[Jam]"}. Apakah tersedia?`;
-              const waUrl = `https://wa.me/${muaProfile?.whatsappNumber || "628884000585"}?text=${encodeURIComponent(message)}`;
+              const sanitizedPhone = getSanitizedWaNumber(muaProfile.whatsappNumber);
+              const waUrl = `https://wa.me/${sanitizedPhone}?text=${encodeURIComponent(message)}`;
               if (Platform.OS === 'web') {
                 window.open(waUrl, '_blank');
               } else {
-                // Link handling for native
+                Linking.openURL(waUrl).catch(() => {
+                  Alert.alert("Error", "Gagal membuka WhatsApp. Pastikan WhatsApp terinstal di perangkat Anda.");
+                });
               }
             }}
             className="w-full h-14 rounded-2xl border border-primary items-center justify-center flex-row"

@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, ScrollView, TouchableOpacity, Share, Alert } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Share, Alert, Image } from "react-native";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useBooking } from "@/lib/hooks/use-bookings";
@@ -14,6 +14,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { formatCurrency } from "@/lib/utils/currency";
 import { PremiumGate } from "@/components/ui/PremiumGate";
+import { useProfile } from "@/lib/hooks/use-profile";
 
 export default function InvoiceScreen() {
   const { id } = useLocalSearchParams();
@@ -24,7 +25,12 @@ export default function InvoiceScreen() {
   const { data: service } = useService(booking?.serviceId || "");
   const { data: payments = [] } = usePaymentsByBooking(id as string);
   const { businessName, whatsappNumber, paymentInstructions } = useSettingsStore();
+  const { data: profile } = useProfile();
   const [isGenerating, setIsGenerating] = React.useState(false);
+
+  const activeBusinessName = profile?.businessName || businessName || "MUA PROFESSIONAL";
+  const activeWhatsappNumber = profile?.whatsappNumber || whatsappNumber || "";
+  const activeLogoUrl = profile?.profilePhotoUrl || "";
 
   const clientName = client?.name || booking?.clientName || "Klien";
 
@@ -33,7 +39,7 @@ export default function InvoiceScreen() {
 
   const handleShare = async () => {
     const message = `
-INVOICE ${businessName || "MUA"}
+INVOICE ${activeBusinessName}
 ------------------
 Klien: ${clientName}
 Tanggal: ${booking?.bookingDate}
@@ -59,6 +65,7 @@ Terima kasih!
             <style>
               body { font-family: 'Helvetica Neue', 'Helvetica', Arial, sans-serif; padding: 20px; color: #333; }
               .header { text-align: center; border-bottom: 2px solid #eee; padding-bottom: 20px; margin-bottom: 20px; }
+              .brand-logo { width: 70px; height: 70px; border-radius: 50%; object-fit: cover; margin-bottom: 10px; border: 2px solid #B76E79; }
               .title { font-size: 24px; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 2px; }
               .subtitle { color: #666; font-size: 14px; margin-bottom: 15px; }
               .invoice-badge { display: inline-block; background-color: #fce4e4; color: #cc0000; padding: 5px 15px; border-radius: 15px; font-weight: bold; margin-bottom: 10px; }
@@ -86,8 +93,9 @@ Terima kasih!
           </head>
           <body>
             <div class="header">
-              <div class="title">${businessName || "MUA PROFESSIONAL"}</div>
-              <div class="subtitle">${whatsappNumber || ""}</div>
+              ${activeLogoUrl ? `<img src="${activeLogoUrl}" class="brand-logo" />` : ''}
+              <div class="title">${activeBusinessName}</div>
+              <div class="subtitle">${activeWhatsappNumber}</div>
               <div class="invoice-badge">INVOICE</div>
               <div class="invoice-no">No: INV/${booking?.id.substring(0,8).toUpperCase()}</div>
             </div>
@@ -185,8 +193,15 @@ Terima kasih!
         <Card className="bg-white p-8 shadow-sm">
           {/* Header Invoice */}
           <View className="items-center border-b-2 border-divider pb-6 mb-6">
-            <Text className="text-xl font-bold text-text-primary mb-1 uppercase tracking-widest">{businessName || "MUA PROFESSIONAL"}</Text>
-            <Text className="text-text-hint text-xs mb-4">{whatsappNumber}</Text>
+            {activeLogoUrl ? (
+              <Image 
+                source={{ uri: activeLogoUrl }} 
+                className="w-20 h-20 rounded-full border-2 border-primary/20 mb-3 shadow-sm"
+                resizeMode="cover"
+              />
+            ) : null}
+            <Text className="text-xl font-bold text-text-primary mb-1 uppercase tracking-widest">{activeBusinessName}</Text>
+            <Text className="text-text-hint text-xs mb-4">{activeWhatsappNumber}</Text>
             <View className="bg-primary/10 px-4 py-1 rounded-full mb-2">
               <Text className="text-primary font-bold">INVOICE</Text>
             </View>

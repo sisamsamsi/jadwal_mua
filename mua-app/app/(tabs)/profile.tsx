@@ -252,6 +252,17 @@ export default function ProfileScreen() {
               </View>
             </Card>
           </PremiumGate>
+          {!profile?.whatsappNumber && (
+            <TouchableOpacity 
+              onPress={handleOpenEditModal}
+              activeOpacity={0.8}
+              className="flex-row items-start bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mt-2 shadow-sm"
+            >
+              <Text className="text-amber-700 text-xs leading-5">
+                ⚠️ <Text className="font-bold">WhatsApp Bisnis Belum Diatur!</Text> Klien tidak akan bisa mengirimkan bukti booking ke Anda. Ketuk di sini untuk mengaturnya sekarang.
+              </Text>
+            </TouchableOpacity>
+          )}
           {!APP_CONFIG.IS_WEB_APP_DEPLOYED && (
             <View className="flex-row items-start bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mt-1">
               <Text className="text-amber-600 text-xs leading-5">
