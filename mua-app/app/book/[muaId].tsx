@@ -1,13 +1,41 @@
 import React, { useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Alert, Platform } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Alert, Platform, Linking } from "react-native";
 import { useLocalSearchParams, Stack } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "@/lib/supabase/client";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Calendar, Clock, User, Phone, MessageSquare, CheckCircle2 } from "lucide-react-native";
+import { Calendar, Clock, User, Phone, MessageSquare, CheckCircle2, Receipt } from "lucide-react-native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { cn } from "@/lib/utils/cn";
+
+const formatDateIndo = (dateStr: string) => {
+  if (!dateStr) return "";
+  try {
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      const year = parts[0];
+      const month = parseInt(parts[1], 10);
+      const day = parseInt(parts[2], 10);
+      const months = [
+        "Januari", "Februari", "Maret", "April", "Mei", "Juni", 
+        "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+      ];
+      return `${day} ${months[month - 1]} ${year}`;
+    }
+  } catch (e) {
+    console.error(e);
+  }
+  return dateStr;
+};
+
+const getSanitizedWaNumber = (num: string) => {
+  let cleaned = num.replace(/\D/g, "");
+  if (cleaned.startsWith("0")) {
+    cleaned = "62" + cleaned.slice(1);
+  }
+  return cleaned;
+};
 
 export default function PublicBookingForm() {
   const { muaId } = useLocalSearchParams();
@@ -15,6 +43,16 @@ export default function PublicBookingForm() {
   const [muaProfile, setMuaProfile] = useState<{ businessName: string; name: string; whatsappNumber: string } | null>(null);
   const [isValidMua, setIsValidMua] = useState<boolean | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [createdBooking, setCreatedBooking] = useState<{
+    id: string;
+    clientName: string;
+    clientPhone: string;
+    serviceName: string;
+    date: string;
+    time: string;
+    totalPrice: number;
+    notes: string;
+  } | null>(null);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -161,7 +199,7 @@ export default function PublicBookingForm() {
       // 3. Kirim Push Notification ke perangkat MUA via Edge Function secara aman (Bypass RLS secara aman)
       try {
         console.log("Memicu secure Edge Function untuk booking push notification...");
-        const { data: notifyResult, error: notifyError } = await supabase.functions.invoke(
+        supabase.functions.invoke(
           "send-booking-notification",
           {
             body: {
@@ -172,30 +210,31 @@ export default function PublicBookingForm() {
               time: formData.time,
             },
           }
-        );
-
-        console.log("NOTIFY RESULT:", JSON.stringify(notifyResult));
-        console.log("NOTIFY ERROR:", JSON.stringify(notifyError));
-        
-        if (Platform.OS === 'web') {
-          alert(`Notif: ${JSON.stringify(notifyError || notifyResult)}`);
-        } else {
-          Alert.alert("Debug Notif", JSON.stringify(notifyError || notifyResult));
-        }
-
-        if (notifyError) {
-          console.error("Gagal memanggil Edge Function send-booking-notification:", notifyError);
-        } else {
-          console.log("Push notification request berhasil dikirim ke backend:", notifyResult);
-        }
+        ).then(({ data: notifyResult, error: notifyError }) => {
+          console.log("NOTIFY RESULT:", JSON.stringify(notifyResult));
+          if (notifyError) {
+            console.error("Gagal memanggil Edge Function send-booking-notification:", notifyError);
+          } else {
+            console.log("Push notification request berhasil dikirim ke backend:", notifyResult);
+          }
+        }).catch(err => {
+          console.error("Gagal memicu push notification via invoke:", err);
+        });
       } catch (pushErr) {
         console.error("Gagal memicu push notification:", pushErr);
-        if (Platform.OS === 'web') {
-          alert(`Push Error: ${pushErr instanceof Error ? pushErr.message : String(pushErr)}`);
-        } else {
-          Alert.alert("Push Error", pushErr instanceof Error ? pushErr.message : String(pushErr));
-        }
       }
+
+      // Simpan data booking yang berhasil dibuat untuk ditampilkan di Bukti Booking
+      setCreatedBooking({
+        id: bookingData?.id || "",
+        clientName: formData.name,
+        clientPhone: formData.phone,
+        serviceName: formData.serviceName || selectedService?.name || "Layanan Rias",
+        date: formData.date,
+        time: formData.time,
+        totalPrice: selectedService?.basePrice || 0,
+        notes: formData.notes
+      });
 
       setIsSuccess(true);
       setFormData({ 
@@ -237,23 +276,188 @@ export default function PublicBookingForm() {
     );
   }
 
-  if (isSuccess) {
+  if (isSuccess && createdBooking) {
+    // Format tanggal
+    const formattedDate = formatDateIndo(createdBooking.date);
+    
+    // Siapkan pesan WhatsApp
+    const waMessage = `*BUKTI BOOKING - ${muaProfile?.businessName || "MUA"}*
+----------------------------------
+Halo Kak ${muaProfile?.name || "MUA"}, saya sudah mengajukan booking online. Berikut rincian pesanan saya:
+
+👤 *Detail Pelanggan:*
+• Nama: ${createdBooking.clientName}
+• WhatsApp: +${createdBooking.clientPhone}
+
+💄 *Detail Riasan:*
+• Layanan: ${createdBooking.serviceName}
+• Tanggal: ${formattedDate}
+• Jam: ${createdBooking.time} WIB
+• Estimasi Biaya: Rp ${(createdBooking.totalPrice || 0).toLocaleString('id-ID')}
+
+✉️ *Catatan Tambahan:*
+${createdBooking.notes ? createdBooking.notes : "-"}
+
+Mohon untuk dikonfirmasi ya Kak. Terima kasih! ✨
+----------------------------------
+_ID Booking: ${createdBooking.id}_`;
+
+    const handleSendWhatsApp = () => {
+      const sanitizedPhone = getSanitizedWaNumber(muaProfile?.whatsappNumber || "628884000585");
+      const waUrl = `https://wa.me/${sanitizedPhone}?text=${encodeURIComponent(waMessage)}`;
+      if (Platform.OS === 'web') {
+        window.open(waUrl, '_blank');
+      } else {
+        Linking.openURL(waUrl).catch(() => {
+          Alert.alert("Error", "Gagal membuka WhatsApp. Pastikan WhatsApp terinstal di perangkat Anda.");
+        });
+      }
+    };
+
     return (
-      <SafeAreaView className="flex-1 bg-background items-center justify-center p-8">
-        <View className="w-16 h-16 bg-status-success/10 rounded-full items-center justify-center mb-6">
-          <CheckCircle2 size={32} color="#4CAF50" />
-        </View>
-        <Text className="text-2xl font-bold text-text-primary text-center mb-3">
-          Booking Berhasil!
-        </Text>
-        <Text className="text-text-secondary text-center text-base leading-6 mb-8">
-          Permintaan jadwal Anda telah terkirim ke <Text className="font-bold">{muaProfile?.businessName}</Text>. Kami akan menghubungi Anda via WhatsApp untuk konfirmasi selanjutnya.
-        </Text>
-        <Button 
-          label="Buat Booking Lain" 
-          onPress={() => setIsSuccess(false)} 
-          className="w-full h-14 rounded-2xl" 
-        />
+      <SafeAreaView className="flex-1 bg-[#FAF7F5]">
+        <Stack.Screen options={{ title: "Bukti Booking", headerShown: true }} />
+        <ScrollView contentContainerStyle={{ padding: 24, alignItems: "center", justifyContent: "center" }}>
+          
+          {/* Header Animasi Sukses */}
+          <View className="items-center mb-6 mt-4">
+            <View className="w-20 h-20 bg-emerald-50 rounded-full items-center justify-center mb-4 shadow-sm">
+              <CheckCircle2 size={40} color="#10B981" />
+            </View>
+            <Text className="text-2xl font-bold text-gray-800 text-center">
+              Booking Berhasil Diajukan!
+            </Text>
+            <Text className="text-gray-500 text-center text-sm px-4 mt-2">
+              Silakan kirimkan bukti ini ke WhatsApp MUA di bawah untuk konfirmasi instan.
+            </Text>
+          </View>
+
+          {/* Kartu Bukti Booking (Receipt Card) */}
+          <View className="w-full bg-white rounded-3xl p-6 border border-gray-100 shadow-md mb-6 relative overflow-hidden">
+            
+            {/* Hiasan background garis estetis */}
+            <View className="absolute top-0 left-0 right-0 h-2 bg-[#B76E79]" />
+            
+            {/* Header Nota */}
+            <View className="flex-row justify-between items-center border-b border-gray-100 pb-4 mb-4">
+              <View>
+                <Text className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
+                  Bukti Booking Online
+                </Text>
+                <Text className="text-base font-bold text-gray-800 mt-1">
+                  {muaProfile?.businessName || "MUA"}
+                </Text>
+              </View>
+              <View className="bg-emerald-50 px-3 py-1.5 rounded-full">
+                <Text className="text-xs font-bold text-emerald-600">
+                  PENDING
+                </Text>
+              </View>
+            </View>
+
+            {/* Rincian item */}
+            <View className="gap-y-4">
+              
+              {/* Nama Pelanggan */}
+              <View className="flex-row items-start">
+                <View className="w-8 h-8 bg-gray-50 rounded-lg items-center justify-center mr-3 mt-0.5">
+                  <User size={16} color="#757575" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-[11px] font-medium text-gray-400 uppercase">Pelanggan</Text>
+                  <Text className="text-sm font-bold text-gray-800 mt-0.5">{createdBooking.clientName}</Text>
+                  <Text className="text-xs text-gray-500 mt-0.5">+{createdBooking.clientPhone}</Text>
+                </View>
+              </View>
+
+              {/* Layanan */}
+              <View className="flex-row items-start">
+                <View className="w-8 h-8 bg-gray-50 rounded-lg items-center justify-center mr-3 mt-0.5">
+                  <Receipt size={16} color="#757575" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-[11px] font-medium text-gray-400 uppercase">Layanan Rias</Text>
+                  <Text className="text-sm font-bold text-gray-800 mt-0.5">{createdBooking.serviceName}</Text>
+                </View>
+              </View>
+
+              {/* Tanggal & Waktu */}
+              <View className="flex-row items-start">
+                <View className="w-8 h-8 bg-gray-50 rounded-lg items-center justify-center mr-3 mt-0.5">
+                  <Calendar size={16} color="#757575" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-[11px] font-medium text-gray-400 uppercase">Tanggal & Jam</Text>
+                  <Text className="text-sm font-bold text-gray-800 mt-0.5">{formattedDate}</Text>
+                  <View className="flex-row items-center mt-1">
+                    <Clock size={12} color="#9E9E9E" className="mr-1" />
+                    <Text className="text-xs text-gray-500">{createdBooking.time} WIB</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Catatan Tambahan (jika ada) */}
+              {createdBooking.notes ? (
+                <View className="flex-row items-start">
+                  <View className="w-8 h-8 bg-gray-50 rounded-lg items-center justify-center mr-3 mt-0.5">
+                    <MessageSquare size={16} color="#757575" />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-[11px] font-medium text-gray-400 uppercase">Catatan</Text>
+                    <Text className="text-xs italic text-gray-600 mt-1 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                      "{createdBooking.notes}"
+                    </Text>
+                  </View>
+                </View>
+              ) : null}
+
+              {/* Total Harga */}
+              <View className="border-t border-dashed border-gray-200 pt-4 mt-2 flex-row justify-between items-center">
+                <Text className="text-sm font-bold text-gray-800">Total Estimasi:</Text>
+                <Text className="text-lg font-black text-[#B76E79]">
+                  Rp {(createdBooking.totalPrice || 0).toLocaleString('id-ID')}
+                </Text>
+              </View>
+
+            </View>
+
+            {/* Hiasan gerigi bawah karcis */}
+            <View className="absolute bottom-[-10] left-0 right-0 flex-row justify-between px-1">
+              {[...Array(15)].map((_, i) => (
+                <View key={i} className="w-4 h-4 bg-[#FAF7F5] rounded-full mt-2" />
+              ))}
+            </View>
+          </View>
+
+          {/* ID Booking Kecil */}
+          <Text className="text-[10px] text-gray-400 font-mono mb-6">
+            ID Booking: {createdBooking.id.toUpperCase()}
+          </Text>
+
+          {/* Tombol Utama */}
+          <View className="w-full gap-y-3">
+            <TouchableOpacity 
+              onPress={handleSendWhatsApp}
+              activeOpacity={0.9}
+              className="w-full h-14 bg-[#25D366] rounded-2xl items-center justify-center flex-row shadow-sm hover:opacity-90 active:scale-98 transition-all"
+            >
+              <MessageSquare size={20} color="#FFF" className="mr-2" />
+              <Text className="text-white font-bold text-base">Kirim Bukti ke WhatsApp MUA</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              onPress={() => {
+                setIsSuccess(false);
+                setCreatedBooking(null);
+              }}
+              activeOpacity={0.8}
+              className="w-full h-14 bg-white border border-gray-200 rounded-2xl items-center justify-center flex-row shadow-sm hover:bg-gray-50"
+            >
+              <Text className="text-gray-600 font-bold text-base">Buat Booking Lain</Text>
+            </TouchableOpacity>
+          </View>
+
+        </ScrollView>
       </SafeAreaView>
     );
   }
