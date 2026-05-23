@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, ScrollView, TouchableOpacity, Alert, Linking, ActivityIndicator, Modal, TextInput } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Alert, Linking, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { authService } from "@/lib/supabase/auth";
@@ -309,7 +309,10 @@ export default function ProfileScreen() {
         onRequestClose={() => setIsEditModalVisible(false)}
       >
         <View className="flex-1 justify-end bg-black/60">
-          <View className="bg-surface rounded-t-[32px] p-6 shadow-2xl border-t border-divider max-h-[85%]">
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            className="bg-surface rounded-t-[32px] p-6 shadow-2xl border-t border-divider max-h-[85%]"
+          >
             {/* Header Modal */}
             <View className="flex-row justify-between items-center mb-6 pb-4 border-b border-divider">
               <Text className="text-xl font-bold text-text-primary">Edit Profil Rias</Text>
@@ -318,7 +321,7 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+            <ScrollView contentContainerStyle={{ paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
               {/* Input Nama Owner */}
               <View className="gap-y-1.5 mb-4">
                 <Text className="text-text-secondary font-bold text-xs uppercase tracking-wider">Nama Lengkap Owner</Text>
@@ -380,7 +383,7 @@ export default function ProfileScreen() {
               className="h-12 rounded-xl mt-4 bg-primary"
               textClassName="text-white font-bold"
             />
-          </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
     </SafeAreaView>

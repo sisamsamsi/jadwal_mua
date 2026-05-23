@@ -134,18 +134,46 @@ export default function NewBooking() {
     try {
       const result = await aiService.parseBookingMessage(aiInputText);
       
-      // 1. Matching klien — DUA ARAH agar toleran variasi penulisan nama
-      // Contoh: AI kirim "Rina" → cocok dengan "Ibu Rina Wulandari" di DB, dan sebaliknya
+      // Helper normalisasi nama klien (mengabaikan gelar/sapaan seperti Ibu, Kak, Mbak, Bapak)
+      const normalizeClientName = (name: string) => {
+        return name
+          .toLowerCase()
+          .replace(/[^a-z0-9\s]/g, "") // Hapus tanda baca
+          .split(/\s+/)
+          .filter(word => !["ibu", "bapak", "kak", "kakak", "mbak", "neng", "sis", "sist", "sista", "tante", "om", "sdr", "sdri"].includes(word))
+          .join(" ")
+          .trim();
+      };
+
+      // Helper normalisasi nama layanan (menghilangkan spasi pada "make up" -> "makeup", mengabaikan kata umum "mua", "makeup", "rias", "jasa", "layanan")
+      const normalizeServiceName = (name: string) => {
+        return name
+          .toLowerCase()
+          .replace(/make\s+up/g, "makeup") // satukan "make up" menjadi "makeup"
+          .replace(/[^a-z0-9\s]/g, "") // Hapus tanda baca
+          .split(/\s+/)
+          .filter(word => !["mua", "makeup", "rias", "jasa", "layanan", "artist", "paket", "custom"].includes(word))
+          .join(" ")
+          .trim();
+      };
+
+      // 1. Matching klien — DUA ARAH dengan normalisasi cerdas
       let matchedClientId = "";
       let matchedClientName = result.clientName || "";
       let isNewClientCreated = false;
       
       if (result.clientName) {
-        const aiName = result.clientName.toLowerCase().trim();
         const match = clients.find((c: any) => {
-          const dbName = c.name.toLowerCase().trim();
-          return dbName.includes(aiName) || aiName.includes(dbName);
+          const normDb = normalizeClientName(c.name);
+          const normAi = normalizeClientName(result.clientName);
+          if (!normDb || !normAi) {
+            const rawDb = c.name.toLowerCase().trim();
+            const rawAi = result.clientName.toLowerCase().trim();
+            return rawDb.includes(rawAi) || rawAi.includes(rawDb);
+          }
+          return normDb.includes(normAi) || normAi.includes(normDb);
         });
+        
         if (match) {
           matchedClientId = match.id;
           matchedClientName = match.name;
@@ -166,17 +194,23 @@ export default function NewBooking() {
         }
       }
 
-      // 2. Matching layanan dari nama yang diekstrak AI
+      // 2. Matching layanan dari nama yang diekstrak AI dengan normalisasi cerdas
       let matchedServiceId = "";
       let matchedServicePrice = 0;
       let isNewServiceCreated = false;
 
       if (result.serviceName) {
-        const aiSvc = result.serviceName.toLowerCase().trim();
         const matchedSvc = services.find((s: any) => {
-          const dbSvc = s.name.toLowerCase().trim();
-          return dbSvc.includes(aiSvc) || aiSvc.includes(dbSvc);
+          const normDb = normalizeServiceName(s.name);
+          const normAi = normalizeServiceName(result.serviceName);
+          if (!normDb || !normAi) {
+            const rawDb = s.name.toLowerCase().trim();
+            const rawAi = result.serviceName.toLowerCase().trim();
+            return rawDb.includes(rawAi) || rawAi.includes(rawDb);
+          }
+          return normDb.includes(normAi) || normAi.includes(normDb);
         });
+        
         if (matchedSvc) {
           matchedServiceId = matchedSvc.id;
           matchedServicePrice = matchedSvc.basePrice || 0;

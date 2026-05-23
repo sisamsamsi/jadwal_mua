@@ -39,37 +39,7 @@ export default function SettingsScreen() {
     updateBusinessProfile
   } = useSettingsStore();
 
-  const [editBusinessName, setEditBusinessName] = useState("");
-  const [editWhatsappNumber, setEditWhatsappNumber] = useState("");
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
-  React.useEffect(() => {
-    if (profile) {
-      setEditBusinessName(profile.businessName || "");
-      setEditWhatsappNumber(profile.whatsappNumber || "");
-    }
-  }, [profile]);
-
-  const handleSaveProfile = async () => {
-    if (!user?.id) {
-      showAlert("Error", "Sesi login tidak ditemukan.");
-      return;
-    }
-    setIsSavingProfile(true);
-    try {
-      updateBusinessProfile(editBusinessName, editWhatsappNumber);
-      await updateProfileMutation.mutateAsync({
-        businessName: editBusinessName,
-        whatsappNumber: editWhatsappNumber,
-        email: user.email || ""
-      });
-      showAlert("Berhasil", "Profil bisnis & nomor WhatsApp telah disimpan.");
-    } catch (err: any) {
-      showAlert("Error", "Gagal menyimpan profil: " + (err?.message || err));
-    } finally {
-      setIsSavingProfile(false);
-    }
-  };
 
   const [showOtaDetails, setShowOtaDetails] = useState(false);
   const [pushToken, setPushToken] = useState<string | null>(null);
@@ -296,42 +266,7 @@ export default function SettingsScreen() {
 
       <ScrollView contentContainerStyle={{ padding: 24 }}>
 
-        <Text className="text-text-hint font-bold uppercase text-xs mb-4">Profil & Informasi Bisnis</Text>
-        <Card className="p-4 mb-8">
-          {!editWhatsappNumber && (
-            <View className="bg-amber-50 border border-amber-200 p-3.5 rounded-xl mb-4 flex-row items-start">
-              <Text className="text-amber-700 text-xs leading-4 flex-1">
-                ⚠️ <Text className="font-bold">Penting!</Text> Nomor WhatsApp Bisnis belum diatur. Klien tidak akan bisa mengirimkan bukti booking ke WhatsApp Anda. Harap lengkapi di bawah ini.
-              </Text>
-            </View>
-          )}
 
-          <View className="mb-4">
-            <Input 
-              label="Nama Bisnis / Brand MUA" 
-              value={editBusinessName} 
-              onChangeText={setEditBusinessName}
-              placeholder="Contoh: Anastasia Makeup Artist"
-            />
-          </View>
-          <View className="mb-6">
-            <Input 
-              label="Nomor WhatsApp Bisnis" 
-              value={editWhatsappNumber} 
-              onChangeText={setEditWhatsappNumber}
-              placeholder="Contoh: 0812xxxxxx"
-              keyboardType="phone-pad"
-            />
-          </View>
-          <Button 
-            label={isSavingProfile ? "Menyimpan..." : "Simpan Profil Bisnis"} 
-            onPress={handleSaveProfile}
-            disabled={isSavingProfile}
-            variant="primary"
-            className="h-12 rounded-xl bg-primary"
-            textClassName="text-white font-bold"
-          />
-        </Card>
 
         <Text className="text-text-hint font-bold uppercase text-xs mb-4">Fitur Modul</Text>
         
