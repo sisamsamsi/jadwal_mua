@@ -41,7 +41,7 @@ export function useProfile() {
             subscriptionEndsAt: remoteProfile.subscription_ends_at,
           };
 
-          profileRepository.update(userId, mappedProfile).catch(() => {/* Abaikan error SQLite saat update cache */});
+          profileRepository.update(userId, mappedProfile, true).catch(() => {/* Abaikan error SQLite saat update cache */});
           
           // Backward compatibility check untuk Zustand store
           const status = mappedProfile.subscriptionStatus ?? "trial";

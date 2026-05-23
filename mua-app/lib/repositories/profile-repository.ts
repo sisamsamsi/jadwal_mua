@@ -9,7 +9,7 @@ export const profileRepository = {
     return result[0] || null;
   },
 
-  async update(id: string, updates: any) {
+  async update(id: string, updates: any, skipSync = false) {
     const now = new Date().toISOString();
     
     // Check if profile exists
@@ -37,7 +37,7 @@ export const profileRepository = {
       await db.insert(profiles).values(data);
     }
 
-    // Background sync to Supabase
+    // Sync to Supabase
     const syncToSupabase = async () => {
       try {
         // Map camelCase to snake_case for Supabase
@@ -60,15 +60,6 @@ export const profileRepository = {
         if (updates.trialEndsAt) supabaseUpdates.trial_ends_at = updates.trialEndsAt;
         if (updates.subscriptionEndsAt) supabaseUpdates.subscription_ends_at = updates.subscriptionEndsAt;
         
-        // Handle any other fields that might be passed directly in snake_case or already mapped
-        // This is a safety measure
-        Object.keys(updates).forEach(key => {
-          if (!key.includes('_') && !supabaseUpdates[key] && !['fullName', 'businessName', 'profilePhotoUrl', 'instagramHandle', 'whatsappNumber', 'fcmToken', 'subscriptionStatus', 'trialEndsAt', 'subscriptionEndsAt'].includes(key)) {
-            // If it's camelCase and not in our manual map, we could auto-convert, 
-            // but let's stick to the manual map for now to be safe.
-          }
-        });
-
         const { error } = await supabase.from("profiles").upsert({
           id,
           ...supabaseUpdates,
@@ -83,7 +74,12 @@ export const profileRepository = {
       }
     };
     
-    syncToSupabase();
+    if (!skipSync) {
+      await syncToSupabase();
+    } else {
+      // Set to synced if we are explicitly skipping sync (meaning we just pulled it from Supabase)
+      await db.update(profiles).set({ isSynced: true }).where(eq(profiles.id, id)).catch(() => {});
+    }
 
     return { id, ...updates };
   }
