@@ -68,9 +68,13 @@ export const profileRepository = {
         
         if (!error) {
           await db.update(profiles).set({ isSynced: true }).where(eq(profiles.id, id));
+        } else {
+          console.error("Supabase profiles upsert failed:", error);
+          throw new Error(`Supabase error: ${error.message} (${error.code})`);
         }
       } catch (err) {
         console.error("Profile sync error:", err);
+        throw err;
       }
     };
     

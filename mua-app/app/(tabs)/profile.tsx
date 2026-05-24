@@ -52,6 +52,10 @@ export default function ProfileScreen() {
   const [editWhatsappNumber, setEditWhatsappNumber] = React.useState("");
   const [isSavingProfile, setIsSavingProfile] = React.useState(false);
 
+  React.useEffect(() => {
+    console.log("DEBUG: profile data =", JSON.stringify(profile));
+  }, [profile]);
+
   const handleOpenEditModal = () => {
     setEditFullName(profile?.fullName || displayName);
     setEditBusinessName(profile?.businessName || businessName || "");
