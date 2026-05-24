@@ -120,6 +120,7 @@ export default function ProfileScreen() {
   };
 
   const handlePickImage = async () => {
+    Alert.alert("Debug [1/4]", "Membuka galeri foto...");
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
@@ -128,7 +129,10 @@ export default function ProfileScreen() {
     });
 
     if (!result.canceled) {
+      Alert.alert("Debug [2/4]", "Foto terpilih, memulai upload...");
       uploadPhoto(result.assets[0].uri);
+    } else {
+      Alert.alert("Debug", "Pemilihan foto dibatalkan.");
     }
   };
 
@@ -136,8 +140,10 @@ export default function ProfileScreen() {
     setUploading(true);
     try {
       const fileName = `${session?.user?.id}/${Date.now()}.jpg`;
+      Alert.alert("Debug [3/4]", "Mengunggah file ke Supabase Storage...");
       const publicUrl = await storageService.uploadFile(Buckets.profilePhotos, fileName, uri);
       
+      Alert.alert("Debug [4/4]", "Menyinkronkan URL ke database: " + publicUrl);
       await updateProfileMutation.mutateAsync({
         profilePhotoUrl: publicUrl,
         email: session?.user?.email || ""
