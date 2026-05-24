@@ -60,6 +60,8 @@ export const profileRepository = {
         if (updates.trialEndsAt) supabaseUpdates.trial_ends_at = updates.trialEndsAt;
         if (updates.subscriptionEndsAt) supabaseUpdates.subscription_ends_at = updates.subscriptionEndsAt;
         
+        console.log("DEBUG: syncToSupabase starting with id =", id, "updates =", JSON.stringify(updates), "supabaseUpdates =", JSON.stringify(supabaseUpdates));
+        
         const { error } = await supabase.from("profiles").upsert({
           id,
           ...supabaseUpdates,
@@ -67,9 +69,10 @@ export const profileRepository = {
         });
         
         if (!error) {
+          console.log("DEBUG: syncToSupabase succeeded!");
           await db.update(profiles).set({ isSynced: true }).where(eq(profiles.id, id));
         } else {
-          console.error("Supabase profiles upsert failed:", error);
+          console.error("DEBUG: syncToSupabase failed with error =", JSON.stringify(error));
           throw new Error(`Supabase error: ${error.message} (${error.code})`);
         }
       } catch (err) {
