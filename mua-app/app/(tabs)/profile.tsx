@@ -150,9 +150,10 @@ export default function ProfileScreen() {
       });
       
       showAlert("Upload Berhasil", "Foto profil Anda telah diperbarui dengan sukses.");
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      showAlert("Error", "Gagal mengunggah foto profil. Silakan coba lagi.");
+      const msg = error?.message || error?.details || JSON.stringify(error) || "Unknown error";
+      Alert.alert("ERROR DETAIL", "Pesan error aslinya:\n\n" + msg);
     } finally {
       setUploading(false);
     }
