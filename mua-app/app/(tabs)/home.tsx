@@ -32,6 +32,15 @@ export default function DashboardScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [activeFilter, setActiveFilter] = useState('all');
+  const [stablePhotoUri, setStablePhotoUri] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (profile?.profilePhotoUrl) {
+      setStablePhotoUri(`${profile.profilePhotoUrl}?t=${Date.now()}`);
+    } else {
+      setStablePhotoUri(null);
+    }
+  }, [profile?.profilePhotoUrl]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -88,10 +97,10 @@ export default function DashboardScreen() {
               onPress={() => router.push("/(tabs)/profile")}
               className="w-14 h-14 rounded-full bg-white items-center justify-center shadow-sm border border-divider overflow-hidden"
             >
-              {profile?.profilePhotoUrl ? (
+               {stablePhotoUri ? (
                 <Image 
-                  source={{ uri: `${profile.profilePhotoUrl}?t=${new Date().getTime()}` }} 
-                  className="w-full h-full"
+                  source={{ uri: stablePhotoUri }} 
+                  style={{ width: "100%", height: "100%" }}
                   resizeMode="cover"
                 />
               ) : (

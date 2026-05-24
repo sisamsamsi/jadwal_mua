@@ -52,6 +52,16 @@ export default function ProfileScreen() {
   const [editWhatsappNumber, setEditWhatsappNumber] = React.useState("");
   const [isSavingProfile, setIsSavingProfile] = React.useState(false);
 
+  const [stablePhotoUri, setStablePhotoUri] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (profile?.profilePhotoUrl) {
+      setStablePhotoUri(`${profile.profilePhotoUrl}?t=${Date.now()}`);
+    } else {
+      setStablePhotoUri(null);
+    }
+  }, [profile?.profilePhotoUrl]);
+
   React.useEffect(() => {
     console.log("DEBUG: profile data =", JSON.stringify(profile));
   }, [profile]);
@@ -159,10 +169,10 @@ export default function ProfileScreen() {
         <View className="items-center mb-10">
           <TouchableOpacity onPress={handlePickImage} disabled={uploading} className="relative">
             <View className="w-32 h-32 rounded-full bg-primary-light/30 border-4 border-surface items-center justify-center overflow-hidden">
-              {profile?.profilePhotoUrl ? (
+              {stablePhotoUri ? (
                 <Image 
-                  source={{ uri: `${profile.profilePhotoUrl}?t=${new Date().getTime()}` }} 
-                  className="w-full h-full"
+                  source={{ uri: stablePhotoUri }} 
+                  style={{ width: "100%", height: "100%" }}
                   resizeMode="cover"
                 />
               ) : (
@@ -313,7 +323,7 @@ export default function ProfileScreen() {
         onRequestClose={() => setIsEditModalVisible(false)}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
           className="flex-1 justify-center items-center bg-black/60 p-6"
         >
           <View className="bg-surface rounded-[28px] p-6 shadow-2xl border border-divider w-full max-h-[85%]">

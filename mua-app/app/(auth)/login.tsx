@@ -17,12 +17,18 @@ WebBrowser.maybeCompleteAuthSession();
 
 
 export default function Login() {
-  const { control, handleSubmit } = useForm({ defaultValues: { email: "", password: "" } });
+  const { control, handleSubmit, formState: { errors } } = useForm({ defaultValues: { email: "", password: "" } });
   const setSession = useAuthStore((s) => s.setSession);
   const router = useRouter();
   const [showPassword, setShowPassword] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
   const [oauthLoading, setOauthLoading] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      console.log("DEBUG: useForm validation errors =", JSON.stringify(errors));
+    }
+  }, [errors]);
 
   const handleOAuth = async (provider: 'google') => {
     setOauthLoading(provider);
@@ -72,18 +78,22 @@ export default function Login() {
 
 
   async function onSubmit(data: any) {
+    console.log("DEBUG: onSubmit called with email =", data.email);
     setIsLoading(true);
     try {
       const res = await authService.signIn(data.email, data.password);
+      console.log("DEBUG: signIn success, res.session =", !!res?.session);
       if (res?.session) {
         setSession(res.session);
         // Redirect dihandle oleh _layout.tsx via onAuthStateChange
         // Tidak perlu router.replace di sini — mencegah triple redirect race condition
+      } else {
+        console.log("DEBUG: signIn success but no session returned");
       }
     } catch (e: any) {
+      console.error("DEBUG: signIn failed with error =", e);
       showAlert("Login Gagal", e.message ?? String(e));
     } finally {
-
       setIsLoading(false);
     }
   }
@@ -96,7 +106,7 @@ export default function Login() {
   return (
     <SafeAreaView className="flex-1 bg-background">
       <KeyboardAvoidingView 
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={{ flex: 1 }}
       >
         <ScrollView 
@@ -161,7 +171,10 @@ export default function Login() {
           <View className="mt-10">
             <Button 
               label="Masuk Ke Aplikasi" 
-              onPress={handleSubmit(onSubmit)} 
+              onPress={() => {
+                console.log("DEBUG: Masuk Ke Aplikasi button pressed!");
+                handleSubmit(onSubmit)();
+              }} 
               loading={isLoading}
               className="h-14 rounded-2xl"
             />
