@@ -62,11 +62,10 @@ export const profileRepository = {
         
         console.log("DEBUG: syncToSupabase starting with id =", id, "updates =", JSON.stringify(updates), "supabaseUpdates =", JSON.stringify(supabaseUpdates));
         
-        const { error } = await supabase.from("profiles").upsert({
-          id,
+        const { error } = await supabase.from("profiles").update({
           ...supabaseUpdates,
           updated_at: new Date().toISOString()
-        });
+        }).eq("id", id);
         
         if (!error) {
           console.log("DEBUG: syncToSupabase succeeded!");
